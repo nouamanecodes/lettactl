@@ -1,22 +1,82 @@
-# lettactl
+# LettaCTL
+
+[![CI](https://github.com/letta-ai/lettactl/actions/workflows/ci.yml/badge.svg)](https://github.com/letta-ai/lettactl/actions)
+[![npm version](https://badge.fury.io/js/lettactl.svg)](https://badge.fury.io/js/lettactl)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=flat&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 
 A kubectl-style CLI for managing stateful Letta AI agent fleets with declarative configuration. Think "Docker Compose" but for AI agents - define your entire agent setup in YAML and deploy with one command.
 
-## Quick Start
+## Features
 
-### Installation
+- 🚀 **Declarative Configuration** - Define agents in YAML, deploy with one command
+- 🔄 **Smart Versioning** - Automatic versioning when content changes
+- 🧠 **Fleet Management** - Deploy and manage multiple related agents together
+- 💬 **Message Operations** - Send messages, stream responses, manage conversations
+- 📦 **Resource Sharing** - Share memory blocks and tools across agents
+- 🔧 **Tool Discovery** - Auto-discover custom Python tools
+- ✅ **Comprehensive Testing** - 62+ tests with full TypeScript coverage
+
+## Installation & Setup
+
+### Prerequisites
+- Node.js 16+ 
+- pnpm or npm
+- A running Letta server instance
+
+### Install and Build
 
 ```bash
+# Clone the repository
+git clone <repository-url>
+cd lettactl
+
 # Install dependencies
 pnpm install
+# or: npm install
 
 # Build the CLI
 pnpm build
+# or: npm run build
 
 # Set up your environment
 export LETTA_API_URL=http://localhost:8283  # For self-hosting
 export LETTA_API_KEY=your_api_key           # Only needed for Letta Cloud
 ```
+
+### Running Commands
+
+Once built, you can run lettactl in several ways:
+
+```bash
+# Using npm/pnpm scripts (recommended for development):
+pnpm start -- get agents
+npm start -- get agents
+
+# Using the built binary directly:
+node dist/index.js get agents
+./dist/index.js get agents  # if executable
+
+# Development mode (with TypeScript):
+pnpm dev get agents
+npm run dev get agents
+```
+
+### Testing
+
+Run the comprehensive test suite:
+
+```bash
+pnpm test
+# or: npm test
+```
+
+**Test Coverage**: 8 test suites with 62+ tests covering:
+- Agent management and versioning
+- Block management and content hashing  
+- Fleet parsing and YAML configuration
+- Message handling and streaming
+- Utility functions and error handling
 
 ### Try the Complete Example
 
