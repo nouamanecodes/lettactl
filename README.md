@@ -20,7 +20,7 @@ A kubectl-style CLI for managing stateful Letta AI agent fleets with declarative
 ## Installation & Setup
 
 ### Prerequisites
-- Node.js 16+ 
+- Node.js 22+ 
 - pnpm or npm
 - A running Letta server instance
 
