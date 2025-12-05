@@ -37,5 +37,8 @@ export function createSpinner(text: string, enabled: boolean = true): SpinnerInt
 
 export function getSpinnerEnabled(command: any): boolean {
   // Check for --no-spinner flag at the parent level
-  return !(command.parent?.opts().noSpinner || command.opts().noSpinner);
+  // Handle cases where opts() might not be available (like in tests)
+  const parentOpts = command?.parent?.opts?.() || {};
+  const commandOpts = command?.opts?.() || {};
+  return !(parentOpts.noSpinner || commandOpts.noSpinner);
 }
