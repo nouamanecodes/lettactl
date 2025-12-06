@@ -31,7 +31,12 @@ export class StorageErrorHandler {
     switch (status) {
       case 400:
         if (provider.toLowerCase() === 'supabase') {
-          errorMessage += `: Bad request - this could be: 1) bucket '${bucket}' doesn't exist, 2) bucket is private (needs RLS policy or make bucket public), 3) wrong RLS policy configuration, 4) invalid file path '${filePath}', 5) malformed request, or 6) something else (Supabase error messages aren't clear here). Check: bucket exists, is public or has proper RLS, and file path is correct.`;
+          // Check if error indicates bucket doesn't exist
+          if (error.message && (error.message.includes('bucket') || error.message.includes('not found'))) {
+            errorMessage += `: Bucket '${bucket}' not found. Check: 1) bucket name is spelled correctly, 2) bucket exists in your Supabase project, 3) you're connected to the right project.`;
+          } else {
+            errorMessage += `: Bad request - this could be: 1) bucket '${bucket}' doesn't exist, 2) bucket is private (needs RLS policy or make bucket public), 3) wrong RLS policy configuration, 4) invalid file path '${filePath}', 5) malformed request, or 6) something else (Supabase error messages aren't clear here). Check: bucket exists, is public or has proper RLS, and file path is correct.`;
+          }
         } else {
           errorMessage += `: Bad request - this could be: 1) bucket '${bucket}' doesn't exist, 2) invalid file path '${filePath}', or 3) malformed request. Check bucket exists and path is correct.`;
         }
@@ -91,14 +96,24 @@ export class StorageErrorHandler {
    * Handle Supabase-specific error patterns
    */
   private static handleSupabaseError(error: any, context: StorageErrorContext): never {
-    // Handle StorageUnknownError with empty originalError (likely auth issue)
-    if (error.__isStorageError && error.name === 'StorageUnknownError' && 
-        (!error.originalError || Object.keys(error.originalError).length === 0)) {
-      throw new Error(
-        `Failed to ${context.operation} ${context.bucket}/${context.filePath} (supabase): ` +
-        'Authentication error. Please check your SUPABASE_ANON_KEY is correct and not expired. ' +
-        'Get a new one from Supabase Dashboard > Settings > API.'
-      );
+    
+    // Handle StorageUnknownError - check status to differentiate bucket vs auth issues
+    if (error.__isStorageError && error.name === 'StorageUnknownError') {
+      const status = error.originalError?.status;
+      
+      if (status === 400) {
+        throw new Error(
+          `Failed to ${context.operation} ${context.bucket}/${context.filePath} (supabase): ` +
+          `Bucket '${context.bucket}' doesn't exist. Check: 1) bucket name is spelled correctly, ` +
+          `2) bucket exists in your Supabase project, 3) you're connected to the right project.`
+        );
+      } else if (!error.originalError || Object.keys(error.originalError).length === 0) {
+        throw new Error(
+          `Failed to ${context.operation} ${context.bucket}/${context.filePath} (supabase): ` +
+          'Authentication error. Please check your SUPABASE_ANON_KEY is correct and not expired. ' +
+          'Get a new one from Supabase Dashboard > Settings > API.'
+        );
+      }
     }
     
     // Handle Supabase StorageError with originalError
@@ -112,8 +127,12 @@ export class StorageErrorHandler {
         context.operation = 'download';
         return this.handleHttpError(error, context, 404);
       }
-      if (error.message.includes('Bucket not found')) {
-        return this.handleHttpError(error, context, 400);
+      if (error.message.includes('Bucket not found') || error.message.includes('The resource you requested could not be found')) {
+        throw new Error(
+          `Failed to ${context.operation} ${context.bucket}/${context.filePath} (supabase): ` +
+          `Bucket '${context.bucket}' doesn't exist. Check: 1) bucket name is spelled correctly, ` +
+          `2) bucket exists in your Supabase project, 3) you're connected to the right project.`
+        );
       }
     }
     
