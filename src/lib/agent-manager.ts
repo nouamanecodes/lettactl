@@ -140,7 +140,7 @@ export class AgentManager {
         name: block.name,
         description: block.description,
         limit: block.limit,
-        contentHash: config.memoryBlockFileHashes?.[block.name] || this.generateContentHash(block.value)
+        contentHash: config.memoryBlockFileHashes?.[block.name] || this.generateContentHash(block.value || '')
       }))
       .sort((a, b) => a.name.localeCompare(b.name));
     const memoryBlocksHash = this.generateContentHash(JSON.stringify(normalizedMemoryBlocks));
