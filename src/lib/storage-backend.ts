@@ -102,6 +102,8 @@ export class SupabaseStorageBackend {
   private supabase: any
 
   constructor() {
+    this.validateEnvironment();
+    
     // Use generic environment variables for standalone library
     this.supabase = createClient(
       process.env.SUPABASE_URL!,
@@ -110,6 +112,46 @@ export class SupabaseStorageBackend {
         auth: { persistSession: false }
       }
     )
+  }
+  
+  private validateEnvironment(): void {
+    const requiredVars = ['SUPABASE_URL', 'SUPABASE_ANON_KEY'];
+    const missing: string[] = [];
+    
+    for (const envVar of requiredVars) {
+      if (!process.env[envVar]) {
+        missing.push(envVar);
+      }
+    }
+    
+    if (missing.length > 0) {
+      throw new Error(
+        `Missing required environment variables for Supabase: ${missing.join(', ')}\n\n` +
+        'Set them with:\n' +
+        missing.map(v => `export ${v}=<your_value>`).join('\n') +
+        '\n\nOr add them to your .env file.'
+      );
+    }
+    
+    // Validate URL format
+    const url = process.env.SUPABASE_URL!;
+    try {
+      const parsed = new URL(url);
+      if (!parsed.protocol.startsWith('https')) {
+        throw new Error(`SUPABASE_URL must use HTTPS protocol, got: ${parsed.protocol}`);
+      }
+      if (!url.includes('supabase.co') && !url.includes('localhost')) {
+        console.warn(`Warning: SUPABASE_URL doesn't appear to be a standard Supabase URL: ${url}`);
+      }
+    } catch (error) {
+      if (error instanceof Error && error.message.includes('HTTPS')) {
+        throw error; // Re-throw HTTPS-specific error
+      }
+      throw new Error(
+        `Invalid SUPABASE_URL format: ${url}\n` +
+        'Expected format: https://your-project.supabase.co'
+      );
+    }
   }
 
   async readFromBucket(bucket: string, filePath: string): Promise<string> {

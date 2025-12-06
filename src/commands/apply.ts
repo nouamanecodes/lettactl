@@ -25,12 +25,17 @@ export async function applyCommand(options: { file: string; agent?: string; dryR
     }
 
     // Initialize Supabase backend if environment variables are available
-    const supabaseBackend = process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY 
-      ? new SupabaseStorageBackend() 
-      : undefined;
-      
-    if (supabaseBackend) {
-      console.log('Supabase backend configured for cloud storage access');
+    let supabaseBackend: SupabaseStorageBackend | undefined;
+    
+    try {
+      if (process.env.SUPABASE_URL || process.env.SUPABASE_ANON_KEY) {
+        // If any Supabase env vars are set, validate all are present
+        supabaseBackend = new SupabaseStorageBackend();
+        console.log('Supabase backend configured for cloud storage access');
+      }
+    } catch (error: any) {
+      console.error(`Supabase configuration error: ${error.message}`);
+      process.exit(1);
     }
 
     const parser = new FleetParser(options.file, { supabaseBackend });
