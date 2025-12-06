@@ -584,6 +584,14 @@ agents:
           path: knowledge/company-info.md
 ```
 
+**File Processing:**
+
+lettactl uses efficient metadata checking for cloud storage files:
+- Reads file metadata (size, etc.) before downloading to detect issues early
+- Warns about very small files (≤40 bytes) that may be effectively empty
+- Warns about very large files (>50MB) that may cause memory or timeout issues  
+- Only downloads file content when metadata checks pass
+
 ### Update Workflows
 
 ```bash

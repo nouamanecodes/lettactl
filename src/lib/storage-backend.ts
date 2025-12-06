@@ -225,10 +225,17 @@ export class SupabaseStorageBackend {
       
       if (!listError && listData) {
         const fileInfo = listData.find((f: any) => f.name === fileName);
-        if (fileInfo && fileInfo.metadata?.size <= 40) {
-          console.warn(
-            `Warning: File '${filePath}' in bucket '${bucket}' is very small (${fileInfo.metadata?.size || 'unknown'} bytes). Check file has meaningful content.`
-          );
+        if (fileInfo && fileInfo.metadata?.size) {
+          const size = fileInfo.metadata.size;
+          if (size <= 40) {
+            console.warn(
+              `Warning: File '${filePath}' in bucket '${bucket}' is very small (${size} bytes). Check file has meaningful content.`
+            );
+          } else if (size > 50 * 1024 * 1024) { // 50MB
+            console.warn(
+              `Warning: File '${filePath}' in bucket '${bucket}' is very large (${Math.round(size / 1024 / 1024 * 100) / 100}MB). This may cause memory issues or timeouts.`
+            );
+          }
         }
       }
       
