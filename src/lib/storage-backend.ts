@@ -95,6 +95,24 @@ export class StorageBackendManager {
         '  path: file.md'
       );
     }
+    
+    // Check for empty/null values
+    const emptyFields = requiredFields.filter(field => {
+      const value = config[field];
+      return value === null || value === undefined || value === '' || (typeof value === 'string' && value.trim() === '');
+    });
+    
+    if (emptyFields.length > 0) {
+      throw new Error(
+        `Empty values not allowed in from_bucket config: ${emptyFields.join(', ')}\n` +
+        'All fields must have non-empty values.\n' +
+        'Example:\n' +
+        'from_bucket:\n' +
+        '  provider: supabase\n' +
+        '  bucket: my-bucket\n' +
+        '  path: file.md'
+      );
+    }
   }
 }
 
