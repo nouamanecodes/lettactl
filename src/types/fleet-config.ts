@@ -16,11 +16,11 @@ export interface AgentConfig {
   name: string;
   description: string;
   system_prompt: PromptConfig;
-  tools: string[];
+  llm_config: LLMConfig;
+  tools?: string[];
   shared_blocks?: string[];
   memory_blocks?: MemoryBlock[];
   folders?: FolderConfig[];
-  llm_config?: LLMConfig;
   embedding?: string;
 }
 

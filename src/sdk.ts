@@ -1,0 +1,119 @@
+import { FleetParser } from './lib/fleet-parser';
+import { SupabaseStorageBackend } from './lib/storage-backend';
+import { FleetConfig, AgentConfig } from './types/fleet-config';
+import { FleetConfigValidator } from './lib/config-validators';
+import { applyCommand } from './commands/apply';
+import * as yaml from 'js-yaml';
+import * as fs from 'fs';
+import * as path from 'path';
+import * as os from 'os';
+
+export interface LettaCtlOptions {
+  lettaApiUrl?: string;
+  lettaApiKey?: string;
+  supabaseUrl?: string;
+  supabaseAnonKey?: string;
+}
+
+export class LettaCtl {
+  private supabaseBackend?: SupabaseStorageBackend;
+
+  constructor(options: LettaCtlOptions = {}) {
+    if (options.lettaApiUrl) process.env.LETTA_API_URL = options.lettaApiUrl;
+    if (options.lettaApiKey) process.env.LETTA_API_KEY = options.lettaApiKey;
+    if (options.supabaseUrl) process.env.SUPABASE_URL = options.supabaseUrl;
+    if (options.supabaseAnonKey) process.env.SUPABASE_ANON_KEY = options.supabaseAnonKey;
+
+    if (options.supabaseUrl && options.supabaseAnonKey) {
+      this.supabaseBackend = new SupabaseStorageBackend();
+    }
+  }
+
+  async deployFleet(config: FleetConfig, options?: { dryRun?: boolean; agentPattern?: string }): Promise<void> {
+    FleetConfigValidator.validate(config);
+
+    const tempDir = path.join(os.tmpdir(), `lettactl-${Date.now()}`);
+    const tempFile = path.join(tempDir, 'fleet.yaml');
+
+    try {
+      fs.mkdirSync(tempDir, { recursive: true });
+      fs.writeFileSync(tempFile, yaml.dump(config));
+      
+      await applyCommand(
+        {
+          file: tempFile,
+          agent: options?.agentPattern,
+          dryRun: options?.dryRun || false
+        },
+        { 
+          parent: {
+            opts: () => ({ verbose: false })
+          }
+        }
+      );
+    } finally {
+      if (fs.existsSync(tempFile)) {
+        fs.unlinkSync(tempFile);
+      }
+      if (fs.existsSync(tempDir)) {
+        fs.rmdirSync(tempDir);
+      }
+    }
+  }
+
+  async deployFromYaml(yamlPath: string, options?: { dryRun?: boolean; agentPattern?: string }): Promise<void> {
+    await applyCommand(
+      {
+        file: yamlPath,
+        agent: options?.agentPattern,
+        dryRun: options?.dryRun || false
+      },
+      { 
+        parent: {
+          opts: () => ({ verbose: false })
+        }
+      }
+    );
+  }
+
+  async deployFromYamlString(yamlContent: string, options?: { dryRun?: boolean; agentPattern?: string }): Promise<void> {
+    const config = yaml.load(yamlContent) as FleetConfig;
+    await this.deployFleet(config, options);
+  }
+
+  validateFleet(config: FleetConfig): boolean {
+    try {
+      FleetConfigValidator.validate(config);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  createFleetConfig(): FleetConfigBuilder {
+    return new FleetConfigBuilder();
+  }
+}
+
+export class FleetConfigBuilder {
+  private config: FleetConfig = { agents: [] };
+
+  addSharedBlock(block: { name: string; description: string; limit: number; value?: string; from_file?: string; from_bucket?: any }): this {
+    if (!this.config.shared_blocks) {
+      this.config.shared_blocks = [];
+    }
+    this.config.shared_blocks.push(block);
+    return this;
+  }
+
+  addAgent(agent: AgentConfig): this {
+    this.config.agents.push(agent);
+    return this;
+  }
+
+  build(): FleetConfig {
+    return this.config;
+  }
+}
+
+export { FleetConfig, AgentConfig } from './types/fleet-config';

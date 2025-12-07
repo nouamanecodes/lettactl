@@ -1,51 +1,46 @@
-# Example configuration showing filesystem and cloud storage options
-# See example/ directory for more complete examples
+# Fleet configuration demonstrating lettactl's capabilities
+# Two different agent types showing various features
 
 shared_blocks:
   - name: shared_guidelines
-    description: "Shared guidelines for all agents"
+    description: "Shared operational guidelines for all agents"
     limit: 5000
-    value: "These are shared guidelines that apply to all agents in this fleet."
+    from_file: "memory-blocks/shared-guidelines.md"
 
 agents:
-  - name: example-agent
-    description: "Example agent demonstrating lettactl features"
-    system_prompt:
-      value: "You are a helpful AI assistant."
-    tools:
-      - archival_memory_insert
-      - archival_memory_search
-    memory_blocks:
-      - name: example_knowledge
-        description: "Example knowledge from local file"
-        limit: 5000
-        from_file: "memory-blocks/example.md"
+  # 1. Simple agent with files only
+  - name: document-assistant
+    description: "AI assistant for document analysis and processing"
     llm_config:
       model: "google_ai/gemini-2.5-pro"
       context_window: 32000
+    system_prompt:
+      value: "You are a document assistant. Help users analyze, summarize, and understand documents."
+    folders:
+      - name: documents
+        files:
+          - "files/*"
     embedding: "letta/letta-free"
 
-  - name: cloud-agent
-    description: "Example agent using cloud storage"
+  # 2. Cloud-powered agent using Supabase storage  
+  - name: cloud-assistant
+    description: "AI assistant powered by cloud storage"
+    llm_config:
+      model: "google_ai/gemini-2.5-pro"
+      context_window: 32000
     system_prompt:
       from_bucket:
         provider: supabase
-        bucket: my-bucket
+        bucket: test-bucket
         path: prompts/system-prompt.md
-    tools:
-      - archival_memory_insert
-      - archival_memory_search
     shared_blocks:
       - shared_guidelines
     memory_blocks:
       - name: cloud_knowledge
-        description: "Knowledge from cloud storage"
-        limit: 5000
+        description: "Knowledge base from cloud storage"
+        limit: 8000
         from_bucket:
           provider: supabase
-          bucket: my-bucket
+          bucket: test-bucket
           path: knowledge/example.md
-    llm_config:
-      model: "google_ai/gemini-2.5-pro"
-      context_window: 32000
     embedding: "letta/letta-free"

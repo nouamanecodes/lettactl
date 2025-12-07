@@ -32,6 +32,10 @@ export class FleetParser {
     const configContent = fs.readFileSync(configPath, 'utf8');
     const config = yaml.load(configContent) as FleetConfig;
     
+    return await this.resolveConfig(config);
+  }
+
+  async resolveConfig(config: FleetConfig): Promise<FleetConfig> {
     // Validate configuration before processing
     FleetConfigValidator.validate(config);
 

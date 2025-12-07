@@ -161,7 +161,7 @@ export async function applyCommand(options: { file: string; agent?: string; dryR
       console.log(`Processing agent: ${agent.name}`);
       if (verbose) {
         console.log(`  Description: ${agent.description}`);
-        console.log(`  Tools: ${agent.tools.join(', ')}`);
+        console.log(`  Tools: ${agent.tools?.join(', ') || 'none'}`);
         console.log(`  Memory blocks: ${agent.memory_blocks?.length || 0}`);
         console.log(`  Folders: ${agent.folders?.length || 0}`);
       }
