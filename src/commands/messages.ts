@@ -3,6 +3,7 @@ import { AgentResolver } from '../lib/agent-resolver';
 import { normalizeResponse } from '../lib/response-normalizer';
 import { OutputFormatter } from '../lib/output-formatter';
 import { createSpinner, getSpinnerEnabled } from '../lib/spinner';
+import { sendMessageToAgent } from '../lib/message-sender';
 
 // Helper function to safely extract content from different message types
 function getMessageContent(message: any): string | null {
@@ -124,23 +125,17 @@ export async function sendMessageCommand(
       console.log(`Options: ${JSON.stringify(options, null, 2)}`);
     }
 
-    const params: any = {
-      messages: [
-        {
-          role: 'user',
-          content: message
-        }
-      ]
-    };
+    // Use the modular message sender
+    const result = await sendMessageToAgent(client, agent.id, message, options);
+    
+    if (!result.success) {
+      throw new Error(result.error);
+    }
 
-    if (options.maxSteps) params.max_steps = options.maxSteps;
-    if (options.enableThinking) params.enable_thinking = options.enableThinking;
-
-    let response;
+    const response = result.response;
 
     if (options.async) {
       // Async message
-      response = await client.createAsyncMessage(agent.id, params);
       console.log(`Message sent asynchronously. Run ID: ${response.id}`);
       console.log(`Status: ${response.status}`);
       if (verbose) {
@@ -150,8 +145,6 @@ export async function sendMessageCommand(
       // Streaming message
       console.log(`Streaming response from ${agent.name}:`);
       console.log('---');
-      
-      response = await client.streamMessage(agent.id, { ...params, streaming: true });
       
       // Handle streaming response 
       try {
@@ -185,7 +178,6 @@ export async function sendMessageCommand(
       const spinner = createSpinner(`Sending message to ${agent.name}...`, spinnerEnabled).start();
       
       try {
-        response = await client.createMessage(agent.id, params);
         spinner.succeed(`Response from ${agent.name}:`);
       } catch (error) {
         spinner.fail(`Failed to send message to ${agent.name}`);

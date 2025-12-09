@@ -340,8 +340,25 @@ export class ToolsValidator {
     }
     
     tools.forEach((tool, index) => {
-      if (!tool || typeof tool !== 'string' || tool.trim() === '') {
-        throw new Error(`Tool ${index + 1} must be a non-empty string (tool name).`);
+      if (!tool) {
+        throw new Error(`Tool ${index + 1} cannot be null or undefined.`);
+      }
+      
+      if (typeof tool === 'string') {
+        if (tool.trim() === '') {
+          throw new Error(`Tool ${index + 1} must be a non-empty string (tool name).`);
+        }
+      } else if (typeof tool === 'object') {
+        // Tool configuration object with bucket source
+        if (!tool.name || typeof tool.name !== 'string' || tool.name.trim() === '') {
+          throw new Error(`Tool ${index + 1} object must have a non-empty 'name' property.`);
+        }
+        
+        if (tool.from_bucket) {
+          BucketConfigValidator.validate(tool.from_bucket);
+        }
+      } else {
+        throw new Error(`Tool ${index + 1} must be a string (tool name) or object (tool configuration).`);
       }
     });
   }

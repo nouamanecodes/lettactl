@@ -1,4 +1,5 @@
 import LettaClient from '@letta-ai/letta-client';
+import { sendMessageToAgent, MessageOptions } from './message-sender';
 
 export class LettaClientWrapper {
   private client: LettaClient;
@@ -257,5 +258,10 @@ export class LettaClientWrapper {
       
       return await this.uploadFileToFolder(stream, folderId, fileName);
     }
+  }
+
+  // Convenient wrapper using the modular message sender
+  async sendMessage(agentId: string, message: string, options?: MessageOptions) {
+    return await sendMessageToAgent(this, agentId, message, options);
   }
 }
