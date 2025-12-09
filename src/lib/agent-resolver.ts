@@ -26,6 +26,37 @@ export class AgentResolver {
   }
 
   async getAgentWithDetails(agentId: string): Promise<any> {
-    return await this.client.getAgent(agentId);
+    // Get basic agent info
+    const agent = await this.client.getAgent(agentId);
+    const agentWithDetails = agent as any;
+    
+    // Fetch attached tools
+    try {
+      const tools = await this.client.listAgentTools(agentId);
+      agentWithDetails.tools = Array.isArray(tools) ? tools : (tools?.items || []);
+    } catch (error) {
+      console.warn(`Warning: Could not fetch tools for agent ${agentId}`);
+      agentWithDetails.tools = [];
+    }
+    
+    // Fetch attached memory blocks
+    try {
+      const blocks = await this.client.listAgentBlocks(agentId);
+      agentWithDetails.blocks = Array.isArray(blocks) ? blocks : (blocks?.items || []);
+    } catch (error) {
+      console.warn(`Warning: Could not fetch blocks for agent ${agentId}`);
+      agentWithDetails.blocks = [];
+    }
+    
+    // Fetch attached folders
+    try {
+      const folders = await this.client.listAgentFolders(agentId);
+      agentWithDetails.folders = Array.isArray(folders) ? folders : (folders?.items || []);
+    } catch (error) {
+      console.warn(`Warning: Could not fetch folders for agent ${agentId}`);
+      agentWithDetails.folders = [];
+    }
+    
+    return agentWithDetails;
   }
 }
