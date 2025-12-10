@@ -61,12 +61,13 @@ export class LettaCtl {
     }
   }
 
-  async deployFromYaml(yamlPath: string, options?: { dryRun?: boolean; agentPattern?: string }): Promise<void> {
+  async deployFromYaml(yamlPath: string, options?: { dryRun?: boolean; agentPattern?: string; rootPath?: string }): Promise<void> {
     await applyCommand(
       {
         file: yamlPath,
         agent: options?.agentPattern,
-        dryRun: options?.dryRun || false
+        dryRun: options?.dryRun || false,
+        root: options?.rootPath
       },
       { 
         parent: {

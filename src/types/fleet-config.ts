@@ -1,4 +1,5 @@
 export interface FleetConfig {
+  root_path?: string;
   shared_blocks?: SharedBlock[];
   agents: AgentConfig[];
 }

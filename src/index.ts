@@ -53,6 +53,7 @@ program
   .option('-f, --file <path>', 'agent YAML configuration file', 'agents.yml')
   .option('--agent <pattern>', 'deploy only agents matching pattern')
   .option('--dry-run', 'show what would be created without making changes')
+  .option('--root <path>', 'root directory for resolving file paths')
   .action(applyCommand);
 
 // Get command - list/show agents

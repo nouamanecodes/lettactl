@@ -11,7 +11,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 
-export async function applyCommand(options: { file: string; agent?: string; dryRun?: boolean }, command: any) {
+export async function applyCommand(options: { file: string; agent?: string; dryRun?: boolean; root?: string }, command: any) {
   const verbose = command.parent?.opts().verbose || false;
   try {
     console.log(`Applying configuration from ${options.file}`);
@@ -37,7 +37,10 @@ export async function applyCommand(options: { file: string; agent?: string; dryR
       process.exit(1);
     }
 
-    const parser = new FleetParser(options.file, { supabaseBackend });
+    const parser = new FleetParser(options.file, { 
+      supabaseBackend,
+      rootPath: options.root
+    });
     const config = await parser.parseFleetConfig(options.file);
     
     if (verbose) console.log(`Found ${config.agents.length} agents in configuration`);

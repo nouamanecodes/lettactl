@@ -25,6 +25,7 @@ A kubectl-style CLI for managing stateful Letta AI agent fleets with declarative
 - 📦 **Resource Sharing** - Share memory blocks and tools across agents
 - 🗑️ **Bulk Operations** - Pattern-based bulk delete with safety previews and shared resource preservation
 - 🔧 **Tool And Documentation Discovery** - Auto-discover custom Python tools & all documents to be pushed to letta folders
+- 📁 **Configurable Root Directory** - Use `--root` flag to specify custom base directory for file resolution
 - 🛠️ **Programmatic SDK** - Use as a library for building multi-tenant applications
 - ☁️ **Cloud Storage** - Supabase integration for fleet configurations and content
 
@@ -117,6 +118,7 @@ That's it! Your entire fleet is now running with shared resources and cloud stor
 lettactl apply -f agents.yml           # Deploy all agents
 lettactl apply -f agents.yml --agent my-agent  # Deploy specific agent
 lettactl apply -f agents.yml --dry-run # See what would change
+lettactl apply -f agents.yml --root . # Specify root directory for file resolution
 lettactl apply -f agents.yml -v       # Verbose output
 ```
 

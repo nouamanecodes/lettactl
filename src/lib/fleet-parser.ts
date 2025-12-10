@@ -7,6 +7,7 @@ import { FleetConfigValidator } from './config-validators';
 
 export interface FleetParserOptions {
   supabaseBackend?: SupabaseStorageBackend;
+  rootPath?: string;
 }
 
 export class FleetParser {
@@ -15,7 +16,7 @@ export class FleetParser {
   private toolConfigs: Map<string, any> = new Map();
 
   constructor(configPath: string, options: FleetParserOptions = {}) {
-    this.basePath = path.dirname(configPath);
+    this.basePath = options.rootPath || path.dirname(configPath);
     this.storageManager = new StorageBackendManager({ 
       supabaseBackend: options.supabaseBackend 
     });
@@ -32,6 +33,11 @@ export class FleetParser {
 
     const configContent = fs.readFileSync(configPath, 'utf8');
     const config = yaml.load(configContent) as FleetConfig;
+    
+    // If config specifies root_path, update our basePath
+    if (config.root_path) {
+      this.basePath = path.resolve(path.dirname(configPath), config.root_path);
+    }
     
     return await this.resolveConfig(config);
   }
