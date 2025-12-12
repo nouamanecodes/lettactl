@@ -303,7 +303,7 @@ export async function applyCommand(options: { file: string; agent?: string; dryR
 
         // Create agent
         const creationSpinner = createSpinner(`Creating agent ${agentName}...`, getSpinnerEnabled(command)).start();
-        
+
         try {
           // Resolve tool names to IDs
           const toolIds: string[] = [];
@@ -317,16 +317,21 @@ export async function applyCommand(options: { file: string; agent?: string; dryR
               }
             }
           }
-          
+
           const createdAgent = await client.createAgent({
             name: agentName,
             model: agent.llm_config?.model || "google_ai/gemini-2.5-pro",
             embedding: agent.embedding || "letta/letta-free",
             system: agent.system_prompt.value || '',
-            blockIds: blockIds,
-            toolIds: toolIds,
-            contextWindowLimit: agent.llm_config?.context_window || 64000
+            block_ids: blockIds,
+            context_window_limit: agent.llm_config?.context_window || 64000
           });
+
+          // Attach tools after agent creation (same as update path)
+          for (const toolId of toolIds) {
+            if (verbose) console.log(`  Attaching tool: ${toolId}`);
+            await client.attachToolToAgent(createdAgent.id, toolId);
+          }
 
           // Update agent registry with new agent
           agentManager.updateRegistry(agentName, {

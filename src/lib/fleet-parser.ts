@@ -203,7 +203,7 @@ export class FleetParser {
         // Cast to any[] to handle YAML parsing that can contain objects
         const rawTools = agent.tools as any[];
         const expandedTools: string[] = [];
-        
+
         for (const tool of rawTools) {
           if (typeof tool === 'string') {
             if (tool === 'tools/*') {
@@ -238,19 +238,19 @@ export class FleetParser {
   }
 
   async registerRequiredTools(
-    config: FleetConfig, 
-    client: any, 
-    verbose: boolean = false, 
+    config: FleetConfig,
+    client: any,
+    verbose: boolean = false,
     toolSourceHashes: Record<string, string> = {}
   ): Promise<Map<string, string>> {
     const toolNameToId = new Map<string, string>();
-    
+
     // Get existing tools
     const existingTools = await client.listTools();
-    const existingToolsArray = Array.isArray(existingTools) 
-      ? existingTools 
+    const existingToolsArray = Array.isArray(existingTools)
+      ? existingTools
       : ((existingTools as any).items || []);
-    
+
     // Collect all unique tool names from all agents
     const requiredToolNames = new Set<string>();
     if (config.agents) {
@@ -260,10 +260,11 @@ export class FleetParser {
         }
       }
     }
-    
+
     // Register missing tools
     for (const toolName of requiredToolNames) {
       const toolConfig = this.toolConfigs.get(toolName);
+
       // Skip built-in tools
       if (['archival_memory_insert', 'archival_memory_search'].includes(toolName)) {
         const existingTool = existingToolsArray.find((t: any) => t.name === toolName);
@@ -272,22 +273,23 @@ export class FleetParser {
         }
         continue;
       }
-      
+
       // Check if tool already exists
       let tool = existingToolsArray.find((t: any) => t.name === toolName);
-      
+
       if (!tool) {
         // Tool doesn't exist - register it
         try {
           if (verbose) console.log(`Registering tool: ${toolName}`);
-          
+
           const defaultPath = path.join(this.basePath, 'tools', `${toolName}.py`);
+
           const sourceCode = await this.resolveContent(
             typeof toolConfig === 'object' ? toolConfig : {},
             defaultPath,
             `tool: ${toolName}`
           );
-          
+
           tool = await client.createTool({ source_code: sourceCode });
           if (verbose) console.log(`Tool ${toolName} registered`);
         } catch (error: any) {
@@ -297,17 +299,19 @@ export class FleetParser {
       } else {
         // Tool exists - check if source code has changed
         const currentSourceHash = toolSourceHashes[toolName];
+
         if (currentSourceHash) {
           // We have a hash for this tool, meaning source code is being tracked
           if (verbose) console.log(`Re-registering tool due to potential source changes: ${toolName}`);
           try {
             const defaultPath = path.join(this.basePath, 'tools', `${toolName}.py`);
+
             const sourceCode = await this.resolveContent(
               typeof toolConfig === 'object' ? toolConfig : {},
               defaultPath,
               `tool: ${toolName}`
             );
-            
+
             tool = await client.createTool({ source_code: sourceCode });
             if (verbose) console.log(`Tool ${toolName} re-registered`);
           } catch (error: any) {
@@ -318,10 +322,10 @@ export class FleetParser {
           if (verbose) console.log(`Using existing tool: ${toolName}`);
         }
       }
-      
+
       toolNameToId.set(toolName, tool.id);
     }
-    
+
     return toolNameToId;
   }
 }

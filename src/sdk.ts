@@ -37,8 +37,9 @@ export class LettaCtl {
 
     try {
       fs.mkdirSync(tempDir, { recursive: true });
-      fs.writeFileSync(tempFile, yaml.dump(config));
-      
+      const yamlContent = yaml.dump(config);
+      fs.writeFileSync(tempFile, yamlContent);
+
       await applyCommand(
         {
           file: tempFile,
