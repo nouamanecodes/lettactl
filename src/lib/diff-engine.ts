@@ -166,7 +166,8 @@ export class DiffEngine {
         ...(desiredConfig.memoryBlocks || []),
         ...(desiredConfig.sharedBlocks || []).map(name => ({ name, isShared: true }))
       ],
-      desiredConfig.memoryBlockFileHashes || {}
+      desiredConfig.memoryBlockFileHashes || {},
+      existingAgent.name
     );
     operations.operationCount += operations.blocks.toAdd.length + operations.blocks.toRemove.length + operations.blocks.toUpdate.length;
 
@@ -251,15 +252,16 @@ export class DiffEngine {
 
   private async analyzeBlockChanges(
     currentBlocks: any[],
-    desiredBlocks: Array<{ name: string; isShared?: boolean }>,
-    memoryBlockFileHashes: Record<string, string> = {}
+    desiredBlocks: Array<{ name: string; isShared?: boolean; description?: string; limit?: number; value?: string }>,
+    memoryBlockFileHashes: Record<string, string> = {},
+    agentName?: string
   ): Promise<BlockDiff> {
     // Extract base names from versioned labels (e.g., "brand_identity__v__20251210-550e4a42" -> "brand_identity")
     const extractBaseName = (label: string): string => {
       const versionMatch = label.match(/^(.+?)(?:__v__.+)?$/);
       return versionMatch ? versionMatch[1] : label;
     };
-    
+
     const currentBlockNames = new Set(currentBlocks.map(b => extractBaseName(b.label)));
     const desiredBlockNames = new Set(desiredBlocks.map(b => b.name));
 
@@ -271,10 +273,24 @@ export class DiffEngine {
     // Find blocks to add
     for (const blockConfig of desiredBlocks) {
       if (!currentBlockNames.has(blockConfig.name)) {
-        const blockId = blockConfig.isShared 
+        let blockId = blockConfig.isShared
           ? this.blockManager.getSharedBlockId(blockConfig.name)
           : this.blockManager.getAgentBlockId(blockConfig.name);
-        
+
+        // If block doesn't exist yet, create it
+        if (!blockId && !blockConfig.isShared && blockConfig.description && agentName) {
+          console.log(`Creating new memory block: ${blockConfig.name} for agent ${agentName}`);
+          blockId = await this.blockManager.getOrCreateAgentBlock(
+            {
+              name: blockConfig.name,
+              description: blockConfig.description,
+              limit: blockConfig.limit || 2000,
+              value: blockConfig.value || ''
+            },
+            agentName
+          );
+        }
+
         if (blockId) {
           toAdd.push({ name: blockConfig.name, id: blockId });
         }
