@@ -227,9 +227,39 @@ lettactl delete-all agents --pattern "PROD.*" --force   # Matches "prod-agent-1"
 
 ### View Resources
 ```bash
+# List resources
 lettactl get agents                    # List all agents
-lettactl describe agent my-agent       # Detailed agent info
-lettactl messages my-agent            # View conversation history
+lettactl get blocks                    # List all memory blocks
+lettactl get tools                     # List all tools
+lettactl get folders                   # List all folders
+
+# Wide output with extra columns (agent counts, sizes, models)
+lettactl get agents -o wide
+lettactl get blocks -o wide
+lettactl get tools -o wide
+
+# Scoped to specific agent
+lettactl get blocks -a my-agent        # Blocks attached to my-agent
+lettactl get tools -a my-agent         # Tools attached to my-agent
+lettactl get folders -a my-agent       # Folders attached to my-agent
+
+# Fleet analysis
+lettactl get tools --shared            # Tools used by 2+ agents
+lettactl get blocks --orphaned         # Blocks not attached to any agent
+lettactl get folders --shared -o wide  # Shared folders with agent counts
+
+# Detailed resource info
+lettactl describe agent my-agent       # Agent details + blocks/tools/folders
+lettactl describe block persona        # Block details + attached agents + value preview
+lettactl describe tool my-tool         # Tool details + attached agents + source code
+lettactl describe folder docs          # Folder details + files + attached agents
+
+# JSON output for scripting
+lettactl get agents -o json
+lettactl describe tool my-tool -o json
+
+# Conversation history
+lettactl messages my-agent             # View conversation history
 ```
 
 ### Validate Configuration
@@ -721,6 +751,41 @@ Like kubectl, lettactl is completely stateless:
 - Each command is independent and relies on remote APIs (Letta, Supabase)
 - All agent state is managed by the Letta server, not lettactl
 - Consistent behavior across different machines and environments
+
+### Debugging & Fleet Inspection
+
+Comprehensive commands for understanding your agent fleet:
+
+```bash
+# Quick health check
+lettactl get agents                    # Are agents running?
+lettactl get agents -o wide            # Check models, block/tool counts
+
+# Find resource usage across fleet
+lettactl get tools --shared -o wide    # Which tools are reused?
+lettactl get blocks --shared -o wide   # Which blocks are shared?
+lettactl get folders --shared -o wide  # Which folders are shared?
+
+# Find orphaned resources (cleanup candidates)
+lettactl get blocks --orphaned         # Blocks attached to 0 agents
+lettactl get tools --orphaned          # Tools attached to 0 agents
+lettactl get folders --orphaned        # Folders attached to 0 agents
+
+# Inspect specific agent's resources
+lettactl get blocks -a my-agent        # What memory does this agent have?
+lettactl get tools -a my-agent         # What can this agent do?
+lettactl get folders -a my-agent       # What documents can it access?
+
+# Deep inspection
+lettactl describe agent my-agent       # Full agent config + resources
+lettactl describe tool my-tool         # Source code + which agents use it
+lettactl describe block persona        # Value preview + which agents use it
+lettactl describe folder docs          # File list + which agents use it
+
+# Export for analysis
+lettactl get tools --shared -o json | jq '.[] | .name'
+lettactl describe agent my-agent -o json > agent-snapshot.json
+```
 
 ### Troubleshooting
 
