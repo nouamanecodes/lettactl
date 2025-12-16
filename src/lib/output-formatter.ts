@@ -39,6 +39,64 @@ export class OutputFormatter {
   }
 
   /**
+   * Creates a table for block listing
+   */
+  static createBlockTable(blocks: any[]): string {
+    const table = new Table({
+      head: ['NAME', 'ID', 'LIMIT'],
+      colWidths: [35, 40, 10]
+    });
+
+    for (const block of blocks) {
+      table.push([
+        block.label || block.name || 'Unknown',
+        block.id || 'Unknown',
+        block.limit?.toString() || '-'
+      ]);
+    }
+
+    return table.toString();
+  }
+
+  /**
+   * Creates a table for tool listing
+   */
+  static createToolTable(tools: any[]): string {
+    const table = new Table({
+      head: ['NAME', 'ID'],
+      colWidths: [35, 50]
+    });
+
+    for (const tool of tools) {
+      table.push([
+        tool.name || 'Unknown',
+        tool.id || 'Unknown'
+      ]);
+    }
+
+    return table.toString();
+  }
+
+  /**
+   * Creates a table for folder listing
+   */
+  static createFolderTable(folders: any[]): string {
+    const table = new Table({
+      head: ['NAME', 'ID'],
+      colWidths: [35, 50]
+    });
+
+    for (const folder of folders) {
+      table.push([
+        folder.name || 'Unknown',
+        folder.id || 'Unknown'
+      ]);
+    }
+
+    return table.toString();
+  }
+
+  /**
    * Handles JSON output if requested, returns true if handled
    */
   static handleJsonOutput(data: any, format?: string): boolean {

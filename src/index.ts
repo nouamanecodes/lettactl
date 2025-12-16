@@ -56,12 +56,12 @@ program
   .option('--root <path>', 'root directory for resolving file paths')
   .action(applyCommand);
 
-// Get command - list/show agents
+// Get command - list resources
 program
   .command('get')
-  .description('Display agents')
-  .argument('<resource>', 'resource type (agents)')
-  .argument('[name]', 'specific agent name (optional)')
+  .description('Display resources (agents, blocks, tools, folders)')
+  .argument('<resource>', 'resource type (agents|blocks|tools|folders)')
+  .argument('[name]', 'specific resource name (optional)')
   .option('-o, --output <format>', 'output format (table|json|yaml)', 'table')
   .action(getCommand);
 

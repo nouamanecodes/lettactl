@@ -41,12 +41,20 @@ export class LettaClientWrapper {
     return await this.client.blocks.create(blockData);
   }
 
-  async listBlocks() {
-    return await this.client.blocks.list();
+  async listBlocks(options?: { limit?: number }) {
+    const allBlocks: any[] = [];
+    for await (const block of this.client.blocks.list({ limit: options?.limit || 1000 })) {
+      allBlocks.push(block);
+    }
+    return allBlocks;
   }
 
-  async listFolders() {
-    return await this.client.folders.list();
+  async listFolders(options?: { limit?: number }) {
+    const allFolders: any[] = [];
+    for await (const folder of this.client.folders.list({ limit: options?.limit || 1000 })) {
+      allFolders.push(folder);
+    }
+    return allFolders;
   }
 
   async createFolder(folderData: any) {
@@ -82,8 +90,12 @@ export class LettaClientWrapper {
     return await this.client.agents.update(agentId, agentData);
   }
 
-  async listTools() {
-    return await this.client.tools.list();
+  async listTools(options?: { limit?: number }) {
+    const allTools: any[] = [];
+    for await (const tool of this.client.tools.list({ limit: options?.limit || 1000 })) {
+      allTools.push(tool);
+    }
+    return allTools;
   }
 
   async createTool(toolData: any) {
