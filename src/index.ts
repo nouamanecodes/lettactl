@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import { Command } from 'commander';
+import { version } from '../package.json';
 import { applyCommand } from './commands/apply';
 import getCommand from './commands/get';
 import deleteCommand, { deleteAllCommand } from './commands/delete';
@@ -41,7 +42,7 @@ const program = new Command();
 program
   .name('lettactl')
   .description('kubectl-style CLI for managing Letta AI agent fleets')
-  .version('0.1.0')
+  .version(version)
   .option('-v, --verbose', 'enable verbose output')
   .option('--no-spinner', 'disable loading spinners')
   .hook('preAction', validateEnvironment);
