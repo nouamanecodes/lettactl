@@ -183,8 +183,8 @@ export async function applyCommand(options: { file: string; agent?: string; matc
 
     console.log('Apply completed successfully');
 
-  } catch (error) {
-    console.error('Apply failed:', error);
+  } catch (error: any) {
+    console.error('Apply failed:', error.message || error);
     process.exit(1);
   }
 }

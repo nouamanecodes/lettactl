@@ -19,17 +19,23 @@ import {
 } from './commands/messages';
 import { validateCommand } from './commands/validate';
 
+// Global verbose flag for error handling
+let verboseMode = false;
+
 // Validate required environment variables
-function validateEnvironment() {
+function validateEnvironment(this: any) {
+  // Capture verbose flag for global error handler
+  verboseMode = this.opts().verbose || false;
+
   if (!process.env.LETTA_API_URL) {
     console.error('Error: LETTA_API_URL environment variable is required');
     console.error('Set it with: export LETTA_API_URL=http://localhost:8283');
     process.exit(1);
   }
-  
+
   // API key required unless localhost (self-hosting)
   const isLocalhost = process.env.LETTA_API_URL.includes('localhost');
-  
+
   if (!isLocalhost && !process.env.LETTA_API_KEY) {
     console.error(`Error: LETTA_API_KEY is required for Letta Cloud (${process.env.LETTA_API_URL})`);
     console.error('Set it with: export LETTA_API_KEY=your_api_key');
@@ -223,5 +229,15 @@ program
     console.log('Config view command');
     // TODO: Implement config view logic
   });
+
+// Global error handler to prevent stack traces from leaking
+process.on('unhandledRejection', (error: any) => {
+  if (verboseMode) {
+    console.error(error);
+  } else {
+    console.error(error?.message || error);
+  }
+  process.exit(1);
+});
 
 program.parse();
