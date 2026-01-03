@@ -293,7 +293,7 @@ Write YAML configuration as strings and deploy directly:
 import { LettaCtl } from 'lettactl';
 
 const lettactl = new LettaCtl({
-  lettaApiUrl: 'http://localhost:8283'
+  lettaBaseUrl: 'http://localhost:8283'
 });
 
 const userId = 'acme-corp';
