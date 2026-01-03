@@ -25,8 +25,7 @@ export class OutputFormatter {
   static createAgentTable(agents: any[], wide: boolean = false): string {
     if (wide) {
       const table = new Table({
-        head: ['NAME', 'ID', 'MODEL', 'BLOCKS', 'TOOLS'],
-        colWidths: [25, 40, 25, 8, 8]
+        head: ['NAME', 'ID', 'MODEL', 'BLOCKS', 'TOOLS']
       });
 
       for (const agent of agents) {
@@ -36,7 +35,7 @@ export class OutputFormatter {
         table.push([
           agent.name || 'Unknown',
           agent.id || 'Unknown',
-          model.length > 23 ? model.substring(0, 20) + '...' : model,
+          model,
           blockCount.toString(),
           toolCount.toString()
         ]);
@@ -46,8 +45,7 @@ export class OutputFormatter {
     }
 
     const table = new Table({
-      head: ['NAME', 'ID'],
-      colWidths: [30, 50]
+      head: ['NAME', 'ID']
     });
 
     for (const agent of agents) {
