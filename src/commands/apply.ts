@@ -32,8 +32,7 @@ export async function applyCommand(options: { file: string; agent?: string; matc
         console.log('Supabase backend configured for cloud storage access');
       }
     } catch (error: any) {
-      console.error(`Supabase configuration error: ${error.message}`);
-      process.exit(1);
+      throw new Error(`Supabase configuration error: ${error.message}`);
     }
 
     const parser = new FleetParser(options.file, { 
@@ -184,7 +183,6 @@ export async function applyCommand(options: { file: string; agent?: string; matc
     console.log('Apply completed successfully');
 
   } catch (error: any) {
-    console.error('Apply failed:', error.message || error);
-    process.exit(1);
+    throw new Error(`Apply failed: ${error.message || error}`);
   }
 }
