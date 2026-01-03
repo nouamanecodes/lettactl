@@ -88,6 +88,9 @@ export async function applyTemplateMode(
         tools: templateTools,
         toolSourceHashes,
         sharedBlocks: templateSharedBlocks,
+        embedding: templateAgent?.embedding,
+        model: templateAgent?.llm_config?.model,
+        contextWindow: templateAgent?.llm_config?.context_window,
       };
 
       // Create minimal AgentVersion for diff engine
