@@ -32,10 +32,20 @@ For DevOps workflows
 ```bash
 # Install globally from npm
 npm install -g lettactl
+```
 
-# Set up your environment
-export LETTA_BASE_URL=http://localhost:8283  # For self-hosting
-export LETTA_API_KEY=your_api_key           # Only needed for Letta Cloud
+### For Letta Cloud
+
+```bash
+export LETTA_BASE_URL=https://api.letta.com
+export LETTA_API_KEY=your_api_key  # Get from https://app.letta.com
+```
+
+### For Self-Hosting
+
+```bash
+export LETTA_BASE_URL=http://localhost:8283
+# API key is optional for self-hosting
 ```
 
 ### Your First Fleet
