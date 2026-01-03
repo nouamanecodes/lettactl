@@ -44,7 +44,8 @@ export class LettaCtl {
         {
           file: tempFile,
           agent: options?.agentPattern,
-          dryRun: options?.dryRun || false
+          dryRun: options?.dryRun || false,
+          root: process.cwd()
         },
         { 
           parent: {
