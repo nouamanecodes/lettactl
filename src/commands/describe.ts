@@ -9,6 +9,7 @@ import { normalizeToArray, findAttachedAgents } from '../lib/resource-usage';
 const SUPPORTED_RESOURCES = ['agent', 'agents', 'block', 'blocks', 'tool', 'tools', 'folder', 'folders'];
 
 async function describeCommandImpl(resource: string, name: string, options?: { output?: string }, command?: any) {
+  const verbose = command?.parent?.opts().verbose || false;
   validateResourceType(resource, SUPPORTED_RESOURCES);
 
   // Normalize resource to singular form
@@ -21,7 +22,7 @@ async function describeCommandImpl(resource: string, name: string, options?: { o
 
   switch (normalizedResource) {
     case 'agent':
-      await describeAgent(client, resolver, name, options, spinnerEnabled);
+      await describeAgent(client, resolver, name, options, spinnerEnabled, verbose);
       break;
     case 'block':
       await describeBlock(client, resolver, name, options, spinnerEnabled);
@@ -40,7 +41,8 @@ async function describeAgent(
   resolver: AgentResolver,
   name: string,
   options?: { output?: string },
-  spinnerEnabled?: boolean
+  spinnerEnabled?: boolean,
+  verbose?: boolean
 ) {
   const spinner = createSpinner(`Loading details for agent ${name}...`, spinnerEnabled).start();
 
@@ -97,7 +99,14 @@ async function describeAgent(
       for (const tool of agentDetails.tools) {
         console.log(`  - ${tool.name || tool}`);
         if (tool.description) {
-          console.log(`    ${tool.description}`);
+          if (verbose) {
+            console.log(`    ${tool.description}`);
+          } else {
+            // Truncate to first line, max 80 chars
+            const firstLine = tool.description.split('\n')[0].trim();
+            const truncated = firstLine.length > 80 ? firstLine.substring(0, 77) + '...' : firstLine;
+            console.log(`    ${truncated}`);
+          }
         }
       }
       console.log();
