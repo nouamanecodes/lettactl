@@ -47,29 +47,33 @@ export class FileContentTracker {
   }
 
   /**
-   * Generates content hashes for tool source files
+   * Generates content hashes for tool source files or inline source code
    */
   generateToolSourceHashes(toolNames: string[], toolConfigs?: Map<string, any>): FileContentMap {
     const toolHashes: FileContentMap = {};
-    
+
     for (const toolName of toolNames) {
       // Skip built-in tools that don't have source files
       if (['archival_memory_insert', 'archival_memory_search'].includes(toolName)) {
         continue;
       }
-      
-      // Use tool config path if available, otherwise default to tools/ directory
-      let toolPath: string;
+
       const toolConfig = toolConfigs?.get(toolName);
-      if (toolConfig && typeof toolConfig === 'object' && toolConfig.from_file) {
-        toolPath = toolConfig.from_file;
+
+      // Priority: 1. inline source_code, 2. from_file, 3. default path
+      if (toolConfig && typeof toolConfig === 'object' && toolConfig.source_code) {
+        // Inline source code - hash it directly
+        toolHashes[toolName] = crypto.createHash('sha256').update(toolConfig.source_code).digest('hex').substring(0, 16);
+      } else if (toolConfig && typeof toolConfig === 'object' && toolConfig.from_file) {
+        // File-based source code
+        toolHashes[toolName] = this.generateFileContentHash(toolConfig.from_file);
       } else {
-        toolPath = path.join('tools', `${toolName}.py`);
+        // Default to tools/ directory
+        const toolPath = path.join('tools', `${toolName}.py`);
+        toolHashes[toolName] = this.generateFileContentHash(toolPath);
       }
-      
-      toolHashes[toolName] = this.generateFileContentHash(toolPath);
     }
-    
+
     return toolHashes;
   }
 

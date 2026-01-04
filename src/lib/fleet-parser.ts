@@ -76,12 +76,13 @@ export class FleetParser {
   }
 
   /**
-   * Generic content resolver for any resource with from_file, from_bucket, or value
+   * Generic content resolver for any resource with from_file, from_bucket, value, or source_code
    */
   private async resolveContent(config: {
     from_file?: string;
     from_bucket?: any;
     value?: string;
+    source_code?: string;
   }, defaultPath?: string, resourceName?: string): Promise<string> {
     if (config.from_file) {
       // Read from local filesystem
@@ -91,6 +92,9 @@ export class FleetParser {
       // Read from cloud bucket
       const bucketConfig: BucketConfig = config.from_bucket;
       return await this.storageManager.readFromBucket(bucketConfig);
+    } else if (config.source_code) {
+      // Inline source code (for tools)
+      return config.source_code;
     } else if (config.value) {
       return config.value;
     } else if (defaultPath && fs.existsSync(defaultPath)) {
@@ -243,8 +247,9 @@ export class FleetParser {
     client: any,
     verbose: boolean = false,
     toolSourceHashes: Record<string, string> = {}
-  ): Promise<Map<string, string>> {
+  ): Promise<{ toolNameToId: Map<string, string>; updatedTools: Set<string> }> {
     const toolNameToId = new Map<string, string>();
+    const updatedTools = new Set<string>();
 
     // Get existing tools
     const existingTools = await client.listTools();
@@ -319,6 +324,7 @@ export class FleetParser {
             // Source code actually changed - re-register
             if (verbose) console.log(`Tool ${toolName} source changed (${existingHash} -> ${newHash}), re-registering`);
             tool = await client.createTool({ source_code: newSourceCode });
+            updatedTools.add(toolName);
           } else {
             if (verbose) console.log(`Tool ${toolName} unchanged, reusing existing`);
           }
@@ -336,6 +342,6 @@ export class FleetParser {
       toolNameToId.set(toolName, tool.id);
     }
 
-    return toolNameToId;
+    return { toolNameToId, updatedTools };
   }
 }

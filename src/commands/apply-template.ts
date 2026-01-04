@@ -75,7 +75,7 @@ export async function applyTemplateMode(
 
   // Generate tool source hashes and register tools
   const toolSourceHashes = fileTracker.generateToolSourceHashes(templateTools, parser.toolConfigs);
-  const toolNameToId = await parser.registerRequiredTools(config, client, verbose, toolSourceHashes);
+  const { toolNameToId, updatedTools } = await parser.registerRequiredTools(config, client, verbose, toolSourceHashes);
 
   // Apply template to each matching agent
   for (const existingAgent of matchingAgents) {
@@ -110,7 +110,8 @@ export async function applyTemplateMode(
         toolNameToId,
         createdFolders,
         verbose,
-        sharedBlockIds
+        sharedBlockIds,
+        updatedTools
       );
 
       // MERGE semantics: clear toRemove arrays (don't remove existing resources)

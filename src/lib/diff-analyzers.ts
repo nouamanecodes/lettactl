@@ -3,15 +3,16 @@ import { BlockManager } from './block-manager';
 import { normalizeResponse } from './response-normalizer';
 import { ToolDiff, BlockDiff, FolderDiff } from './diff-engine';
 
-function hasFileBasedContent(itemName: string, fileHashes: Record<string, string>): boolean {
-  return !!fileHashes[itemName];
+function hasSourceContent(itemName: string, sourceHashes: Record<string, string>): boolean {
+  return !!sourceHashes[itemName];
 }
 
 export async function analyzeToolChanges(
   currentTools: any[],
   desiredToolNames: string[],
   toolRegistry: Map<string, string>,
-  toolSourceHashes: Record<string, string> = {}
+  _toolSourceHashes?: Record<string, string>,
+  updatedTools?: Set<string>
 ): Promise<ToolDiff> {
   const currentToolNames = new Set(currentTools.map(t => t.name));
   const desiredToolSet = new Set(desiredToolNames);
@@ -36,22 +37,15 @@ export async function analyzeToolChanges(
     if (desiredToolSet.has(tool.name)) {
       const toolName = tool.name;
 
-      if (hasFileBasedContent(toolName, toolSourceHashes) && !['archival_memory_insert', 'archival_memory_search'].includes(toolName)) {
-        console.log(`Tool ${toolName} has file-based content, checking for updates...`);
-
-        const currentToolId = tool.id;
+      // Check if tool was already updated by registerRequiredTools
+      if (updatedTools?.has(toolName)) {
         const newToolId = toolRegistry.get(toolName);
-
-        if (newToolId && newToolId !== currentToolId) {
-          toUpdate.push({
-            name: toolName,
-            currentId: currentToolId,
-            newId: newToolId,
-            reason: 'source_code_changed'
-          });
-        } else {
-          unchanged.push({ name: toolName, id: currentToolId });
-        }
+        toUpdate.push({
+          name: toolName,
+          currentId: tool.id,
+          newId: newToolId || tool.id,
+          reason: 'source_code_changed'
+        });
       } else {
         unchanged.push({ name: tool.name, id: tool.id });
       }
@@ -168,7 +162,7 @@ export async function analyzeFolderChanges(
             if (!currentFileNames.has(fileName)) {
               filesToAdd.push(filePath);
             } else {
-              if (hasFileBasedContent(filePath, desiredFolder.fileContentHashes || {})) {
+              if (hasSourceContent(filePath, desiredFolder.fileContentHashes || {})) {
                 console.log(`File ${filePath} has file-based content, checking for updates...`);
                 filesToUpdate.push(filePath);
               }

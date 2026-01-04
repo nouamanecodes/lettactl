@@ -87,7 +87,8 @@ export class DiffEngine {
     toolRegistry: Map<string, string>,
     folderRegistry: Map<string, string>,
     verbose: boolean = false,
-    sharedBlockIds?: Map<string, string>
+    sharedBlockIds?: Map<string, string>,
+    updatedTools?: Set<string>
   ): Promise<AgentUpdateOperations> {
     
     const operations: AgentUpdateOperations = {
@@ -151,7 +152,8 @@ export class DiffEngine {
       currentTools,
       desiredConfig.tools || [],
       toolRegistry,
-      desiredConfig.toolSourceHashes || {}
+      desiredConfig.toolSourceHashes || {},
+      updatedTools
     );
     operations.operationCount += operations.tools.toAdd.length + operations.tools.toRemove.length + operations.tools.toUpdate.length;
 

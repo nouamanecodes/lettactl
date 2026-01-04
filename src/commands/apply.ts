@@ -87,7 +87,7 @@ export async function applyCommand(options: { file: string; agent?: string; matc
     const globalToolSourceHashes = fileTracker.generateToolSourceHashes(Array.from(allToolNames), parser.toolConfigs);
 
     if (verbose) console.log('Registering tools...');
-    const toolNameToId = await parser.registerRequiredTools(config, client, verbose, globalToolSourceHashes);
+    const { toolNameToId, updatedTools } = await parser.registerRequiredTools(config, client, verbose, globalToolSourceHashes);
 
     // Process folders
     const createdFolders = await processFolders(config, client, parser, options, verbose);
@@ -156,6 +156,7 @@ export async function applyCommand(options: { file: string; agent?: string; matc
             diffEngine,
             agentManager,
             toolNameToId,
+            updatedTools,
             createdFolders,
             sharedBlockIds,
             spinnerEnabled,

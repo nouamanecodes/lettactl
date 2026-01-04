@@ -99,13 +99,14 @@ export async function updateExistingAgent(
     diffEngine: DiffEngine;
     agentManager: AgentManager;
     toolNameToId: Map<string, string>;
+    updatedTools: Set<string>;
     createdFolders: Map<string, string>;
     sharedBlockIds: Map<string, string>;
     spinnerEnabled: boolean;
     verbose: boolean;
   }
 ): Promise<void> {
-  const { diffEngine, agentManager, toolNameToId, createdFolders, sharedBlockIds, spinnerEnabled, verbose } = context;
+  const { diffEngine, agentManager, toolNameToId, updatedTools, createdFolders, sharedBlockIds, spinnerEnabled, verbose } = context;
 
   console.log(`Updating agent ${agent.name}:`);
 
@@ -118,7 +119,8 @@ export async function updateExistingAgent(
       toolNameToId,
       createdFolders,
       verbose,
-      sharedBlockIds
+      sharedBlockIds,
+      updatedTools
     );
 
     spinner.stop();

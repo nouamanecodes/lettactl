@@ -30,12 +30,13 @@ describe('DiffEngine', () => {
       expect(result.unchanged).toHaveLength(1);
     });
 
-    it('marks tool for update when source hash exists and ID changed', async () => {
+    it('marks tool for update when in updatedTools set', async () => {
       const result = await analyzeToolChanges(
-        [{ name: 'tool', id: 'old-id' }],
+        [{ name: 'tool', id: 'tool-id' }],
         ['tool'],
-        new Map([['tool', 'new-id']]),
-        { 'tool': 'hash' }
+        new Map([['tool', 'tool-id']]),
+        {},
+        new Set(['tool'])
       );
       expect(result.toUpdate[0].reason).toBe('source_code_changed');
     });
