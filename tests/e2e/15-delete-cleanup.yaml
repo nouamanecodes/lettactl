@@ -1,0 +1,24 @@
+# E2E Test: Delete and cleanup
+# Tests: Creating agents that will be deleted
+# Used to test: lettactl delete agent <name> --force
+
+agents:
+  - name: e2e-delete-me-1
+    description: Agent to be deleted in cleanup test
+    system_prompt:
+      value: I will be deleted.
+      disable_base_prompt: true
+    llm_config:
+      model: letta/letta-free
+      context_window: 8000
+    embedding: letta/letta-free
+
+  - name: e2e-delete-me-2
+    description: Another agent to be deleted
+    system_prompt:
+      value: I will also be deleted.
+      disable_base_prompt: true
+    llm_config:
+      model: letta/letta-free
+      context_window: 8000
+    embedding: letta/letta-free

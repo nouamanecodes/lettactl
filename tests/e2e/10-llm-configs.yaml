@@ -1,0 +1,33 @@
+# E2E Test: Different LLM configurations
+# Tests: Various model and context window settings
+
+agents:
+  - name: e2e-llm-small-context
+    description: Agent with small context window
+    system_prompt:
+      value: You are a lightweight agent.
+      disable_base_prompt: true
+    llm_config:
+      model: letta/letta-free
+      context_window: 4000
+    embedding: letta/letta-free
+
+  - name: e2e-llm-medium-context
+    description: Agent with medium context window
+    system_prompt:
+      value: You are a standard agent.
+      disable_base_prompt: true
+    llm_config:
+      model: letta/letta-free
+      context_window: 16000
+    embedding: letta/letta-free
+
+  - name: e2e-llm-large-context
+    description: Agent with large context window
+    system_prompt:
+      value: You are a high-capacity agent.
+      disable_base_prompt: true
+    llm_config:
+      model: letta/letta-free
+      context_window: 64000
+    embedding: letta/letta-free

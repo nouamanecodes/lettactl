@@ -1,0 +1,19 @@
+services:
+  letta:
+    image: letta/letta:latest
+    container_name: letta-e2e
+    ports:
+      - "8283:8283"
+    environment:
+      - LETTA_SERVER_PORT=8283
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8283/v1/agents/"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+    volumes:
+      - letta-data:/root/.letta
+
+volumes:
+  letta-data:

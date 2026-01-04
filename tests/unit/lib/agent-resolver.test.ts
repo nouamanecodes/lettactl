@@ -1,8 +1,8 @@
-import { AgentResolver } from '../../src/lib/agent-resolver';
-import { LettaClientWrapper } from '../../src/lib/letta-client';
+import { AgentResolver } from '../../../src/lib/agent-resolver';
+import { LettaClientWrapper } from '../../../src/lib/letta-client';
 
 // Mock LettaClientWrapper
-jest.mock('../../src/lib/letta-client');
+jest.mock('../../../src/lib/letta-client');
 const MockedLettaClient = LettaClientWrapper as jest.MockedClass<typeof LettaClientWrapper>;
 
 describe('AgentResolver', () => {

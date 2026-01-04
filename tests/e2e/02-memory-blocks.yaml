@@ -1,0 +1,30 @@
+# E2E Test: Memory blocks
+# Tests: Agent with inline memory blocks
+
+agents:
+  - name: e2e-memory-agent
+    description: Agent with memory blocks
+    system_prompt:
+      value: You are an assistant with persistent memory.
+      disable_base_prompt: true
+    llm_config:
+      model: letta/letta-free
+      context_window: 8000
+    embedding: letta/letta-free
+    memory_blocks:
+      - name: user_preferences
+        description: Stores user preferences and settings
+        limit: 2000
+        value: "User prefers concise answers."
+      - name: conversation_context
+        description: Stores ongoing conversation context
+        limit: 4000
+        value: "No prior context."
+      - name: knowledge_base
+        description: Domain-specific knowledge
+        limit: 8000
+        value: |
+          # Knowledge Base
+          - Topic A: Important information about A
+          - Topic B: Critical details about B
+          - Topic C: Essential facts about C

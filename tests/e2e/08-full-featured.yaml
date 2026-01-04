@@ -1,0 +1,50 @@
+# E2E Test: Full-featured agent
+# Tests: Agent with all features combined
+
+shared_blocks:
+  - name: e2e_full_shared
+    description: Shared block for full-featured test
+    limit: 5000
+    value: |
+      # Shared Configuration
+      Mode: Full-featured test
+      Version: 1.0
+
+mcp_servers:
+  - name: e2e-full-mcp
+    type: sse
+    server_url: http://localhost:3001/sse
+
+agents:
+  - name: e2e-full-featured-agent
+    description: Agent with all features enabled
+    system_prompt:
+      value: |
+        You are a full-featured assistant with:
+        - Custom tools
+        - Memory blocks
+        - Shared blocks
+        - Document folders
+        - MCP server access
+      disable_base_prompt: true
+    llm_config:
+      model: letta/letta-free
+      context_window: 32000
+    embedding: letta/letta-free
+    shared_blocks:
+      - e2e_full_shared
+    memory_blocks:
+      - name: full_agent_memory
+        description: Agent-specific memory
+        limit: 4000
+        value: "Full-featured agent initialized."
+      - name: full_agent_context
+        description: Conversation context
+        limit: 8000
+        value: "No prior context."
+    tools:
+      - e2e_calculator
+    folders:
+      - name: e2e-full-docs
+        files:
+          - files/test-doc-1.txt

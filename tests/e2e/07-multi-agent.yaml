@@ -1,0 +1,43 @@
+# E2E Test: Multiple agents
+# Tests: Fleet with multiple agents, different configs
+
+agents:
+  - name: e2e-multi-agent-1
+    description: First agent in multi-agent fleet
+    system_prompt:
+      value: You are the first agent in a fleet.
+      disable_base_prompt: true
+    llm_config:
+      model: letta/letta-free
+      context_window: 8000
+    embedding: letta/letta-free
+    memory_blocks:
+      - name: agent1_memory
+        description: Agent 1 specific memory
+        limit: 2000
+        value: "Agent 1 initialized."
+
+  - name: e2e-multi-agent-2
+    description: Second agent in multi-agent fleet
+    system_prompt:
+      value: You are the second agent in a fleet.
+      disable_base_prompt: true
+    llm_config:
+      model: letta/letta-free
+      context_window: 16000
+    embedding: letta/letta-free
+    memory_blocks:
+      - name: agent2_memory
+        description: Agent 2 specific memory
+        limit: 4000
+        value: "Agent 2 initialized."
+
+  - name: e2e-multi-agent-3
+    description: Third agent in multi-agent fleet
+    system_prompt:
+      value: You are the third agent in a fleet.
+      disable_base_prompt: true
+    llm_config:
+      model: letta/letta-free
+      context_window: 24000
+    embedding: letta/letta-free

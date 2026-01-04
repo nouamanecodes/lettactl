@@ -1,9 +1,9 @@
-import { BlockManager } from '../../src/lib/block-manager';
-import { LettaClientWrapper } from '../../src/lib/letta-client';
-import { analyzeToolChanges, analyzeBlockChanges, analyzeFolderChanges } from '../../src/lib/diff-analyzers';
+import { BlockManager } from '../../../src/lib/block-manager';
+import { LettaClientWrapper } from '../../../src/lib/letta-client';
+import { analyzeToolChanges, analyzeBlockChanges, analyzeFolderChanges } from '../../../src/lib/diff-analyzers';
 
-jest.mock('../../src/lib/letta-client');
-jest.mock('../../src/lib/block-manager');
+jest.mock('../../../src/lib/letta-client');
+jest.mock('../../../src/lib/block-manager');
 
 describe('DiffEngine', () => {
   let mockBlockManager: jest.Mocked<BlockManager>;

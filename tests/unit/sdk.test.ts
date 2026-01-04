@@ -1,7 +1,7 @@
 jest.mock('ora', () => () => ({ start: jest.fn().mockReturnThis(), stop: jest.fn(), succeed: jest.fn(), fail: jest.fn() }));
 
-import { LettaCtl, FleetConfigBuilder } from '../src/sdk';
-import { FleetConfig } from '../src/types/fleet-config';
+import { LettaCtl, FleetConfigBuilder } from '../../src/sdk';
+import { FleetConfig } from '../../src/types/fleet-config';
 
 describe('FleetConfigBuilder', () => {
   it('builds config with agents and shared blocks', () => {

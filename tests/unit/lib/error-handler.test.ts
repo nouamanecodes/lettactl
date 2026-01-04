@@ -1,4 +1,4 @@
-import { withErrorHandling, createNotFoundError } from '../../src/lib/error-handler';
+import { withErrorHandling, createNotFoundError } from '../../../src/lib/error-handler';
 
 // Mock console.error and process.exit for testing
 const mockConsoleError = jest.spyOn(console, 'error').mockImplementation(() => {});

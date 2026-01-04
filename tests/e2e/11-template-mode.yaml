@@ -1,0 +1,21 @@
+# E2E Test: Template mode
+# Tests: Apply config to existing agents via --match pattern
+# Usage: lettactl apply -f 11-template-mode.yaml --match "e2e-template-*"
+
+agents:
+  - name: e2e-template-target
+    description: Template target agent
+    system_prompt:
+      value: |
+        You are an agent that will receive template updates.
+        This prompt will be applied to matching agents.
+      disable_base_prompt: true
+    llm_config:
+      model: letta/letta-free
+      context_window: 16000
+    embedding: letta/letta-free
+    memory_blocks:
+      - name: template_memory
+        description: Memory added via template
+        limit: 2000
+        value: "Added via template mode."

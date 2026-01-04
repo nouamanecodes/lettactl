@@ -1,0 +1,18 @@
+# E2E Test: From-file directives
+# Tests: Loading content from files (prompts, memory blocks)
+
+agents:
+  - name: e2e-from-file-agent
+    description: Agent with content loaded from files
+    system_prompt:
+      from_file: prompts/from-file-prompt.md
+      disable_base_prompt: true
+    llm_config:
+      model: letta/letta-free
+      context_window: 8000
+    embedding: letta/letta-free
+    memory_blocks:
+      - name: file_loaded_memory
+        description: Memory block loaded from file
+        limit: 5000
+        from_file: memory-blocks/from-file-block.md

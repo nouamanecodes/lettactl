@@ -1,0 +1,41 @@
+# E2E Test: Edge cases
+# Tests: Special characters, long values, empty blocks
+
+agents:
+  - name: e2e-edge-case-agent
+    description: Agent testing edge cases and special scenarios
+    system_prompt:
+      value: |
+        You are a test agent for edge cases.
+        Special chars: !@#$%^&*()_+-=[]{}|;':",.<>?/`~
+        Unicode: こんにちは 你好 مرحبا 🎉
+        Quotes: "double" 'single' `backtick`
+      disable_base_prompt: true
+    llm_config:
+      model: letta/letta-free
+      context_window: 8000
+    embedding: letta/letta-free
+    memory_blocks:
+      - name: long_content_block
+        description: Block with long content
+        limit: 10000
+        value: |
+          This is a very long content block designed to test handling of large text.
+          Line 1: Lorem ipsum dolor sit amet, consectetur adipiscing elit.
+          Line 2: Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
+          Line 3: Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris.
+          Line 4: Duis aute irure dolor in reprehenderit in voluptate velit esse cillum.
+          Line 5: Excepteur sint occaecat cupidatat non proident, sunt in culpa qui.
+          Line 6: Lorem ipsum dolor sit amet, consectetur adipiscing elit.
+          Line 7: Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
+          Line 8: Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris.
+          Line 9: Duis aute irure dolor in reprehenderit in voluptate velit esse cillum.
+          Line 10: Excepteur sint occaecat cupidatat non proident, sunt in culpa qui.
+      - name: minimal_block
+        description: Minimal block
+        limit: 100
+        value: ""
+      - name: special_chars_block
+        description: Block with special characters
+        limit: 1000
+        value: "Tab:\there Newline:\nhere Carriage:\rhere"

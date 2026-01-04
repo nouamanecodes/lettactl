@@ -1,8 +1,8 @@
-import { BlockManager } from '../../src/lib/block-manager';
-import { LettaClientWrapper } from '../../src/lib/letta-client';
-import { generateContentHash } from '../../src/utils/hash-utils';
+import { BlockManager } from '../../../src/lib/block-manager';
+import { LettaClientWrapper } from '../../../src/lib/letta-client';
+import { generateContentHash } from '../../../src/utils/hash-utils';
 
-jest.mock('../../src/lib/letta-client');
+jest.mock('../../../src/lib/letta-client');
 
 describe('BlockManager', () => {
   let manager: BlockManager;

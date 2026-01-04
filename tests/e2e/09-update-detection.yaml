@@ -1,0 +1,19 @@
+# E2E Test: Update detection
+# Tests: Idempotency and change detection
+# Run this twice - second run should detect no changes
+
+agents:
+  - name: e2e-update-test-agent
+    description: Agent for testing update detection
+    system_prompt:
+      value: You are a test agent for update detection.
+      disable_base_prompt: true
+    llm_config:
+      model: letta/letta-free
+      context_window: 8000
+    embedding: letta/letta-free
+    memory_blocks:
+      - name: update_test_memory
+        description: Memory block for update testing
+        limit: 2000
+        value: "Initial value - should not change on re-apply."

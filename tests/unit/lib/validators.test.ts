@@ -1,4 +1,4 @@
-import { validateResourceType, validateRequired } from '../../src/lib/validators';
+import { validateResourceType, validateRequired } from '../../../src/lib/validators';
 
 const mockExit = jest.spyOn(process, 'exit').mockImplementation((code) => { throw new Error(`exit ${code}`); });
 const mockError = jest.spyOn(console, 'error').mockImplementation(() => {});

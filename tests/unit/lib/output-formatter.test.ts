@@ -1,4 +1,4 @@
-import { OutputFormatter } from '../../src/lib/output-formatter';
+import { OutputFormatter } from '../../../src/lib/output-formatter';
 
 // Mock console.log for testing
 const mockConsoleLog = jest.spyOn(console, 'log').mockImplementation(() => {});
