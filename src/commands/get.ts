@@ -6,7 +6,7 @@ import { withErrorHandling } from '../lib/error-handler';
 import { createSpinner, getSpinnerEnabled } from '../lib/spinner';
 import { normalizeToArray, computeAgentCounts } from '../lib/resource-usage';
 
-const SUPPORTED_RESOURCES = ['agents', 'blocks', 'tools', 'folders'];
+const SUPPORTED_RESOURCES = ['agents', 'blocks', 'tools', 'folders', 'mcp-servers'];
 
 interface GetOptions {
   output?: string;
@@ -64,6 +64,9 @@ async function getCommandImpl(resource: string, _name?: string, options?: GetOpt
       break;
     case 'folders':
       await getFolders(client, resolver, options, spinnerEnabled, agentId);
+      break;
+    case 'mcp-servers':
+      await getMcpServers(client, options, spinnerEnabled);
       break;
   }
 }
@@ -286,6 +289,35 @@ async function getFolders(
     console.log(OutputFormatter.createFolderTable(folderList, isWide, agentCounts));
   } catch (error) {
     spinner.fail('Failed to load folders');
+    throw error;
+  }
+}
+
+async function getMcpServers(
+  client: LettaClientWrapper,
+  options?: GetOptions,
+  spinnerEnabled?: boolean
+) {
+  const spinner = createSpinner('Loading MCP servers...', spinnerEnabled).start();
+
+  try {
+    const serverList = await client.listMcpServers();
+    const servers = Array.isArray(serverList) ? serverList : [];
+
+    spinner.stop();
+
+    if (OutputFormatter.handleJsonOutput(servers, options?.output)) {
+      return;
+    }
+
+    if (servers.length === 0) {
+      console.log('No MCP servers found');
+      return;
+    }
+
+    console.log(OutputFormatter.createMcpServerTable(servers));
+  } catch (error) {
+    spinner.fail('Failed to load MCP servers');
     throw error;
   }
 }

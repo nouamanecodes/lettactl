@@ -240,6 +240,7 @@ lettactl get agents                    # List all agents
 lettactl get blocks                    # List all memory blocks
 lettactl get tools                     # List all tools
 lettactl get folders                   # List all folders
+lettactl get mcp-servers               # List all MCP servers
 
 # Wide output with extra columns (agent counts, sizes, models)
 lettactl get agents -o wide
@@ -261,6 +262,7 @@ lettactl describe agent my-agent       # Agent details + blocks/tools/folders
 lettactl describe block persona        # Block details + attached agents + value preview
 lettactl describe tool my-tool         # Tool details + attached agents + source code
 lettactl describe folder docs          # Folder details + files + attached agents
+lettactl describe mcp-servers my-mcp   # MCP server details + tools
 
 # JSON output for scripting
 lettactl get agents -o json
@@ -274,6 +276,20 @@ lettactl messages my-agent             # View conversation history
 ```bash
 lettactl validate -f agents.yml       # Check config syntax
 ```
+
+### MCP Server Operations
+```bash
+# List all MCP servers
+lettactl get mcp-servers
+
+# Get details about a specific MCP server
+lettactl describe mcp-servers my-server
+
+# Delete an MCP server
+lettactl delete mcp-servers my-server --force
+```
+
+MCP servers are created/updated automatically during `lettactl apply` when defined in your configuration.
 
 ---
 
@@ -620,6 +636,48 @@ shared_blocks:
     value: "Content here"               # Option 1: inline
     from_file: "shared/file.md"        # Option 2: from file
 ```
+
+### MCP Servers Schema
+
+MCP (Model Context Protocol) servers provide external tool capabilities to your agents. Define them at the top level of your configuration:
+
+```yaml
+mcp_servers:
+  # SSE server (Server-Sent Events)
+  - name: my-sse-server
+    type: sse
+    server_url: http://localhost:3001/sse
+    auth_header: Authorization           # Optional
+    auth_token: Bearer my-token          # Optional
+    custom_headers:                      # Optional
+      X-Custom-Header: value
+
+  # Stdio server (local process)
+  - name: my-stdio-server
+    type: stdio
+    command: /usr/bin/python3
+    args:
+      - "-m"
+      - "mcp_server"
+    env:                                 # Optional
+      DEBUG: "true"
+      LOG_LEVEL: "info"
+
+  # Streamable HTTP server
+  - name: my-http-server
+    type: streamable_http
+    server_url: https://mcp.example.com/api
+    auth_header: Authorization           # Optional
+    auth_token: Bearer my-token          # Optional
+```
+
+**MCP Server Types:**
+- `sse` - Server-Sent Events for real-time communication
+- `stdio` - Local process communication via stdin/stdout
+- `streamable_http` - HTTP-based streaming protocol
+
+**Automatic Updates:**
+When you change an MCP server's URL, command, or args in your configuration and run `apply`, lettactl automatically detects the change and updates the server.
 
 ## File Organization
 

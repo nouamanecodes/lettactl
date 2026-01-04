@@ -313,4 +313,34 @@ export class LettaClientWrapper {
   async sendMessage(agentId: string, message: string, options?: MessageOptions) {
     return await sendMessageToAgent(this, agentId, message, options);
   }
+
+  // === MCP Server Operations ===
+
+  async listMcpServers() {
+    return await this.client.mcpServers.list();
+  }
+
+  async getMcpServer(mcpServerId: string) {
+    return await this.client.mcpServers.retrieve(mcpServerId);
+  }
+
+  async createMcpServer(serverData: any) {
+    return await this.client.mcpServers.create(serverData);
+  }
+
+  async updateMcpServer(mcpServerId: string, serverData: any) {
+    return await this.client.mcpServers.update(mcpServerId, serverData);
+  }
+
+  async deleteMcpServer(mcpServerId: string) {
+    return await this.client.mcpServers.delete(mcpServerId);
+  }
+
+  async refreshMcpServer(mcpServerId: string) {
+    return await this.client.mcpServers.refresh(mcpServerId);
+  }
+
+  async listMcpServerTools(mcpServerId: string) {
+    return await this.client.mcpServers.tools.list(mcpServerId);
+  }
 }

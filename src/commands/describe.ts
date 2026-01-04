@@ -6,14 +6,14 @@ import { withErrorHandling } from '../lib/error-handler';
 import { createSpinner, getSpinnerEnabled } from '../lib/spinner';
 import { normalizeToArray, findAttachedAgents } from '../lib/resource-usage';
 
-const SUPPORTED_RESOURCES = ['agent', 'agents', 'block', 'blocks', 'tool', 'tools', 'folder', 'folders'];
+const SUPPORTED_RESOURCES = ['agent', 'agents', 'block', 'blocks', 'tool', 'tools', 'folder', 'folders', 'mcp-servers'];
 
 async function describeCommandImpl(resource: string, name: string, options?: { output?: string }, command?: any) {
   const verbose = command?.parent?.opts().verbose || false;
   validateResourceType(resource, SUPPORTED_RESOURCES);
 
-  // Normalize resource to singular form
-  const normalizedResource = resource.replace(/s$/, '');
+  // Normalize resource to singular form (but preserve mcp-servers as-is)
+  const normalizedResource = resource === 'mcp-servers' ? 'mcp-servers' : resource.replace(/s$/, '');
   validateRequired(name, `${normalizedResource.charAt(0).toUpperCase() + normalizedResource.slice(1)} name`, `lettactl describe ${normalizedResource} <name>`);
 
   const client = new LettaClientWrapper();
@@ -32,6 +32,9 @@ async function describeCommandImpl(resource: string, name: string, options?: { o
       break;
     case 'folder':
       await describeFolder(client, resolver, name, options, spinnerEnabled);
+      break;
+    case 'mcp-servers':
+      await describeMcpServer(client, name, options, spinnerEnabled);
       break;
   }
 }
@@ -347,6 +350,85 @@ async function describeFolder(
     }
   } catch (error) {
     spinner.fail(`Failed to load details for folder ${name}`);
+    throw error;
+  }
+}
+
+async function describeMcpServer(
+  client: LettaClientWrapper,
+  name: string,
+  options?: { output?: string },
+  spinnerEnabled?: boolean
+) {
+  const spinner = createSpinner(`Loading details for MCP server ${name}...`, spinnerEnabled).start();
+
+  try {
+    // Find MCP server by name or ID
+    const serverList = await client.listMcpServers();
+    const servers = Array.isArray(serverList) ? serverList : [];
+    const server = servers.find((s: any) =>
+      s.server_name === name || s.name === name || s.id === name
+    );
+
+    if (!server) {
+      spinner.fail(`MCP server "${name}" not found`);
+      throw new Error(`MCP server "${name}" not found`);
+    }
+
+    // Get tools for this MCP server
+    spinner.text = 'Loading MCP server tools...';
+    let tools: any[] = [];
+    try {
+      const toolList = await client.listMcpServerTools(server.id!);
+      tools = Array.isArray(toolList) ? toolList : [];
+    } catch (e) {
+      // Tools might not be available
+    }
+
+    spinner.stop();
+
+    // Cast to any for flexible property access
+    const s: any = server;
+
+    if (OutputFormatter.handleJsonOutput({ ...s, tools }, options?.output)) {
+      return;
+    }
+
+    console.log(`MCP Server Details: ${s.server_name || s.name}`);
+    console.log(`${'='.repeat(50)}`);
+    console.log(`ID:            ${s.id}`);
+    console.log(`Name:          ${s.server_name || s.name || '-'}`);
+    console.log(`Type:          ${s.mcp_server_type || '-'}`);
+
+    if (s.server_url) {
+      console.log(`Server URL:    ${s.server_url}`);
+    }
+    if (s.command) {
+      console.log(`Command:       ${s.command}`);
+      if (s.args && s.args.length > 0) {
+        console.log(`Args:          ${s.args.join(' ')}`);
+      }
+    }
+    if (s.auth_header) {
+      console.log(`Auth Header:   ${s.auth_header}`);
+    }
+
+    console.log(`\nTools (${tools.length}):`);
+    if (tools.length > 0) {
+      for (const tool of tools) {
+        console.log(`  - ${tool.name || tool.id}`);
+        if (tool.description) {
+          const truncated = tool.description.length > 80
+            ? tool.description.substring(0, 77) + '...'
+            : tool.description;
+          console.log(`    ${truncated}`);
+        }
+      }
+    } else {
+      console.log(`  (no tools registered)`);
+    }
+  } catch (error) {
+    spinner.fail(`Failed to load details for MCP server ${name}`);
     throw error;
   }
 }

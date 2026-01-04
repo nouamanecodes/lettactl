@@ -73,8 +73,8 @@ program
 // Get command - list resources
 program
   .command('get')
-  .description('Display resources (agents, blocks, tools, folders)')
-  .argument('<resource>', 'resource type (agents|blocks|tools|folders)')
+  .description('Display resources (agents, blocks, tools, folders, mcp-servers)')
+  .argument('<resource>', 'resource type (agents|blocks|tools|folders|mcp-servers)')
   .argument('[name]', 'specific resource name (optional)')
   .option('-o, --output <format>', 'output format (table|json|yaml)', 'table')
   .option('-a, --agent <name>', 'filter by agent name (for blocks, tools, folders)')
@@ -86,17 +86,17 @@ program
 program
   .command('describe')
   .description('Show detailed information about a resource')
-  .argument('<resource>', 'resource type (agent|block|tool|folder)')
+  .argument('<resource>', 'resource type (agent|block|tool|folder|mcp-servers)')
   .argument('<name>', 'resource name')
   .option('-o, --output <format>', 'output format (table, json)', 'table')
   .action(describeCommand);
 
-// Delete command - remove agents
+// Delete command - remove resources
 program
   .command('delete')
-  .description('Delete an agent')
-  .argument('<resource>', 'resource type (agent)')
-  .argument('<name>', 'agent name')
+  .description('Delete a resource')
+  .argument('<resource>', 'resource type (agent|mcp-servers)')
+  .argument('<name>', 'resource name')
   .option('--force', 'force deletion without confirmation')
   .action(deleteCommand);
 

@@ -89,6 +89,26 @@ export async function applyCommand(options: { file: string; agent?: string; matc
     if (verbose) console.log('Registering tools...');
     const { toolNameToId, updatedTools } = await parser.registerRequiredTools(config, client, verbose, globalToolSourceHashes);
 
+    // Register MCP servers
+    if (config.mcp_servers && config.mcp_servers.length > 0) {
+      if (verbose) console.log('Registering MCP servers...');
+      const mcpResult = await parser.registerMcpServers(config, client, verbose);
+
+      // Display MCP server operation summary
+      if (mcpResult.created.length > 0) {
+        console.log(`MCP servers created: ${mcpResult.created.join(', ')}`);
+      }
+      if (mcpResult.updated.length > 0) {
+        console.log(`MCP servers updated: ${mcpResult.updated.join(', ')}`);
+      }
+      if (mcpResult.unchanged.length > 0 && verbose) {
+        console.log(`MCP servers unchanged: ${mcpResult.unchanged.join(', ')}`);
+      }
+      if (mcpResult.failed.length > 0) {
+        console.warn(`MCP servers failed: ${mcpResult.failed.join(', ')}`);
+      }
+    }
+
     // Process folders
     const createdFolders = await processFolders(config, client, parser, options, verbose);
     

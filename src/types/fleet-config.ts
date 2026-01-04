@@ -1,7 +1,22 @@
 export interface FleetConfig {
   root_path?: string;
   shared_blocks?: SharedBlock[];
+  mcp_servers?: McpServerConfig[];
   agents: AgentConfig[];
+}
+
+export interface McpServerConfig {
+  name: string;
+  type: 'sse' | 'stdio' | 'streamable_http';
+  // SSE / Streamable HTTP
+  server_url?: string;
+  auth_header?: string;
+  auth_token?: string;
+  custom_headers?: Record<string, string>;
+  // Stdio
+  command?: string;
+  args?: string[];
+  env?: Record<string, string>;
 }
 
 export interface SharedBlock {

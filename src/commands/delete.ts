@@ -7,7 +7,12 @@ import { normalizeResponse } from '../lib/response-normalizer';
 import { createSpinner, getSpinnerEnabled } from '../lib/spinner';
 
 async function deleteCommandImpl(resource: string, name: string, options?: { force?: boolean }, command?: any) {
-  validateResourceType(resource, ['agent', 'agents']);
+  validateResourceType(resource, ['agent', 'agents', 'mcp-servers']);
+
+  if (resource === 'mcp-servers') {
+    return await deleteMcpServer(name, options, command);
+  }
+
   validateRequired(name, 'Agent name', 'lettactl delete agent <name>');
 
   const client = new LettaClientWrapper();
@@ -195,6 +200,40 @@ async function deleteAgentWithCleanup(
     }
   } catch (error: any) {
     console.warn(`  Could not clean up blocks: ${error.message}`);
+  }
+}
+
+async function deleteMcpServer(name: string, options?: { force?: boolean }, command?: any) {
+  validateRequired(name, 'MCP server name', 'lettactl delete mcp-servers <name>');
+
+  const client = new LettaClientWrapper();
+
+  // Find MCP server by name or ID
+  const serverList = await client.listMcpServers();
+  const servers = Array.isArray(serverList) ? serverList : [];
+  const server = servers.find((s: any) =>
+    s.server_name === name || s.name === name || s.id === name
+  );
+
+  if (!server) {
+    throw new Error(`MCP server "${name}" not found`);
+  }
+
+  if (!options?.force) {
+    console.log(`This will permanently delete MCP server: ${name} (${server.id})`);
+    console.log('Use --force to confirm deletion');
+    process.exit(1);
+  }
+
+  const spinnerEnabled = getSpinnerEnabled(command);
+  const spinner = createSpinner(`Deleting MCP server ${name}...`, spinnerEnabled).start();
+
+  try {
+    await client.deleteMcpServer(server.id!);
+    spinner.succeed(`MCP server ${name} deleted successfully`);
+  } catch (error) {
+    spinner.fail(`Failed to delete MCP server ${name}`);
+    throw error;
   }
 }
 

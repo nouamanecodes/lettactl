@@ -344,4 +344,130 @@ export class FleetParser {
 
     return { toolNameToId, updatedTools };
   }
+
+  async registerMcpServers(
+    config: FleetConfig,
+    client: any,
+    verbose: boolean = false
+  ): Promise<{
+    mcpServerNameToId: Map<string, string>;
+    created: string[];
+    updated: string[];
+    unchanged: string[];
+    failed: string[];
+  }> {
+    const mcpServerNameToId = new Map<string, string>();
+    const created: string[] = [];
+    const updated: string[] = [];
+    const unchanged: string[] = [];
+    const failed: string[] = [];
+
+    if (!config.mcp_servers || config.mcp_servers.length === 0) {
+      return { mcpServerNameToId, created, updated, unchanged, failed };
+    }
+
+    // Get existing MCP servers
+    const existingServers = await client.listMcpServers();
+    const existingServersArray = Array.isArray(existingServers) ? existingServers : [];
+    const existingServerMap = new Map<string, any>();
+    for (const server of existingServersArray) {
+      existingServerMap.set(server.server_name || server.name, server);
+    }
+
+    // Register/update MCP servers
+    for (const serverConfig of config.mcp_servers) {
+      const serverName = serverConfig.name;
+      let server = existingServerMap.get(serverName);
+
+      if (!server) {
+        // Create new MCP server
+        if (verbose) console.log(`Creating MCP server: ${serverName}`);
+
+        const createParams = this.buildMcpServerParams(serverConfig);
+        try {
+          server = await client.createMcpServer(createParams);
+          created.push(serverName);
+          if (verbose) console.log(`MCP server ${serverName} created`);
+        } catch (error: any) {
+          failed.push(serverName);
+          console.warn(`Failed to create MCP server ${serverName}: ${error.message}`);
+          continue;
+        }
+      } else {
+        // Check if config has changed
+        const configChanged = this.mcpServerConfigChanged(server, serverConfig);
+
+        if (configChanged) {
+          if (verbose) console.log(`Updating MCP server: ${serverName}`);
+          const updateParams = this.buildMcpServerParams(serverConfig);
+          try {
+            server = await client.updateMcpServer(server.id, updateParams);
+            updated.push(serverName);
+            if (verbose) console.log(`MCP server ${serverName} updated`);
+          } catch (error: any) {
+            failed.push(serverName);
+            console.warn(`Failed to update MCP server ${serverName}: ${error.message}`);
+            continue;
+          }
+        } else {
+          unchanged.push(serverName);
+          if (verbose) console.log(`MCP server ${serverName} unchanged`);
+        }
+      }
+
+      mcpServerNameToId.set(serverName, server.id);
+    }
+
+    return { mcpServerNameToId, created, updated, unchanged, failed };
+  }
+
+  private mcpServerConfigChanged(existing: any, desired: any): boolean {
+    // Compare based on server type
+    if (desired.type === 'sse' || desired.type === 'streamable_http') {
+      if (existing.server_url !== desired.server_url) return true;
+      if (existing.mcp_server_type !== desired.type) return true;
+    } else if (desired.type === 'stdio') {
+      if (existing.command !== desired.command) return true;
+      const existingArgs = existing.args || [];
+      const desiredArgs = desired.args || [];
+      if (JSON.stringify(existingArgs) !== JSON.stringify(desiredArgs)) return true;
+    }
+    return false;
+  }
+
+  private buildMcpServerParams(serverConfig: any): any {
+    const params: any = {
+      server_name: serverConfig.name,
+      config: {}
+    };
+
+    if (serverConfig.type === 'sse') {
+      params.config = {
+        server_url: serverConfig.server_url,
+        mcp_server_type: 'sse'
+      };
+      if (serverConfig.auth_header) params.config.auth_header = serverConfig.auth_header;
+      if (serverConfig.auth_token) params.config.auth_token = serverConfig.auth_token;
+      if (serverConfig.custom_headers) params.config.custom_headers = serverConfig.custom_headers;
+    } else if (serverConfig.type === 'stdio') {
+      params.config = {
+        command: serverConfig.command,
+        args: serverConfig.args || [],
+        mcp_server_type: 'stdio'
+      };
+      if (serverConfig.env) params.config.env = serverConfig.env;
+    } else if (serverConfig.type === 'streamable_http') {
+      params.config = {
+        server_url: serverConfig.server_url,
+        mcp_server_type: 'streamable_http'
+      };
+      if (serverConfig.auth_header) params.config.auth_header = serverConfig.auth_header;
+      if (serverConfig.auth_token) params.config.auth_token = serverConfig.auth_token;
+      if (serverConfig.custom_headers) params.config.custom_headers = serverConfig.custom_headers;
+    } else {
+      throw new Error(`Unknown MCP server type: ${serverConfig.type}`);
+    }
+
+    return params;
+  }
 }

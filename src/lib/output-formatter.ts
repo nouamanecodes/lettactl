@@ -177,6 +177,28 @@ export class OutputFormatter {
   }
 
   /**
+   * Creates a table for MCP server listing
+   */
+  static createMcpServerTable(servers: any[]): string {
+    const table = new Table({
+      head: ['NAME', 'ID', 'TYPE', 'URL/COMMAND']
+    });
+
+    for (const server of servers) {
+      const type = server.mcp_server_type || '-';
+      const urlOrCmd = server.server_url || server.command || '-';
+      table.push([
+        server.server_name || server.name || 'Unknown',
+        server.id || 'Unknown',
+        type,
+        urlOrCmd
+      ]);
+    }
+
+    return table.toString();
+  }
+
+  /**
    * Handles JSON output if requested, returns true if handled
    */
   static handleJsonOutput(data: any, format?: string): boolean {
