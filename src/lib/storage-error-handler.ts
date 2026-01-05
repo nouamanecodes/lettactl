@@ -105,18 +105,19 @@ export class StorageErrorHandler {
     // Handle StorageUnknownError - check status to differentiate bucket vs auth issues
     if (error.__isStorageError && error.name === 'StorageUnknownError') {
       const status = error.originalError?.status;
-      
+
       if (status === 400) {
         throw new Error(
           `Failed to ${context.operation} ${context.bucket}/${context.filePath} (supabase): ` +
-          `Bucket '${context.bucket}' doesn't exist. Check: 1) bucket name is spelled correctly, ` +
-          `2) bucket exists in your Supabase project, 3) you're connected to the right project.`
+          `Bucket '${context.bucket}' not accessible. This could mean: 1) bucket doesn't exist, ` +
+          `2) bucket is private and requires SUPABASE_SERVICE_ROLE_KEY instead of SUPABASE_ANON_KEY. ` +
+          `For private buckets, set SUPABASE_SERVICE_ROLE_KEY in your environment.`
         );
       } else if (!error.originalError || Object.keys(error.originalError).length === 0) {
         throw new Error(
           `Failed to ${context.operation} ${context.bucket}/${context.filePath} (supabase): ` +
-          'Authentication error. Please check your SUPABASE_ANON_KEY is correct and not expired. ' +
-          'Get a new one from Supabase Dashboard > Settings > API.'
+          'Authentication error. Check your Supabase credentials. ' +
+          'For private buckets, use SUPABASE_SERVICE_ROLE_KEY instead of SUPABASE_ANON_KEY.'
         );
       }
     }
@@ -135,8 +136,9 @@ export class StorageErrorHandler {
       if (error.message.includes('Bucket not found') || error.message.includes('The resource you requested could not be found')) {
         throw new Error(
           `Failed to ${context.operation} ${context.bucket}/${context.filePath} (supabase): ` +
-          `Bucket '${context.bucket}' doesn't exist. Check: 1) bucket name is spelled correctly, ` +
-          `2) bucket exists in your Supabase project, 3) you're connected to the right project.`
+          `Bucket '${context.bucket}' not accessible. Check: 1) bucket name is correct, ` +
+          `2) bucket exists in your Supabase project. If bucket is private, ` +
+          `use SUPABASE_SERVICE_ROLE_KEY instead of SUPABASE_ANON_KEY.`
         );
       }
     }

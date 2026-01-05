@@ -13,6 +13,7 @@ export interface LettaCtlOptions {
   lettaApiKey?: string;
   supabaseUrl?: string;
   supabaseAnonKey?: string;
+  supabaseServiceRoleKey?: string;
 }
 
 export class LettaCtl {
@@ -23,8 +24,11 @@ export class LettaCtl {
     if (options.lettaApiKey) process.env.LETTA_API_KEY = options.lettaApiKey;
     if (options.supabaseUrl) process.env.SUPABASE_URL = options.supabaseUrl;
     if (options.supabaseAnonKey) process.env.SUPABASE_ANON_KEY = options.supabaseAnonKey;
+    if (options.supabaseServiceRoleKey) process.env.SUPABASE_SERVICE_ROLE_KEY = options.supabaseServiceRoleKey;
 
-    if (options.supabaseUrl && options.supabaseAnonKey) {
+    const hasSupabaseCredentials = options.supabaseUrl &&
+      (options.supabaseAnonKey || options.supabaseServiceRoleKey);
+    if (hasSupabaseCredentials) {
       this.supabaseBackend = new SupabaseStorageBackend();
     }
   }
