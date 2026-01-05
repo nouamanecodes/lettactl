@@ -37,7 +37,7 @@ function isFromBucketConfig(fileConfig: FolderFileConfig): fileConfig is { from_
 let storageManager: StorageBackendManager | null = null;
 function getStorageManager(): StorageBackendManager {
   if (!storageManager) {
-    const supabaseBackend = process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY
+    const supabaseBackend = process.env.SUPABASE_URL && (process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY)
       ? new SupabaseStorageBackend()
       : undefined;
     storageManager = new StorageBackendManager({ supabaseBackend });
@@ -131,8 +131,39 @@ export async function processFolders(
           }
         } else {
           if (verbose) console.log(`Using existing folder: ${folderConfig.name}`);
-          if (verbose) console.log('  (Skipping file upload - files already exist)');
           createdFolders.set(folderConfig.name, folder.id);
+
+          // Still upload from_bucket files for existing folders
+          for (const fileConfig of folderConfig.files) {
+            try {
+              if (isFromBucketConfig(fileConfig)) {
+                const bucketConfig = fileConfig.from_bucket;
+                const fileName = path.basename(bucketConfig.path);
+
+                if (verbose) console.log(`  Downloading from bucket: ${bucketConfig.bucket}/${bucketConfig.path}...`);
+
+                const storage = getStorageManager();
+                const fileBuffer = await storage.downloadBinaryFromBucket(bucketConfig);
+
+                const tempDir = os.tmpdir();
+                const tempPath = path.join(tempDir, fileName);
+                fs.writeFileSync(tempPath, fileBuffer);
+
+                if (verbose) console.log(`  Uploading ${fileName} to folder...`);
+                const fileStream = fs.createReadStream(tempPath);
+                await client.uploadFileToFolder(fileStream, folder.id, fileName);
+
+                fs.unlinkSync(tempPath);
+
+                if (verbose) console.log(`  Uploaded: ${fileName} (from bucket)`);
+              }
+            } catch (error: any) {
+              const fileDesc = isFromBucketConfig(fileConfig)
+                ? `${fileConfig.from_bucket.bucket}/${fileConfig.from_bucket.path}`
+                : fileConfig;
+              console.error(`  Failed to upload ${fileDesc}:`, error.message);
+            }
+          }
         }
       }
     }
