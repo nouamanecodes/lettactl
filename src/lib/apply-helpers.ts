@@ -35,14 +35,82 @@ function isFromBucketConfig(fileConfig: FolderFileConfig): fileConfig is { from_
 
 // Create storage backend manager lazily (only when needed)
 let storageManager: StorageBackendManager | null = null;
+let supabaseBackendInstance: SupabaseStorageBackend | undefined = undefined;
+
 function getStorageManager(): StorageBackendManager {
   if (!storageManager) {
-    const supabaseBackend = process.env.SUPABASE_URL && (process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY)
+    supabaseBackendInstance = process.env.SUPABASE_URL && (process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY)
       ? new SupabaseStorageBackend()
       : undefined;
-    storageManager = new StorageBackendManager({ supabaseBackend });
+    storageManager = new StorageBackendManager({ supabaseBackend: supabaseBackendInstance });
   }
   return storageManager;
+}
+
+// Helper to upload bucket files with glob expansion support
+async function uploadBucketFilesToFolder(
+  bucketConfig: { provider: 'supabase'; bucket: string; path: string },
+  folderId: string,
+  client: LettaClientWrapper,
+  verbose: boolean
+): Promise<void> {
+  const storage = getStorageManager();
+  const filePath = bucketConfig.path;
+
+  if (filePath.includes('*')) {
+    // Glob pattern - list and download all matching files
+    const prefix = filePath.split('*')[0];
+
+    if (!supabaseBackendInstance) {
+      throw new Error('Supabase backend not configured for bucket file download');
+    }
+
+    const files = await supabaseBackendInstance.listFiles(bucketConfig.bucket, prefix);
+
+    if (verbose) console.log(`  Found ${files.length} files matching ${bucketConfig.bucket}/${filePath}`);
+
+    for (const file of files) {
+      const fileName = path.basename(file);
+
+      if (verbose) console.log(`  Downloading: ${file}...`);
+
+      const fileBuffer = await storage.downloadBinaryFromBucket({
+        ...bucketConfig,
+        path: file
+      });
+
+      const tempDir = os.tmpdir();
+      const tempPath = path.join(tempDir, fileName);
+      fs.writeFileSync(tempPath, fileBuffer);
+
+      if (verbose) console.log(`  Uploading ${fileName} to folder...`);
+      const fileStream = fs.createReadStream(tempPath);
+      await client.uploadFileToFolder(fileStream, folderId, fileName);
+
+      fs.unlinkSync(tempPath);
+
+      if (verbose) console.log(`  Uploaded: ${fileName} (from bucket)`);
+    }
+  } else {
+    // Single file
+    const fileName = path.basename(filePath);
+
+    if (verbose) console.log(`  Downloading from bucket: ${bucketConfig.bucket}/${filePath}...`);
+
+    const fileBuffer = await storage.downloadBinaryFromBucket(bucketConfig);
+
+    const tempDir = os.tmpdir();
+    const tempPath = path.join(tempDir, fileName);
+    fs.writeFileSync(tempPath, fileBuffer);
+
+    if (verbose) console.log(`  Uploading ${fileName} to folder...`);
+    const fileStream = fs.createReadStream(tempPath);
+    await client.uploadFileToFolder(fileStream, folderId, fileName);
+
+    fs.unlinkSync(tempPath);
+
+    if (verbose) console.log(`  Uploaded: ${fileName} (from bucket)`);
+  }
 }
 
 export async function processFolders(
@@ -83,28 +151,7 @@ export async function processFolders(
           for (const fileConfig of folderConfig.files) {
             try {
               if (isFromBucketConfig(fileConfig)) {
-                // Handle from_bucket config
-                const bucketConfig = fileConfig.from_bucket;
-                const fileName = path.basename(bucketConfig.path);
-
-                if (verbose) console.log(`  Downloading from bucket: ${bucketConfig.bucket}/${bucketConfig.path}...`);
-
-                const storage = getStorageManager();
-                const fileBuffer = await storage.downloadBinaryFromBucket(bucketConfig);
-
-                // Write to temp file so the stream has proper file metadata
-                const tempDir = os.tmpdir();
-                const tempPath = path.join(tempDir, fileName);
-                fs.writeFileSync(tempPath, fileBuffer);
-
-                if (verbose) console.log(`  Uploading ${fileName} to folder...`);
-                const fileStream = fs.createReadStream(tempPath);
-                await client.uploadFileToFolder(fileStream, folder.id, fileName);
-
-                // Cleanup temp file
-                fs.unlinkSync(tempPath);
-
-                if (verbose) console.log(`  Uploaded: ${fileName} (from bucket)`);
+                await uploadBucketFilesToFolder(fileConfig.from_bucket, folder.id, client, verbose);
               } else {
                 // Handle local file path (existing behavior)
                 const filePath = fileConfig;
@@ -137,25 +184,7 @@ export async function processFolders(
           for (const fileConfig of folderConfig.files) {
             try {
               if (isFromBucketConfig(fileConfig)) {
-                const bucketConfig = fileConfig.from_bucket;
-                const fileName = path.basename(bucketConfig.path);
-
-                if (verbose) console.log(`  Downloading from bucket: ${bucketConfig.bucket}/${bucketConfig.path}...`);
-
-                const storage = getStorageManager();
-                const fileBuffer = await storage.downloadBinaryFromBucket(bucketConfig);
-
-                const tempDir = os.tmpdir();
-                const tempPath = path.join(tempDir, fileName);
-                fs.writeFileSync(tempPath, fileBuffer);
-
-                if (verbose) console.log(`  Uploading ${fileName} to folder...`);
-                const fileStream = fs.createReadStream(tempPath);
-                await client.uploadFileToFolder(fileStream, folder.id, fileName);
-
-                fs.unlinkSync(tempPath);
-
-                if (verbose) console.log(`  Uploaded: ${fileName} (from bucket)`);
+                await uploadBucketFilesToFolder(fileConfig.from_bucket, folder.id, client, verbose);
               }
             } catch (error: any) {
               const fileDesc = isFromBucketConfig(fileConfig)
