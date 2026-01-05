@@ -6,10 +6,13 @@ import { FileContentTracker } from '../lib/file-content-tracker';
 import { OutputFormatter } from '../lib/output-formatter';
 import { createSpinner, getSpinnerEnabled } from '../lib/spinner';
 import { minimatch } from 'minimatch';
+import { readLastApplied, applyThreeWayMerge, hashCurrentTools, hashCurrentBlocks, METADATA_KEY } from '../lib/last-applied-config';
+import { normalizeResponse } from '../lib/response-normalizer';
 
 /**
  * Template mode: apply a template config to all existing agents matching a glob pattern.
- * Uses MERGE semantics - adds/updates resources but doesn't remove existing ones.
+ * Uses kubectl-style three-way merge: removes resources only if they were previously
+ * applied via template (preserves user-added resources).
  */
 export async function applyTemplateMode(
   options: { file: string; match: string; dryRun?: boolean; root?: string },
@@ -48,6 +51,20 @@ export async function applyTemplateMode(
     return;
   }
 
+  // Pre-fetch current state for conflict detection BEFORE any modifications
+  // This captures server state before shared blocks are updated
+  const preModifyHashes = new Map<string, { toolHashes: Record<string, string>; blockHashes: Record<string, string> }>();
+  for (const agent of matchingAgents) {
+    const toolsResponse = await client.listAgentTools(agent.id);
+    const blocksResponse = await client.listAgentBlocks(agent.id);
+    const tools = normalizeResponse(toolsResponse);
+    const blocks = normalizeResponse(blocksResponse);
+    preModifyHashes.set(agent.id, {
+      toolHashes: hashCurrentTools(tools),
+      blockHashes: hashCurrentBlocks(blocks),
+    });
+  }
+
   // Initialize managers
   const blockManager = new BlockManager(client);
   const diffEngine = new DiffEngine(client, blockManager, parser.basePath);
@@ -82,6 +99,18 @@ export async function applyTemplateMode(
     const agentSpinner = createSpinner(`Analyzing ${existingAgent.name}...`, spinnerEnabled).start();
 
     try {
+      // Get full agent details including metadata
+      const fullAgent = await client.getAgent(existingAgent.id);
+      const lastApplied = readLastApplied(fullAgent.metadata);
+
+      // Use pre-cached hashes (captured before shared blocks were modified)
+      const currentHashes = preModifyHashes.get(existingAgent.id) || null;
+
+      // Generate template block hashes
+      const templateBlockHashes = await fileTracker.generateMemoryBlockFileHashes(
+        config.shared_blocks || []
+      );
+
       // Build desired config from template (no memoryBlocks - those are instance-specific)
       const desiredConfig = {
         systemPrompt: templateAgent?.system_prompt?.value || '',
@@ -114,19 +143,28 @@ export async function applyTemplateMode(
         updatedTools
       );
 
-      // MERGE semantics: clear toRemove arrays (don't remove existing resources)
-      if (ops.tools) ops.tools.toRemove = [];
-      if (ops.blocks) ops.blocks.toRemove = [];
-      if (ops.folders) ops.folders.toDetach = [];
-
-      // Recalculate operation count after filtering
-      ops.operationCount = 0;
-      if (ops.updateFields) ops.operationCount += Object.keys(ops.updateFields).length;
-      if (ops.tools) ops.operationCount += ops.tools.toAdd.length + ops.tools.toUpdate.length;
-      if (ops.blocks) ops.operationCount += ops.blocks.toAdd.length + ops.blocks.toUpdate.length;
-      if (ops.folders) ops.operationCount += ops.folders.toAttach.length;
+      // Three-way merge: only remove resources that were in lastApplied
+      const configToStore = applyThreeWayMerge(
+        ops,
+        lastApplied,
+        {
+          tools: templateTools,
+          sharedBlocks: templateSharedBlocks,
+          folders: [],
+          toolHashes: toolSourceHashes,
+          blockHashes: templateBlockHashes,
+        },
+        currentHashes,
+        verbose
+      );
 
       if (ops.operationCount === 0) {
+        // Still store lastApplied on first template apply (for future conflict detection)
+        if (!lastApplied) {
+          await client.updateAgentMetadata(existingAgent.id, {
+            metadata: { ...fullAgent.metadata, [METADATA_KEY]: configToStore }
+          });
+        }
         agentSpinner.succeed(`${existingAgent.name}: already up to date`);
         continue;
       }
@@ -136,6 +174,12 @@ export async function applyTemplateMode(
 
       const updateSpinner = createSpinner(`Applying updates to ${existingAgent.name}...`, spinnerEnabled).start();
       await diffEngine.applyUpdateOperations(existingAgent.id, ops, verbose);
+
+      // Store lastApplied config in agent metadata
+      await client.updateAgentMetadata(existingAgent.id, {
+        metadata: { ...fullAgent.metadata, [METADATA_KEY]: configToStore }
+      });
+
       updateSpinner.succeed(`${existingAgent.name}: updated successfully`);
 
     } catch (error: any) {
