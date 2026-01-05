@@ -179,33 +179,38 @@ export class SupabaseStorageBackend {
 
   constructor() {
     this.validateEnvironment();
-    
-    // Use generic environment variables for standalone library
+
+    // Prefer service role key for private bucket access, fall back to anon key
+    const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY!;
+
     this.supabase = createClient(
       process.env.SUPABASE_URL!,
-      process.env.SUPABASE_ANON_KEY!,
+      key,
       {
         auth: { persistSession: false }
       }
     )
   }
-  
+
   private validateEnvironment(): void {
-    const requiredVars = ['SUPABASE_URL', 'SUPABASE_ANON_KEY'];
-    const missing: string[] = [];
-    
-    for (const envVar of requiredVars) {
-      if (!process.env[envVar]) {
-        missing.push(envVar);
-      }
-    }
-    
-    if (missing.length > 0) {
+    if (!process.env.SUPABASE_URL) {
       throw new Error(
-        `Missing required environment variables for Supabase: ${missing.join(', ')}\n\n` +
-        'Set them with:\n' +
-        missing.map(v => `export ${v}=<your_value>`).join('\n') +
-        '\n\nOr add them to your .env file.'
+        'Missing required environment variable: SUPABASE_URL\n\n' +
+        'Set it with:\n' +
+        'export SUPABASE_URL=https://your-project.supabase.co\n\n' +
+        'Or add it to your .env file.'
+      );
+    }
+
+    // Require at least one key
+    if (!process.env.SUPABASE_ANON_KEY && !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      throw new Error(
+        'Missing Supabase credentials. Set one of:\n' +
+        '  SUPABASE_ANON_KEY - for public buckets\n' +
+        '  SUPABASE_SERVICE_ROLE_KEY - for private buckets (recommended)\n\n' +
+        'Example:\n' +
+        'export SUPABASE_SERVICE_ROLE_KEY=your_service_role_key\n\n' +
+        'Or add to your .env file.'
       );
     }
     
