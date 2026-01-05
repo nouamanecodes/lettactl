@@ -27,7 +27,7 @@ export async function applyCommand(options: { file: string; agent?: string; matc
     let supabaseBackend: SupabaseStorageBackend | undefined;
     
     try {
-      if (process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY) {
+      if (process.env.SUPABASE_URL && (process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY)) {
         supabaseBackend = new SupabaseStorageBackend();
         console.log('Supabase backend configured for cloud storage access');
       }
