@@ -138,7 +138,6 @@ export class DiffApplier {
       const bucketPath = fileIdentifier.substring(7); // Remove 'bucket:' prefix
       const [bucket, ...pathParts] = bucketPath.split('/');
       const filePath = pathParts.join('/');
-      const fileName = pathParts[pathParts.length - 1];
 
       // Initialize storage backend
       const supabaseBackend = process.env.SUPABASE_URL && (process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY)
@@ -150,18 +149,45 @@ export class DiffApplier {
       }
 
       const storageManager = new StorageBackendManager({ supabaseBackend });
-      const fileBuffer = await storageManager.downloadBinaryFromBucket({
-        provider: 'supabase',
-        bucket,
-        path: filePath
-      });
 
-      // Write to temp file and upload
-      const tempPath = path.join(os.tmpdir(), fileName);
-      fs.writeFileSync(tempPath, fileBuffer);
-      const fileStream = fs.createReadStream(tempPath);
-      await this.client.uploadFileToFolder(fileStream, folderId, fileName);
-      fs.unlinkSync(tempPath);
+      // Check if path contains glob pattern
+      if (filePath.includes('*')) {
+        // Extract prefix (everything before the *)
+        const prefix = filePath.split('*')[0];
+
+        // List all files matching the prefix
+        const files = await supabaseBackend.listFiles(bucket, prefix);
+
+        // Download and upload each file
+        for (const file of files) {
+          const fileName = path.basename(file);
+          const fileBuffer = await storageManager.downloadBinaryFromBucket({
+            provider: 'supabase',
+            bucket,
+            path: file
+          });
+
+          const tempPath = path.join(os.tmpdir(), fileName);
+          fs.writeFileSync(tempPath, fileBuffer);
+          const fileStream = fs.createReadStream(tempPath);
+          await this.client.uploadFileToFolder(fileStream, folderId, fileName);
+          fs.unlinkSync(tempPath);
+        }
+      } else {
+        // Single file download
+        const fileName = pathParts[pathParts.length - 1];
+        const fileBuffer = await storageManager.downloadBinaryFromBucket({
+          provider: 'supabase',
+          bucket,
+          path: filePath
+        });
+
+        const tempPath = path.join(os.tmpdir(), fileName);
+        fs.writeFileSync(tempPath, fileBuffer);
+        const fileStream = fs.createReadStream(tempPath);
+        await this.client.uploadFileToFolder(fileStream, folderId, fileName);
+        fs.unlinkSync(tempPath);
+      }
     } else {
       // Local file
       const fullPath = path.resolve(this.basePath, fileIdentifier);
