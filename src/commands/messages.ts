@@ -184,19 +184,38 @@ export async function sendMessageCommand(
         throw error;
       }
       console.log('---');
-      
+
       if (response.messages && response.messages.length > 0) {
-        const lastMessage = response.messages[response.messages.length - 1];
-        const messageContent = getMessageContent(lastMessage);
-        if (messageContent) {
-          console.log(messageContent);
+        // Filter for assistant messages, excluding system alerts and internal messages
+        const assistantMessages = response.messages.filter((msg: any) =>
+          msg.message_type === 'assistant_message' ||
+          msg.type === 'assistant_message' ||
+          (msg.role === 'assistant' && !msg.type?.includes('system'))
+        );
+
+        if (assistantMessages.length > 0) {
+          // Show the last assistant message
+          const lastAssistant = assistantMessages[assistantMessages.length - 1];
+          const messageContent = getMessageContent(lastAssistant);
+          if (messageContent) {
+            console.log(messageContent);
+          } else {
+            console.log(JSON.stringify(lastAssistant, null, 2));
+          }
         } else {
-          console.log('[Non-text response]');
+          // Fallback: show last message if no assistant messages found
+          const lastMessage = response.messages[response.messages.length - 1];
+          const messageContent = getMessageContent(lastMessage);
+          if (messageContent) {
+            console.log(messageContent);
+          } else {
+            console.log(JSON.stringify(lastMessage, null, 2));
+          }
         }
       } else {
         console.log('[No response content]');
       }
-      
+
       console.log('---');
       
       if (verbose && response.usage) {
