@@ -25,19 +25,21 @@ export class OutputFormatter {
   static createAgentTable(agents: any[], wide: boolean = false): string {
     if (wide) {
       const table = new Table({
-        head: ['NAME', 'ID', 'MODEL', 'BLOCKS', 'TOOLS']
+        head: ['NAME', 'ID', 'MODEL', 'BLOCKS', 'TOOLS', 'CREATED']
       });
 
       for (const agent of agents) {
         const model = agent.llm_config?.model || agent.model || '-';
-        const blockCount = agent.memory?.blocks?.length || agent.blocks?.length || '-';
-        const toolCount = agent.tools?.length || '-';
+        const blockCount = agent.memory?.blocks?.length || agent.blocks?.length || 0;
+        const toolCount = agent.tools?.length || 0;
+        const created = this.formatDate(agent.created_at);
         table.push([
           agent.name || 'Unknown',
           agent.id || 'Unknown',
           model,
           blockCount.toString(),
-          toolCount.toString()
+          toolCount.toString(),
+          created
         ]);
       }
 
@@ -45,17 +47,49 @@ export class OutputFormatter {
     }
 
     const table = new Table({
-      head: ['NAME', 'ID']
+      head: ['NAME', 'ID', 'DESCRIPTION', 'MODEL', 'CREATED']
     });
 
     for (const agent of agents) {
+      const model = agent.llm_config?.model || agent.model || '-';
+      const desc = this.truncate(agent.description, 20);
+      const created = this.formatDate(agent.created_at);
       table.push([
         agent.name || 'Unknown',
-        agent.id || 'Unknown'
+        agent.id || 'Unknown',
+        desc,
+        model,
+        created
       ]);
     }
 
     return table.toString();
+  }
+
+  /**
+   * Truncates a string to max length with ellipsis
+   */
+  private static truncate(str?: string, maxLen: number = 20): string {
+    if (!str) return '-';
+    if (str.length <= maxLen) return str;
+    return str.substring(0, maxLen - 3) + '...';
+  }
+
+  /**
+   * Formats a date string to a readable short format
+   */
+  private static formatDate(dateStr?: string): string {
+    if (!dateStr) return '-';
+    try {
+      const date = new Date(dateStr);
+      return date.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric'
+      });
+    } catch {
+      return '-';
+    }
   }
 
   /**
