@@ -8,6 +8,7 @@ import { getSpinnerEnabled } from '../lib/spinner';
 import { SupabaseStorageBackend, hasSupabaseConfig } from '../lib/storage-backend';
 import { applyTemplateMode } from './apply-template';
 import { processSharedBlocks, processFolders, updateExistingAgent, createNewAgent } from '../lib/apply-helpers';
+import { formatLettaError } from '../lib/error-handler';
 
 
 export async function applyCommand(options: { file: string; agent?: string; match?: string; dryRun?: boolean; root?: string }, command: any) {
@@ -196,7 +197,7 @@ export async function applyCommand(options: { file: string; agent?: string; matc
           });
         }
       } catch (error: any) {
-        console.error(`Failed to process agent ${agent.name}:`, error.message);
+        console.error(`Failed to process agent ${agent.name}:`, formatLettaError(error.message));
         throw error;
       }
     }
@@ -204,6 +205,6 @@ export async function applyCommand(options: { file: string; agent?: string; matc
     console.log('Apply completed successfully');
 
   } catch (error: any) {
-    throw new Error(`Apply failed: ${error.message || error}`);
+    throw new Error(`Apply failed: ${formatLettaError(error.message || error)}`);
   }
 }
