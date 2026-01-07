@@ -254,13 +254,16 @@ export class OutputFormatter {
         console.log(`  ~ System prompt: updated`);
       }
       if (operations.updateFields.model !== undefined) {
-        console.log(`  ~ Model: updated to ${operations.updateFields.model}`);
+        const { from, to } = operations.updateFields.model;
+        console.log(`  ~ Model: ${from} → ${to}`);
       }
       if (operations.updateFields.embedding !== undefined) {
-        console.log(`  ~ Embedding: updated to ${operations.updateFields.embedding}`);
+        const { from, to } = operations.updateFields.embedding;
+        console.log(`  ~ Embedding: ${from} → ${to}`);
       }
       if (operations.updateFields.contextWindow !== undefined) {
-        console.log(`  ~ Context window: updated to ${operations.updateFields.contextWindow}`);
+        const { from, to } = operations.updateFields.contextWindow;
+        console.log(`  ~ Context window: ${from} → ${to}`);
       }
     } else {
       console.log(`  = Basic fields: unchanged`);
