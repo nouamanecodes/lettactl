@@ -35,7 +35,23 @@ export class DiffApplier {
     // Apply field updates
     if (operations.updateFields) {
       if (verbose) console.log('  Updating agent fields...');
-      await this.client.updateAgent(agentId, operations.updateFields);
+      const apiFields: any = {};
+      const fields = operations.updateFields;
+
+      if (fields.system !== undefined) {
+        apiFields.system = fields.system;
+      }
+      if (fields.model !== undefined) {
+        apiFields.model = fields.model.to;
+      }
+      if (fields.embedding !== undefined) {
+        apiFields.embedding = fields.embedding.to;
+      }
+      if (fields.contextWindow !== undefined) {
+        apiFields.context_window_limit = fields.contextWindow.to;
+      }
+
+      await this.client.updateAgent(agentId, apiFields);
     }
 
     // Apply tool changes

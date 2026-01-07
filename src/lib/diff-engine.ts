@@ -32,20 +32,25 @@ export interface FolderDiff {
   unchanged: Array<{ name: string; id: string }>;
 }
 
+export interface FieldChange<T> {
+  from: T;
+  to: T;
+}
+
 export interface AgentUpdateOperations {
   // Basic agent field updates (preserve conversation)
   updateFields?: {
     system?: string;
-    model?: string;
-    embedding?: string;
-    contextWindow?: number;
+    model?: FieldChange<string>;
+    embedding?: FieldChange<string>;
+    contextWindow?: FieldChange<number>;
   };
-  
+
   // Resource management operations
   tools?: ToolDiff;
   blocks?: BlockDiff;
   folders?: FolderDiff;
-  
+
   // Metadata
   preservesConversation: boolean;
   operationCount: number;
@@ -126,20 +131,20 @@ export class DiffEngine {
 
     const desiredModel = desiredConfig.model || "google_ai/gemini-2.5-pro";
     if (currentAgent.model !== desiredModel) {
-      fieldUpdates.model = desiredModel;
+      fieldUpdates.model = { from: currentAgent.model, to: desiredModel };
       operations.operationCount++;
     }
 
     const desiredEmbedding = desiredConfig.embedding || "letta/letta-free";
     if (currentAgent.embedding !== desiredEmbedding) {
-      fieldUpdates.embedding = desiredEmbedding;
+      fieldUpdates.embedding = { from: currentAgent.embedding, to: desiredEmbedding };
       operations.operationCount++;
     }
 
     const desiredContextWindow = desiredConfig.contextWindow || 64000;
     const currentContextWindow = (currentAgent as any).llm_config?.context_window || 64000;
     if (currentContextWindow !== desiredContextWindow) {
-      fieldUpdates.context_window_limit = desiredContextWindow;
+      fieldUpdates.contextWindow = { from: currentContextWindow, to: desiredContextWindow };
       operations.operationCount++;
     }
 
