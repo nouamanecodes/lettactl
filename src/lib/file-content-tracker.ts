@@ -3,6 +3,7 @@ import * as path from 'path';
 import * as crypto from 'crypto';
 import { StorageBackendManager, BucketConfig } from './storage-backend';
 import { FolderConfig, FolderFileConfig } from '../types/fleet-config';
+import { isBuiltinTool } from './builtin-tools';
 
 export interface FileContentMap {
   [filePath: string]: string; // filePath -> content hash
@@ -55,7 +56,7 @@ export class FileContentTracker {
 
     for (const toolName of toolNames) {
       // Skip built-in tools that don't have source files
-      if (['archival_memory_insert', 'archival_memory_search'].includes(toolName)) {
+      if (isBuiltinTool(toolName)) {
         continue;
       }
 
