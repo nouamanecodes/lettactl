@@ -204,6 +204,7 @@ export async function updateExistingAgent(
   existingAgent: AgentVersion,
   agentConfig: any,
   context: {
+    client: LettaClientWrapper;
     diffEngine: DiffEngine;
     agentManager: AgentManager;
     toolNameToId: Map<string, string>;
@@ -212,9 +213,10 @@ export async function updateExistingAgent(
     sharedBlockIds: Map<string, string>;
     spinnerEnabled: boolean;
     verbose: boolean;
+    previousFolderFileHashes?: Record<string, Record<string, string>>;
   }
 ): Promise<void> {
-  const { diffEngine, agentManager, toolNameToId, updatedTools, createdFolders, sharedBlockIds, spinnerEnabled, verbose } = context;
+  const { client, diffEngine, agentManager, toolNameToId, updatedTools, createdFolders, sharedBlockIds, spinnerEnabled, verbose, previousFolderFileHashes } = context;
 
   console.log(`Updating agent ${agent.name}:`);
 
@@ -228,7 +230,8 @@ export async function updateExistingAgent(
       createdFolders,
       verbose,
       sharedBlockIds,
-      updatedTools
+      updatedTools,
+      previousFolderFileHashes
     );
 
     spinner.stop();
@@ -238,6 +241,23 @@ export async function updateExistingAgent(
     const updateSpinner = createSpinner(`Applying updates to ${agent.name}...`, spinnerEnabled).start();
 
     await diffEngine.applyUpdateOperations(existingAgent.id, updateOperations, verbose);
+
+    // Store folder file hashes in agent metadata for next apply
+    const newFolderFileHashes: Record<string, Record<string, string>> = {};
+    for (const folder of agentConfig.folders || []) {
+      if (folder.fileContentHashes) {
+        newFolderFileHashes[folder.name] = folder.fileContentHashes;
+      }
+    }
+    if (Object.keys(newFolderFileHashes).length > 0) {
+      const currentAgent = await client.getAgent(existingAgent.id);
+      await client.updateAgent(existingAgent.id, {
+        metadata: {
+          ...(currentAgent as any).metadata,
+          'lettactl.folderFileHashes': newFolderFileHashes
+        }
+      });
+    }
 
     agentManager.updateRegistry(existingAgent.name, agentConfig, existingAgent.id);
 

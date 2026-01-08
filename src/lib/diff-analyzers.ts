@@ -132,7 +132,8 @@ export async function analyzeFolderChanges(
   currentFolders: any[],
   desiredFolders: Array<{ name: string; files: FolderFileConfig[]; fileContentHashes?: Record<string, string> }>,
   folderRegistry: Map<string, string>,
-  client: LettaClientWrapper
+  client: LettaClientWrapper,
+  previousFolderFileHashes?: Record<string, Record<string, string>>
 ): Promise<FolderDiff> {
   const currentFolderNames = new Set(currentFolders.map(f => f.name));
   const desiredFolderNames = new Set(desiredFolders.map(f => f.name));
@@ -175,6 +176,7 @@ export async function analyzeFolderChanges(
           const filesToUpdate: string[] = [];
 
           // Find files to add or update
+          const prevHashes = previousFolderFileHashes?.[folder.name] || {};
           for (const fileConfig of desiredFolder.files) {
             const fileName = getFileName(fileConfig);
             const fileId = getFileIdentifier(fileConfig);
@@ -183,8 +185,13 @@ export async function analyzeFolderChanges(
             } else {
               // Only check for updates on local files (strings), not bucket files
               if (typeof fileConfig === 'string' && hasSourceContent(fileConfig, desiredFolder.fileContentHashes || {})) {
-                console.log(`File ${fileConfig} has file-based content, checking for updates...`);
-                filesToUpdate.push(fileId);
+                const currentHash = desiredFolder.fileContentHashes?.[fileConfig];
+                const previousHash = prevHashes[fileConfig];
+                // Only update if hash changed or no previous hash (first apply)
+                if (currentHash && currentHash !== previousHash) {
+                  console.log(`File ${fileConfig} content changed, will update...`);
+                  filesToUpdate.push(fileId);
+                }
               }
             }
           }

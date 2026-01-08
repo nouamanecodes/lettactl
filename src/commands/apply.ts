@@ -172,8 +172,13 @@ export async function applyCommand(options: { file: string; agent?: string; matc
             continue;
           }
 
+          // Read previous folder file hashes from agent metadata
+          const fullAgent = await client.getAgent(existingAgent.id);
+          const previousFolderFileHashes = (fullAgent as any).metadata?.['lettactl.folderFileHashes'] || {};
+
           // Update existing agent
           await updateExistingAgent(agent, existingAgent, agentConfig, {
+            client,
             diffEngine,
             agentManager,
             toolNameToId,
@@ -181,7 +186,8 @@ export async function applyCommand(options: { file: string; agent?: string; matc
             createdFolders,
             sharedBlockIds,
             spinnerEnabled,
-            verbose
+            verbose,
+            previousFolderFileHashes
           });
         } else {
           // Create new agent

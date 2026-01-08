@@ -16,6 +16,7 @@ export interface LastAppliedConfig {
   // Content hashes for conflict detection
   toolHashes?: Record<string, string>;
   blockHashes?: Record<string, string>;
+  folderFileHashes?: Record<string, Record<string, string>>; // folderName -> { fileName -> hash }
 }
 
 export const METADATA_KEY = 'lettactl.lastApplied';
@@ -77,6 +78,7 @@ export function applyThreeWayMerge(
     folders: string[];
     toolHashes?: Record<string, string>;
     blockHashes?: Record<string, string>;
+    folderFileHashes?: Record<string, Record<string, string>>;
   },
   currentHashes: {
     toolHashes: Record<string, string>;
@@ -170,5 +172,6 @@ export function applyThreeWayMerge(
     folders: desiredConfig.folders,
     toolHashes: desiredConfig.toolHashes,
     blockHashes: desiredConfig.blockHashes,
+    folderFileHashes: desiredConfig.folderFileHashes,
   };
 }

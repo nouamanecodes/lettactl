@@ -86,14 +86,15 @@ export class DiffEngine {
       contextWindow?: number;
       memoryBlocks?: Array<{name: string; description: string; limit: number; value: string}>;
       memoryBlockFileHashes?: Record<string, string>;
-      folders?: Array<{name: string; files: string[]}>;
+      folders?: Array<{name: string; files: string[]; fileContentHashes?: Record<string, string>}>;
       sharedBlocks?: string[];
     },
     toolRegistry: Map<string, string>,
     folderRegistry: Map<string, string>,
     verbose: boolean = false,
     sharedBlockIds?: Map<string, string>,
-    updatedTools?: Set<string>
+    updatedTools?: Set<string>,
+    previousFolderFileHashes?: Record<string, Record<string, string>>
   ): Promise<AgentUpdateOperations> {
     
     const operations: AgentUpdateOperations = {
@@ -179,7 +180,8 @@ export class DiffEngine {
       currentFolders,
       desiredConfig.folders || [],
       folderRegistry,
-      this.client
+      this.client,
+      previousFolderFileHashes
     );
     operations.operationCount += operations.folders.toAttach.length + operations.folders.toDetach.length +
       operations.folders.toUpdate.reduce((sum, folder) => sum + folder.filesToAdd.length + folder.filesToRemove.length + folder.filesToUpdate.length, 0);
