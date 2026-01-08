@@ -92,7 +92,7 @@ export async function applyTemplateMode(
 
   // Generate tool source hashes and register tools
   const toolSourceHashes = fileTracker.generateToolSourceHashes(templateTools, parser.toolConfigs);
-  const { toolNameToId, updatedTools } = await parser.registerRequiredTools(config, client, verbose, toolSourceHashes);
+  const { toolNameToId, updatedTools, builtinTools } = await parser.registerRequiredTools(config, client, verbose, toolSourceHashes);
 
   // Apply template to each matching agent
   for (const existingAgent of matchingAgents) {
@@ -170,7 +170,7 @@ export async function applyTemplateMode(
       }
 
       agentSpinner.stop();
-      OutputFormatter.showAgentUpdateDiff(ops);
+      OutputFormatter.showAgentUpdateDiff(ops, builtinTools);
 
       const updateSpinner = createSpinner(`Applying updates to ${existingAgent.name}...`, spinnerEnabled).start();
       await diffEngine.applyUpdateOperations(existingAgent.id, ops, verbose);

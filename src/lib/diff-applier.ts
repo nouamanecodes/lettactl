@@ -4,6 +4,7 @@ import * as os from 'os';
 import { LettaClientWrapper } from './letta-client';
 import { AgentUpdateOperations } from './diff-engine';
 import { StorageBackendManager, SupabaseStorageBackend, hasSupabaseConfig } from './storage-backend';
+import { isBuiltinTool } from './builtin-tools';
 
 /**
  * DiffApplier applies update operations to agents
@@ -56,8 +57,10 @@ export class DiffApplier {
 
     // Apply tool changes
     if (operations.tools) {
+      const getBuiltinTag = (name: string) => isBuiltinTool(name) ? ' [builtin]' : '';
+
       for (const tool of operations.tools.toAdd) {
-        if (verbose) console.log(`  Attaching tool: ${tool.name}`);
+        if (verbose) console.log(`  Attaching tool: ${tool.name}${getBuiltinTag(tool.name)}`);
         await this.client.attachToolToAgent(agentId, tool.id);
       }
 
@@ -69,7 +72,7 @@ export class DiffApplier {
       }
 
       for (const tool of operations.tools.toRemove) {
-        if (verbose) console.log(`  Detaching tool: ${tool.name}`);
+        if (verbose) console.log(`  Detaching tool: ${tool.name}${getBuiltinTag(tool.name)}`);
         await this.client.detachToolFromAgent(agentId, tool.id);
       }
     }

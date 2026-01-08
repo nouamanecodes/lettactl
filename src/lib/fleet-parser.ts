@@ -5,6 +5,7 @@ import * as crypto from 'crypto';
 import { FleetConfig, FolderConfig, FolderFileConfig } from '../types/fleet-config';
 import { StorageBackendManager, SupabaseStorageBackend, BucketConfig } from './storage-backend';
 import { FleetConfigValidator } from './config-validators';
+import { isBuiltinTool, formatBuiltinToolWarning, CORE_MEMORY_TOOLS } from './builtin-tools';
 
 export interface FleetParserOptions {
   supabaseBackend?: SupabaseStorageBackend;
@@ -261,9 +262,10 @@ export class FleetParser {
     client: any,
     verbose: boolean = false,
     toolSourceHashes: Record<string, string> = {}
-  ): Promise<{ toolNameToId: Map<string, string>; updatedTools: Set<string> }> {
+  ): Promise<{ toolNameToId: Map<string, string>; updatedTools: Set<string>; builtinTools: Set<string> }> {
     const toolNameToId = new Map<string, string>();
     const updatedTools = new Set<string>();
+    const builtinTools = new Set<string>();
 
     // Get existing tools
     const existingTools = await client.listTools();
@@ -284,6 +286,7 @@ export class FleetParser {
     // Register missing tools
     for (const toolName of requiredToolNames) {
       const toolConfig = this.toolConfigs.get(toolName);
+      const isBuiltin = isBuiltinTool(toolName);
 
       // Check if tool already exists
       let tool = existingToolsArray.find((t: any) => t.name === toolName);
@@ -299,7 +302,14 @@ export class FleetParser {
       }
 
       if (!tool) {
-        // Tool doesn't exist - register it
+        // Tool doesn't exist on server
+        if (isBuiltin) {
+          // Built-in tool not available - show helpful warning and skip
+          console.warn(`\n${formatBuiltinToolWarning(toolName)}\n`);
+          continue;
+        }
+
+        // Custom tool - try to register it
         try {
           if (verbose) console.log(`Registering tool: ${toolName}`);
 
@@ -318,45 +328,52 @@ export class FleetParser {
           continue;
         }
       } else {
-        // Tool exists - check if source code has actually changed
-        const defaultPath = path.join(this.basePath, 'tools', `${toolName}.py`);
+        // Tool exists on server
+        if (isBuiltin) {
+          // Mark as builtin for logging
+          builtinTools.add(toolName);
+          if (verbose) console.log(`Using built-in tool: ${toolName}`);
+        } else {
+          // Custom tool exists - check if source code has actually changed
+          const defaultPath = path.join(this.basePath, 'tools', `${toolName}.py`);
 
-        try {
-          const newSourceCode = await this.resolveContent(
-            typeof toolConfig === 'object' ? toolConfig : {},
-            defaultPath,
-            `tool: ${toolName}`
-          );
+          try {
+            const newSourceCode = await this.resolveContent(
+              typeof toolConfig === 'object' ? toolConfig : {},
+              defaultPath,
+              `tool: ${toolName}`
+            );
 
-          // Hash both old and new source code for comparison
-          const newHash = crypto.createHash('md5').update(newSourceCode).digest('hex').substring(0, 12);
-          const existingHash = tool.source_code
-            ? crypto.createHash('md5').update(tool.source_code).digest('hex').substring(0, 12)
-            : '';
+            // Hash both old and new source code for comparison
+            const newHash = crypto.createHash('md5').update(newSourceCode).digest('hex').substring(0, 12);
+            const existingHash = tool.source_code
+              ? crypto.createHash('md5').update(tool.source_code).digest('hex').substring(0, 12)
+              : '';
 
-          if (newHash !== existingHash) {
-            // Source code actually changed - re-register
-            if (verbose) console.log(`Tool ${toolName} source changed (${existingHash} -> ${newHash}), re-registering`);
-            tool = await client.createTool({ source_code: newSourceCode });
-            updatedTools.add(toolName);
-          } else {
-            if (verbose) console.log(`Tool ${toolName} unchanged, reusing existing`);
+            if (newHash !== existingHash) {
+              // Source code actually changed - re-register
+              if (verbose) console.log(`Tool ${toolName} source changed (${existingHash} -> ${newHash}), re-registering`);
+              tool = await client.createTool({ source_code: newSourceCode });
+              updatedTools.add(toolName);
+            } else {
+              if (verbose) console.log(`Tool ${toolName} unchanged, reusing existing`);
+            }
+          } catch (error: any) {
+            // Only warn if it's NOT a "file not found" error, as missing local source for existing tool is valid
+            if (!error.message.includes('not found') && !error.message.includes('no value')) {
+               console.warn(`Failed to check tool ${toolName}: ${error.message}`);
+            } else if (verbose) {
+               console.log(`Using existing tool ${toolName} (local source not found)`);
+            }
+            // Continue with existing tool
           }
-        } catch (error: any) {
-          // Only warn if it's NOT a "file not found" error, as missing local source for existing tool is valid
-          if (!error.message.includes('not found') && !error.message.includes('no value')) {
-             console.warn(`Failed to check tool ${toolName}: ${error.message}`);
-          } else if (verbose) {
-             console.log(`Using existing tool ${toolName} (local source not found)`);
-          }
-          // Continue with existing tool
         }
       }
 
       toolNameToId.set(toolName, tool.id);
     }
 
-    return { toolNameToId, updatedTools };
+    return { toolNameToId, updatedTools, builtinTools };
   }
 
   async registerMcpServers(

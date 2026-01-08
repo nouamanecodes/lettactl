@@ -88,7 +88,7 @@ export async function applyCommand(options: { file: string; agent?: string; matc
     const globalToolSourceHashes = fileTracker.generateToolSourceHashes(Array.from(allToolNames), parser.toolConfigs);
 
     if (verbose) console.log('Registering tools...');
-    const { toolNameToId, updatedTools } = await parser.registerRequiredTools(config, client, verbose, globalToolSourceHashes);
+    const { toolNameToId, updatedTools, builtinTools } = await parser.registerRequiredTools(config, client, verbose, globalToolSourceHashes);
 
     // Register MCP servers
     if (config.mcp_servers && config.mcp_servers.length > 0) {
@@ -183,6 +183,7 @@ export async function applyCommand(options: { file: string; agent?: string; matc
             agentManager,
             toolNameToId,
             updatedTools,
+            builtinTools,
             createdFolders,
             sharedBlockIds,
             spinnerEnabled,
@@ -196,6 +197,7 @@ export async function applyCommand(options: { file: string; agent?: string; matc
             blockManager,
             agentManager,
             toolNameToId,
+            builtinTools,
             createdFolders,
             sharedBlockIds,
             spinnerEnabled,

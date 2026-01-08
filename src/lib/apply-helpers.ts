@@ -11,6 +11,7 @@ import { createSpinner } from './spinner';
 import { FleetParser } from './fleet-parser';
 import { StorageBackendManager, SupabaseStorageBackend, hasSupabaseConfig } from './storage-backend';
 import { FolderFileConfig } from '../types/fleet-config';
+import { isBuiltinTool } from './builtin-tools';
 
 export async function processSharedBlocks(
   config: any,
@@ -209,6 +210,7 @@ export async function updateExistingAgent(
     agentManager: AgentManager;
     toolNameToId: Map<string, string>;
     updatedTools: Set<string>;
+    builtinTools: Set<string>;
     createdFolders: Map<string, string>;
     sharedBlockIds: Map<string, string>;
     spinnerEnabled: boolean;
@@ -216,7 +218,7 @@ export async function updateExistingAgent(
     previousFolderFileHashes?: Record<string, Record<string, string>>;
   }
 ): Promise<void> {
-  const { client, diffEngine, agentManager, toolNameToId, updatedTools, createdFolders, sharedBlockIds, spinnerEnabled, verbose, previousFolderFileHashes } = context;
+  const { client, diffEngine, agentManager, toolNameToId, updatedTools, builtinTools, createdFolders, sharedBlockIds, spinnerEnabled, verbose, previousFolderFileHashes } = context;
 
   console.log(`Updating agent ${agent.name}:`);
 
@@ -236,7 +238,7 @@ export async function updateExistingAgent(
 
     spinner.stop();
 
-    OutputFormatter.showAgentUpdateDiff(updateOperations);
+    OutputFormatter.showAgentUpdateDiff(updateOperations, builtinTools);
 
     const updateSpinner = createSpinner(`Applying updates to ${agent.name}...`, spinnerEnabled).start();
 
@@ -276,13 +278,14 @@ export async function createNewAgent(
     blockManager: BlockManager;
     agentManager: AgentManager;
     toolNameToId: Map<string, string>;
+    builtinTools: Set<string>;
     createdFolders: Map<string, string>;
     sharedBlockIds: Map<string, string>;
     spinnerEnabled: boolean;
     verbose: boolean;
   }
 ): Promise<void> {
-  const { client, blockManager, agentManager, toolNameToId, createdFolders, sharedBlockIds, spinnerEnabled, verbose } = context;
+  const { client, blockManager, agentManager, toolNameToId, builtinTools, createdFolders, sharedBlockIds, spinnerEnabled, verbose } = context;
 
   const blockIds: string[] = [];
 
@@ -334,9 +337,13 @@ export async function createNewAgent(
     });
 
     // Attach tools
-    for (const toolId of toolIds) {
-      if (verbose) console.log(`  Attaching tool: ${toolId}`);
-      await client.attachToolToAgent(createdAgent.id, toolId);
+    for (const toolName of agent.tools || []) {
+      const toolId = toolNameToId.get(toolName);
+      if (toolId) {
+        const tag = builtinTools.has(toolName) || isBuiltinTool(toolName) ? ' [builtin]' : '';
+        if (verbose) console.log(`  Attaching tool: ${toolName}${tag}`);
+        await client.attachToolToAgent(createdAgent.id, toolId);
+      }
     }
 
     // Update registry

@@ -1,5 +1,6 @@
 import Table from 'cli-table3';
 import { AgentUpdateOperations } from './diff-engine';
+import { isBuiltinTool } from './builtin-tools';
 
 export class OutputFormatter {
   /**
@@ -246,8 +247,10 @@ export class OutputFormatter {
   /**
    * Display granular diff information for agent updates
    * Shows what exactly changed in a CI/CD friendly format
+   * @param operations - The update operations to display
+   * @param builtinTools - Optional set of tool names that are builtins (for tagging)
    */
-  static showAgentUpdateDiff(operations: AgentUpdateOperations): void {
+  static showAgentUpdateDiff(operations: AgentUpdateOperations, builtinTools?: Set<string>): void {
     // System prompt and basic field changes
     if (operations.updateFields) {
       if (operations.updateFields.system !== undefined) {
@@ -272,12 +275,16 @@ export class OutputFormatter {
     // Tools changes
     if (operations.tools) {
       const { toAdd, toRemove, toUpdate, unchanged } = operations.tools;
-      
+
+      // Helper to get builtin tag
+      const getBuiltinTag = (name: string) =>
+        (builtinTools?.has(name) || isBuiltinTool(name)) ? ' [builtin]' : '';
+
       if (toAdd.length > 0 || toRemove.length > 0 || toUpdate.length > 0) {
         console.log(`  ~ Tools: ${unchanged.length} unchanged, ${toAdd.length + toRemove.length + toUpdate.length} modified`);
-        
-        toAdd.forEach(tool => console.log(`    + Added tool: ${tool.name}`));
-        toRemove.forEach(tool => console.log(`    - Removed tool: ${tool.name}`));
+
+        toAdd.forEach(tool => console.log(`    + Added tool: ${tool.name}${getBuiltinTag(tool.name)}`));
+        toRemove.forEach(tool => console.log(`    - Removed tool: ${tool.name}${getBuiltinTag(tool.name)}`));
         toUpdate.forEach(tool => console.log(`    ~ Updated tool: ${tool.name} (${tool.reason})`));
       } else {
         console.log(`  = Tools: unchanged`);
