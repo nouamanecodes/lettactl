@@ -1,0 +1,29 @@
+# Full template for testing three-way merge on all resource types
+# Tests: tools, shared_blocks, folders
+
+shared_blocks:
+  - name: block_a
+    description: "Shared block A"
+    limit: 2000
+    from_file: "memory-blocks/block-a.md"
+
+agents:
+  - name: template-agent
+    description: "Full template for three-way merge test"
+    llm_config:
+      model: "letta/letta-free"
+      context_window: 8000
+    system_prompt:
+      value: "You are a test agent with multiple resources."
+    tools:
+      - greet
+      - calculate
+      - get_weather
+    shared_blocks:
+      - block_a
+    folders:
+      - name: test-docs
+        files:
+          - "files/doc1.txt"
+          - "files/doc2.txt"
+    embedding: "letta/letta-free"

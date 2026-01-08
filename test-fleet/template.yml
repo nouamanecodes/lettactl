@@ -1,0 +1,23 @@
+# Template to apply to test-agent-* agents
+# This tests the three-way merge feature
+
+shared_blocks:
+  - name: test_guidelines
+    description: "Shared guidelines for test agents"
+    limit: 2000
+    from_file: "memory-blocks/guidelines.md"
+
+agents:
+  - name: template-agent
+    description: "Template configuration"
+    llm_config:
+      model: "letta/letta-free"
+      context_window: 8000
+    system_prompt:
+      value: "You are a helpful assistant with tools. Be concise and accurate."
+    tools:
+      - greet
+      - calculate
+    shared_blocks:
+      - test_guidelines
+    embedding: "letta/letta-free"

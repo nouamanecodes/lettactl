@@ -1,0 +1,25 @@
+# Template using Supabase storage for testing three-way merge
+
+shared_blocks:
+  - name: supabase_guidelines
+    description: "Guidelines stored in Supabase"
+    limit: 2000
+    from_bucket:
+      provider: supabase
+      bucket: test-bucket
+      path: test-guidelines.md
+
+agents:
+  - name: supabase-test-agent
+    description: "Agent for testing Supabase three-way merge"
+    llm_config:
+      model: "letta/letta-free"
+      context_window: 8000
+    system_prompt:
+      value: "You are a test agent with Supabase-hosted blocks."
+    tools:
+      - greet
+      - calculate
+    shared_blocks:
+      - supabase_guidelines
+    embedding: "letta/letta-free"

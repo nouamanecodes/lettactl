@@ -12,6 +12,7 @@ import { FleetParser } from './fleet-parser';
 import { StorageBackendManager, SupabaseStorageBackend, hasSupabaseConfig } from './storage-backend';
 import { FolderFileConfig } from '../types/fleet-config';
 import { isBuiltinTool } from './builtin-tools';
+import { displayAgentDetails } from '../commands/describe';
 
 export async function processSharedBlocks(
   config: any,
@@ -376,6 +377,10 @@ export async function createNewAgent(
     }
 
     creationSpinner.succeed(`Agent ${agentName} created successfully`);
+
+    // Display agent details
+    const fullAgent = await client.getAgent(createdAgent.id);
+    await displayAgentDetails(client, fullAgent, verbose);
   } catch (error) {
     creationSpinner.fail(`Failed to create agent ${agentName}`);
     throw error;

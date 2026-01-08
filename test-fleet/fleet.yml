@@ -1,0 +1,37 @@
+# Test fleet for three-way merge testing
+# Create test-agent-1 and test-agent-2 first, then apply template
+
+shared_blocks:
+  - name: test_guidelines
+    description: "Shared guidelines for test agents"
+    limit: 2000
+    from_file: "memory-blocks/guidelines.md"
+
+agents:
+  - name: test-agent-1
+    description: "Test agent 1 for three-way merge"
+    llm_config:
+      model: "letta/letta-free"
+      context_window: 8000
+    system_prompt:
+      value: "You are test agent 1. Use your tools to help users."
+    tools:
+      - greet
+      - calculate
+    shared_blocks:
+      - test_guidelines
+    embedding: "letta/letta-free"
+
+  - name: test-agent-2
+    description: "Test agent 2 for three-way merge"
+    llm_config:
+      model: "letta/letta-free"
+      context_window: 8000
+    system_prompt:
+      value: "You are test agent 2. Use your tools to help users."
+    tools:
+      - greet
+      - calculate
+    shared_blocks:
+      - test_guidelines
+    embedding: "letta/letta-free"
