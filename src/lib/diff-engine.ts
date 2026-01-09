@@ -41,6 +41,7 @@ export interface AgentUpdateOperations {
   // Basic agent field updates (preserve conversation)
   updateFields?: {
     system?: string;
+    description?: FieldChange<string>;
     model?: FieldChange<string>;
     embedding?: FieldChange<string>;
     contextWindow?: FieldChange<number>;
@@ -79,6 +80,7 @@ export class DiffEngine {
     existingAgent: AgentVersion,
     desiredConfig: {
       systemPrompt: string;
+      description?: string;
       tools: string[];
       toolSourceHashes?: Record<string, string>;
       model?: string;
@@ -128,6 +130,14 @@ export class DiffEngine {
     if (normalizedCurrent !== normalizedDesired) {
       if (verbose) console.log(`    System prompt differs - current length: ${normalizedCurrent.length}, desired length: ${normalizedDesired.length}`);
       fieldUpdates.system = desiredConfig.systemPrompt;
+      operations.operationCount++;
+    }
+
+    // Check description changes
+    const currentDescription = (currentAgent as any).description || '';
+    const desiredDescription = desiredConfig.description || '';
+    if (currentDescription !== desiredDescription) {
+      fieldUpdates.description = { from: currentDescription, to: desiredDescription };
       operations.operationCount++;
     }
 

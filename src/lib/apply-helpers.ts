@@ -332,6 +332,7 @@ export async function createNewAgent(
 
     const createdAgent = await client.createAgent({
       name: agentName,
+      description: agent.description || '',
       model: agent.llm_config?.model || "google_ai/gemini-2.5-pro",
       embedding: agent.embedding || "letta/letta-free",
       system: agent.system_prompt.value || '',

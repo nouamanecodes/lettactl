@@ -112,6 +112,7 @@ async function computeAgentDiff(
 
   const agentConfig = {
     systemPrompt: agent.system_prompt?.value || '',
+    description: agent.description || '',
     tools: agent.tools || [],
     toolSourceHashes,
     model: agent.llm_config?.model,

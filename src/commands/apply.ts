@@ -142,6 +142,7 @@ export async function applyCommand(options: { file: string; agent?: string; matc
         // Build agent config
         const agentConfig = {
           systemPrompt: agent.system_prompt.value || '',
+          description: agent.description || '',
           tools: agent.tools || [],
           toolSourceHashes,
           model: agent.llm_config?.model,

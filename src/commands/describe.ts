@@ -82,6 +82,7 @@ export async function displayAgentDetails(
   console.log(`${'='.repeat(50)}`);
   console.log(`ID:               ${agentDetails.id}`);
   console.log(`Name:             ${agentDetails.name}`);
+  console.log(`Description:      ${agentDetails.description || '-'}`);
   console.log(`Model:            ${agentDetails.llm_config?.model || 'Unknown'}`);
   console.log(`Context Window:   ${agentDetails.llm_config?.context_window || 'Default'}`);
   console.log(`Embedding:        ${agentDetails.embedding_config?.embedding_model || 'Unknown'}`);

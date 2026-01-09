@@ -42,6 +42,9 @@ export class DiffApplier {
       if (fields.system !== undefined) {
         apiFields.system = fields.system;
       }
+      if (fields.description !== undefined) {
+        apiFields.description = fields.description.to;
+      }
       if (fields.model !== undefined) {
         apiFields.model = fields.model.to;
       }
