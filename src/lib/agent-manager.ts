@@ -1,25 +1,10 @@
 import { LettaClientWrapper } from './letta-client';
 import { normalizeResponse } from './response-normalizer';
 import { generateContentHash, generateTimestampVersion } from '../utils/hash-utils';
+import type { AgentConfigHashes, AgentVersion } from '../types/agent';
 
-export interface AgentConfigHashes {
-  overall: string;           // Combined hash for quick comparison
-  systemPrompt: string;      // System prompt hash
-  tools: string;             // Tools configuration hash
-  model: string;             // Model + embedding + context window hash
-  memoryBlocks: string;      // Memory blocks hash
-  folders: string;           // Folders hash
-  sharedBlocks: string;      // Shared blocks hash
-}
-
-export interface AgentVersion {
-  id: string;
-  name: string;
-  baseName: string; // Name without version suffix
-  configHashes: AgentConfigHashes;
-  version: string;
-  lastUpdated: string;
-}
+// Re-export types for backwards compatibility
+export type { AgentConfigHashes, AgentVersion } from '../types/agent';
 
 export class AgentManager {
   private client: LettaClientWrapper;
