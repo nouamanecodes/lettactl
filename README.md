@@ -118,6 +118,7 @@ lettactl apply -f agents.yml --agent my-agent  # Deploy specific agent
 lettactl apply -f agents.yml --dry-run # See what would change
 lettactl apply -f agents.yml --root . # Specify root directory for file resolution
 lettactl apply -f agents.yml -v       # Verbose output
+lettactl apply -f agents.yml -q       # Quiet mode (for CI pipelines)
 
 # Template mode: apply config to existing agents matching a glob pattern
 lettactl apply -f template.yaml --match "*-assistant"  # All agents ending in -assistant
@@ -272,11 +273,27 @@ lettactl describe tool my-tool -o json
 lettactl messages my-agent             # View conversation history
 ```
 
+### Async Runs
+```bash
+lettactl runs                         # List async job runs
+lettactl runs --active                # Show only active runs
+lettactl runs -a my-agent             # Filter by agent
+lettactl runs -o json                 # JSON output for scripting
+lettactl run <run-id>                 # Get run details
+lettactl run <run-id> --wait          # Wait for run to complete
+lettactl run <run-id> --messages      # Show run messages
+lettactl run <run-id> -o json         # JSON output
+lettactl run-delete <run-id>          # Cancel/delete a run
+```
+
 ### Observability
 ```bash
 lettactl health                       # Check server connectivity
+lettactl health -o json               # JSON output for CI/scripts
 lettactl files my-agent               # Show attached files
+lettactl files my-agent -o json       # JSON output
 lettactl context my-agent             # Show context window usage
+lettactl context my-agent -o json     # JSON output
 ```
 
 ### Validate Configuration
