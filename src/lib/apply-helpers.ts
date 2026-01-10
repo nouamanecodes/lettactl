@@ -14,6 +14,7 @@ import { FolderFileConfig } from '../types/fleet-config';
 import { isBuiltinTool } from './builtin-tools';
 import { displayAgentDetails } from '../commands/describe';
 import { AgentResolver } from './agent-resolver';
+import { log, warn, isQuietMode } from './logger';
 
 export async function processSharedBlocks(
   config: any,
@@ -22,7 +23,7 @@ export async function processSharedBlocks(
 ): Promise<Map<string, string>> {
   const sharedBlockIds = new Map<string, string>();
   if (config.shared_blocks) {
-    if (verbose) console.log('Processing shared blocks...');
+    if (verbose) log('Processing shared blocks...');
     for (const sharedBlock of config.shared_blocks) {
       const blockId = await blockManager.getOrCreateSharedBlock(sharedBlock);
       sharedBlockIds.set(sharedBlock.name, blockId);
@@ -68,12 +69,12 @@ async function uploadBucketFilesToFolder(
 
     const files = await supabaseBackendInstance.listFiles(bucketConfig.bucket, prefix);
 
-    if (verbose) console.log(`  Found ${files.length} files matching ${bucketConfig.bucket}/${filePath}`);
+    if (verbose) log(`  Found ${files.length} files matching ${bucketConfig.bucket}/${filePath}`);
 
     for (const file of files) {
       const fileName = path.basename(file);
 
-      if (verbose) console.log(`  Downloading: ${file}...`);
+      if (verbose) log(`  Downloading: ${file}...`);
 
       const fileBuffer = await storage.downloadBinaryFromBucket({
         ...bucketConfig,
@@ -84,19 +85,19 @@ async function uploadBucketFilesToFolder(
       const tempPath = path.join(tempDir, fileName);
       fs.writeFileSync(tempPath, fileBuffer);
 
-      if (verbose) console.log(`  Uploading ${fileName} to folder...`);
+      if (verbose) log(`  Uploading ${fileName} to folder...`);
       const fileStream = fs.createReadStream(tempPath);
       await client.uploadFileToFolder(fileStream, folderId, fileName);
 
       fs.unlinkSync(tempPath);
 
-      if (verbose) console.log(`  Uploaded: ${fileName} (from bucket)`);
+      if (verbose) log(`  Uploaded: ${fileName} (from bucket)`);
     }
   } else {
     // Single file
     const fileName = path.basename(filePath);
 
-    if (verbose) console.log(`  Downloading from bucket: ${bucketConfig.bucket}/${filePath}...`);
+    if (verbose) log(`  Downloading from bucket: ${bucketConfig.bucket}/${filePath}...`);
 
     const fileBuffer = await storage.downloadBinaryFromBucket(bucketConfig);
 
@@ -104,13 +105,13 @@ async function uploadBucketFilesToFolder(
     const tempPath = path.join(tempDir, fileName);
     fs.writeFileSync(tempPath, fileBuffer);
 
-    if (verbose) console.log(`  Uploading ${fileName} to folder...`);
+    if (verbose) log(`  Uploading ${fileName} to folder...`);
     const fileStream = fs.createReadStream(tempPath);
     await client.uploadFileToFolder(fileStream, folderId, fileName);
 
     fs.unlinkSync(tempPath);
 
-    if (verbose) console.log(`  Uploaded: ${fileName} (from bucket)`);
+    if (verbose) log(`  Uploaded: ${fileName} (from bucket)`);
   }
 }
 
@@ -123,7 +124,7 @@ export async function processFolders(
 ): Promise<Map<string, string>> {
   const createdFolders = new Map<string, string>();
 
-  if (verbose) console.log('Processing folders...');
+  if (verbose) log('Processing folders...');
   const foldersResponse = await client.listFolders();
   const existingFolders = Array.isArray(foldersResponse) ? foldersResponse : (foldersResponse as any).items || [];
 
@@ -133,22 +134,22 @@ export async function processFolders(
     if (agent.folders) {
       for (const folderConfig of agent.folders) {
         if (createdFolders.has(folderConfig.name)) {
-          if (verbose) console.log(`Using existing folder: ${folderConfig.name}`);
+          if (verbose) log(`Using existing folder: ${folderConfig.name}`);
           continue;
         }
 
         let folder = existingFolders.find((f: any) => f.name === folderConfig.name);
 
         if (!folder) {
-          if (verbose) console.log(`Creating folder: ${folderConfig.name}`);
+          if (verbose) log(`Creating folder: ${folderConfig.name}`);
           folder = await client.createFolder({
             name: folderConfig.name,
             embedding: agent.embedding || "letta/letta-free"
           });
-          console.log(`Created folder: ${folderConfig.name}`);
+          log(`Created folder: ${folderConfig.name}`);
           createdFolders.set(folderConfig.name, folder.id);
 
-          if (verbose) console.log(`Uploading ${folderConfig.files.length} files...`);
+          if (verbose) log(`Uploading ${folderConfig.files.length} files...`);
           for (const fileConfig of folderConfig.files) {
             try {
               if (isFromBucketConfig(fileConfig)) {
@@ -159,16 +160,16 @@ export async function processFolders(
                 const resolvedPath = path.resolve(parser.basePath, filePath);
 
                 if (!fs.existsSync(resolvedPath)) {
-                  console.warn(`File not found, skipping: ${filePath}`);
+                  warn(`File not found, skipping: ${filePath}`);
                   continue;
                 }
 
-                if (verbose) console.log(`  Uploading ${filePath}...`);
+                if (verbose) log(`  Uploading ${filePath}...`);
                 const fileStream = fs.createReadStream(resolvedPath);
 
                 await client.uploadFileToFolder(fileStream, folder.id, path.basename(filePath));
 
-                if (verbose) console.log(`  Uploaded: ${filePath}`);
+                if (verbose) log(`  Uploaded: ${filePath}`);
               }
             } catch (error: any) {
               const fileDesc = isFromBucketConfig(fileConfig)
@@ -178,7 +179,7 @@ export async function processFolders(
             }
           }
         } else {
-          if (verbose) console.log(`Using existing folder: ${folderConfig.name}`);
+          if (verbose) log(`Using existing folder: ${folderConfig.name}`);
           createdFolders.set(folderConfig.name, folder.id);
 
           // Still upload from_bucket files for existing folders
@@ -222,7 +223,7 @@ export async function updateExistingAgent(
 ): Promise<void> {
   const { client, diffEngine, agentManager, toolNameToId, updatedTools, builtinTools, createdFolders, sharedBlockIds, spinnerEnabled, verbose, previousFolderFileHashes } = context;
 
-  console.log(`Updating agent ${agent.name}:`);
+  log(`Updating agent ${agent.name}:`);
 
   const spinner = createSpinner(`Analyzing changes for ${agent.name}...`, spinnerEnabled).start();
 
@@ -298,9 +299,9 @@ export async function createNewAgent(
       const sharedBlockId = sharedBlockIds.get(sharedBlockName);
       if (sharedBlockId) {
         blockIds.push(sharedBlockId);
-        if (verbose) console.log(`  Using shared block: ${sharedBlockName}`);
+        if (verbose) log(`  Using shared block: ${sharedBlockName}`);
       } else {
-        console.warn(`  Shared block not found: ${sharedBlockName}`);
+        warn(`  Shared block not found: ${sharedBlockName}`);
       }
     }
   }
@@ -308,7 +309,7 @@ export async function createNewAgent(
   // Create agent-specific memory blocks
   if (agent.memory_blocks) {
     for (const block of agent.memory_blocks) {
-      if (verbose) console.log(`  Processing memory block: ${block.name}`);
+      if (verbose) log(`  Processing memory block: ${block.name}`);
       const blockId = await blockManager.getOrCreateAgentBlock(block, agent.name);
       blockIds.push(blockId);
     }
@@ -325,7 +326,7 @@ export async function createNewAgent(
         if (toolId) {
           toolIds.push(toolId);
         } else {
-          console.warn(`  Tool not found: ${toolName}`);
+          warn(`  Tool not found: ${toolName}`);
         }
       }
     }
@@ -345,7 +346,7 @@ export async function createNewAgent(
       const toolId = toolNameToId.get(toolName);
       if (toolId) {
         const tag = builtinTools.has(toolName) || isBuiltinTool(toolName) ? ' [builtin]' : '';
-        if (verbose) console.log(`  Attaching tool: ${toolName}${tag}`);
+        if (verbose) log(`  Attaching tool: ${toolName}${tag}`);
         await client.attachToolToAgent(createdAgent.id, toolId);
       }
     }
@@ -372,9 +373,9 @@ export async function createNewAgent(
       for (const folderConfig of agent.folders) {
         const folderId = createdFolders.get(folderConfig.name);
         if (folderId) {
-          if (verbose) console.log(`  Attaching folder ${folderConfig.name}`);
+          if (verbose) log(`  Attaching folder ${folderConfig.name}`);
           await client.attachFolderToAgent(createdAgent.id, folderId);
-          if (verbose) console.log(`  Folder attached`);
+          if (verbose) log(`  Folder attached`);
         }
       }
       // Close all files to prevent context window bloat
@@ -397,10 +398,12 @@ export async function createNewAgent(
 
     creationSpinner.succeed(`Agent ${agentName} created successfully`);
 
-    // Display agent details
-    const resolver = new AgentResolver(client);
-    const fullAgent = await resolver.getAgentWithDetails(createdAgent.id);
-    await displayAgentDetails(client, fullAgent, verbose);
+    // Display agent details (skip in quiet mode)
+    if (!isQuietMode()) {
+      const resolver = new AgentResolver(client);
+      const fullAgent = await resolver.getAgentWithDetails(createdAgent.id);
+      await displayAgentDetails(client, fullAgent, verbose);
+    }
   } catch (error) {
     creationSpinner.fail(`Failed to create agent ${agentName}`);
     throw error;

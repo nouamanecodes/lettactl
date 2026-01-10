@@ -16,11 +16,25 @@ NC='\033[0m'
 PASSED=0
 FAILED=0
 
+# Parse flags
+QUIET_FLAG=""
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        -q|--quiet)
+            QUIET_FLAG="-q"
+            shift
+            ;;
+        *)
+            shift
+            ;;
+    esac
+done
+
 # Paths
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 FIXTURES="$SCRIPT_DIR/fixtures"
-CLI="node $ROOT_DIR/dist/index.js"
+CLI="node $ROOT_DIR/dist/index.js $QUIET_FLAG"
 LOG_DIR="$ROOT_DIR/logs"
 OUT="$LOG_DIR/e2e-out.txt"
 

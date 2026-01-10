@@ -5,6 +5,7 @@ import { normalizeResponse } from './response-normalizer';
 import { DiffApplier } from './diff-applier';
 import { analyzeToolChanges, analyzeBlockChanges, analyzeFolderChanges } from './diff-analyzers';
 import type { AgentUpdateOperations } from '../types/diff';
+import { log } from './logger';
 
 // Re-export types for backwards compatibility
 export type { ToolDiff, BlockDiff, FolderDiff, FieldChange, AgentUpdateOperations } from '../types/diff';
@@ -57,7 +58,7 @@ export class DiffEngine {
       operationCount: 0
     };
 
-    if (verbose) console.log(`  Analyzing configuration changes for agent: ${existingAgent.name}`);
+    if (verbose) log(`  Analyzing configuration changes for agent: ${existingAgent.name}`);
 
     // Get current agent state from server
     const currentAgent = await this.client.getAgent(existingAgent.id);
@@ -80,7 +81,7 @@ export class DiffEngine {
     const normalizedDesired = (desiredConfig.systemPrompt || '').trim();
     
     if (normalizedCurrent !== normalizedDesired) {
-      if (verbose) console.log(`    System prompt differs - current length: ${normalizedCurrent.length}, desired length: ${normalizedDesired.length}`);
+      if (verbose) log(`    System prompt differs - current length: ${normalizedCurrent.length}, desired length: ${normalizedDesired.length}`);
       fieldUpdates.system = desiredConfig.systemPrompt;
       operations.operationCount++;
     }

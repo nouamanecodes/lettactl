@@ -1,4 +1,5 @@
 import ora from 'ora';
+import { isQuietMode } from './logger';
 
 export interface SpinnerInterface {
   text: string;
@@ -30,7 +31,31 @@ class NoSpinner implements SpinnerInterface {
   }
 }
 
+class QuietSpinner implements SpinnerInterface {
+  text: string = '';
+
+  start(): SpinnerInterface {
+    return this;
+  }
+
+  succeed(_text?: string): SpinnerInterface {
+    return this;
+  }
+
+  fail(_text?: string): SpinnerInterface {
+    return this;
+  }
+
+  stop(): SpinnerInterface {
+    return this;
+  }
+}
+
 export function createSpinner(text: string, enabled: boolean = true): SpinnerInterface {
+  // Quiet mode always returns silent spinner
+  if (isQuietMode()) {
+    return new QuietSpinner();
+  }
   if (!enabled) {
     console.log(text);
     return new NoSpinner();
@@ -44,4 +69,10 @@ export function getSpinnerEnabled(command: any): boolean {
   const parentOpts = command?.parent?.opts?.() || {};
   const commandOpts = command?.opts?.() || {};
   return !(parentOpts.noSpinner || commandOpts.noSpinner);
+}
+
+export function getQuietMode(command: any): boolean {
+  const parentOpts = command?.parent?.opts?.() || {};
+  const commandOpts = command?.opts?.() || {};
+  return parentOpts.quiet || commandOpts.quiet || false;
 }

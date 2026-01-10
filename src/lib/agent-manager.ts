@@ -2,6 +2,7 @@ import { LettaClientWrapper } from './letta-client';
 import { normalizeResponse } from './response-normalizer';
 import { generateContentHash, generateTimestampVersion } from '../utils/hash-utils';
 import type { AgentConfigHashes, AgentVersion } from '../types/agent';
+import { log } from './logger';
 
 // Re-export types for backwards compatibility
 export type { AgentConfigHashes, AgentVersion } from '../types/agent';
@@ -176,7 +177,7 @@ export class AgentManager {
 
     if (!existingAgent) {
       // No agent with this base name exists
-      if (verbose) console.log(`  No existing agent found for: ${baseName}`);
+      if (verbose) log(`  No existing agent found for: ${baseName}`);
       return { 
         agentName: baseName, 
         shouldCreate: true 
@@ -185,7 +186,7 @@ export class AgentManager {
 
     // For existing agents, we need to compare properly by generating current config hash
     // from the server state. For now, we'll always prefer partial updates over recreation.
-    if (verbose) console.log(`  Found existing agent: ${existingAgent.name}, checking for changes...`);
+    if (verbose) log(`  Found existing agent: ${existingAgent.name}, checking for changes...`);
     
     // Always return existing agent to trigger partial update logic in apply command
     // The actual comparison will happen in the DiffEngine

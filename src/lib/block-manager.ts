@@ -1,6 +1,7 @@
 import { LettaClientWrapper } from './letta-client';
 import { normalizeResponse } from './response-normalizer';
 import { generateContentHash } from '../utils/hash-utils';
+import { log } from './logger';
 
 export interface BlockInfo {
   id: string;
@@ -69,12 +70,12 @@ export class BlockManager {
 
     if (existing) {
       if (existing.contentHash === contentHash) {
-        console.log(`Using existing shared block: ${existing.label}`);
+        log(`Using existing shared block: ${existing.label}`);
         return existing.id;
       }
 
       // Content changed - update in-place
-      console.log(`Updating shared block: ${existing.label}`);
+      log(`Updating shared block: ${existing.label}`);
       await this.client.updateBlock(existing.id, {
         value: blockConfig.value,
         description: blockConfig.description,
@@ -91,7 +92,7 @@ export class BlockManager {
     }
 
     // Create new block
-    console.log(`Creating new shared block: ${blockConfig.name}`);
+    log(`Creating new shared block: ${blockConfig.name}`);
     const newBlock = await this.client.createBlock({
       label: blockConfig.name,
       description: blockConfig.description,
@@ -123,12 +124,12 @@ export class BlockManager {
 
     if (existing) {
       if (existing.contentHash === contentHash) {
-        console.log(`Using existing block: ${existing.label}`);
+        log(`Using existing block: ${existing.label}`);
         return existing.id;
       }
 
       // Content changed - update in-place
-      console.log(`Updating block: ${existing.label}`);
+      log(`Updating block: ${existing.label}`);
       await this.client.updateBlock(existing.id, {
         value: blockConfig.value,
         description: blockConfig.description,
@@ -145,7 +146,7 @@ export class BlockManager {
     }
 
     // Create new block
-    console.log(`Creating new block: ${blockConfig.name}`);
+    log(`Creating new block: ${blockConfig.name}`);
     const newBlock = await this.client.createBlock({
       label: blockConfig.name,
       description: blockConfig.description,
