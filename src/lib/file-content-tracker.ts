@@ -4,6 +4,7 @@ import * as crypto from 'crypto';
 import { StorageBackendManager, BucketConfig } from './storage-backend';
 import { FolderConfig, FolderFileConfig } from '../types/fleet-config';
 import { isBuiltinTool } from './builtin-tools';
+import { warn } from './logger';
 
 export interface FileContentMap {
   [filePath: string]: string; // filePath -> content hash
@@ -30,7 +31,7 @@ export class FileContentTracker {
       const content = fs.readFileSync(fullPath, 'utf8');
       return crypto.createHash('sha256').update(content).digest('hex').substring(0, 16);
     } catch (error) {
-      console.warn(`Warning: Could not read file ${filePath} for hashing:`, (error as Error).message);
+      warn(`Warning: Could not read file ${filePath} for hashing:`, (error as Error).message);
       return crypto.createHash('sha256').update(`file-not-found:${filePath}`).digest('hex').substring(0, 16);
     }
   }

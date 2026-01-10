@@ -16,6 +16,7 @@
     "start": "node dist/index.js",
     "dev": "ts-node src/index.ts",
     "test": "jest",
+    "test:e2e": "./tests/e2e/script.sh",
     "prepare": "husky",
     "prepublishOnly": "npm test && npm run build",
     "preversion": "npm test",

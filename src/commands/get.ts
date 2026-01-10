@@ -5,6 +5,7 @@ import { validateResourceType } from '../lib/validators';
 import { withErrorHandling } from '../lib/error-handler';
 import { createSpinner, getSpinnerEnabled } from '../lib/spinner';
 import { normalizeToArray, computeAgentCounts } from '../lib/resource-usage';
+import { log } from '../lib/logger';
 
 const SUPPORTED_RESOURCES = ['agents', 'blocks', 'tools', 'folders', 'mcp-servers'];
 
@@ -30,14 +31,14 @@ async function getCommandImpl(resource: string, _name?: string, options?: GetOpt
     throw new Error('Cannot use --shared or --orphaned with --agent');
   }
   if ((options?.shared || options?.orphaned) && resource === 'agents') {
-    console.log('Note: --shared and --orphaned flags are ignored for "get agents"');
+    log('Note: --shared and --orphaned flags are ignored for "get agents"');
   }
 
   // If --agent flag is provided, resolve agent name to ID
   let agentId: string | undefined;
   if (options?.agent) {
     if (resource === 'agents') {
-      console.log('Note: --agent flag is ignored for "get agents"');
+      log('Note: --agent flag is ignored for "get agents"');
     } else {
       const spinner = createSpinner(`Resolving agent ${options.agent}...`, spinnerEnabled).start();
       try {

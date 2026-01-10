@@ -15,4 +15,4 @@ if [ -z "$LETTA_BASE_URL" ]; then
   exit 1
 fi
 
-./tests/e2e/script.sh
+pnpm test:e2e -- -q

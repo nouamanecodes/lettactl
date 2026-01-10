@@ -23,6 +23,8 @@ import { filesCommand } from './commands/files';
 import { contextCommand } from './commands/context';
 import { listRunsCommand, getRunCommand, deleteRunCommand } from './commands/runs';
 
+import { setQuietMode } from './lib/logger';
+
 // Global verbose flag for error handling
 let verboseMode = false;
 
@@ -30,6 +32,9 @@ let verboseMode = false;
 function validateEnvironment(thisCommand: any, actionCommand: any) {
   // Capture verbose flag for global error handler
   verboseMode = thisCommand.opts().verbose || false;
+
+  // Set quiet mode globally
+  setQuietMode(thisCommand.opts().quiet || false);
 
   if (!process.env.LETTA_BASE_URL) {
     console.error('Error: LETTA_BASE_URL environment variable is required');
@@ -60,6 +65,7 @@ program
   .description('kubectl-style CLI for managing Letta AI agent fleets')
   .version(version)
   .option('-v, --verbose', 'enable verbose output')
+  .option('-q, --quiet', 'suppress progress output (for CI)')
   .option('--no-spinner', 'disable loading spinners')
   .hook('preAction', validateEnvironment);
 

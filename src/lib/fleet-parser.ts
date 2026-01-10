@@ -6,6 +6,7 @@ import { FleetConfig, FolderConfig, FolderFileConfig } from '../types/fleet-conf
 import { StorageBackendManager, SupabaseStorageBackend, BucketConfig } from './storage-backend';
 import { FleetConfigValidator } from './config-validators';
 import { isBuiltinTool, formatBuiltinToolWarning, CORE_MEMORY_TOOLS } from './builtin-tools';
+import { log } from './logger';
 
 export interface FleetParserOptions {
   supabaseBackend?: SupabaseStorageBackend;
@@ -102,7 +103,7 @@ export class FleetParser {
       // Smart default fallback
       const content = fs.readFileSync(defaultPath, 'utf8');
       if (resourceName) {
-        console.log(`Auto-loaded ${resourceName} from ${path.relative(this.basePath, defaultPath)}`);
+        log(`Auto-loaded ${resourceName} from ${path.relative(this.basePath, defaultPath)}`);
       }
       return content;
     } else {
@@ -234,7 +235,7 @@ export class FleetParser {
                   .filter(file => file.endsWith('.py'))
                   .map(file => path.basename(file, '.py'));
                 expandedTools.push(...toolFiles);
-                console.log(`Auto-discovered ${toolFiles.length} tools: ${toolFiles.join(', ')}`);
+                log(`Auto-discovered ${toolFiles.length} tools: ${toolFiles.join(', ')}`);
               }
             } else {
               // Regular tool name specified explicitly
@@ -295,7 +296,7 @@ export class FleetParser {
       if (!tool) {
         try {
           tool = await client.getToolByName(toolName);
-          if (tool && verbose) console.log(`Found existing tool ${toolName} via direct lookup`);
+          if (tool && verbose) log(`Found existing tool ${toolName} via direct lookup`);
         } catch (e) {
           // Ignore error, proceed to creation
         }
@@ -311,7 +312,7 @@ export class FleetParser {
 
         // Custom tool - try to register it
         try {
-          if (verbose) console.log(`Registering tool: ${toolName}`);
+          if (verbose) log(`Registering tool: ${toolName}`);
 
           const defaultPath = path.join(this.basePath, 'tools', `${toolName}.py`);
 
@@ -322,7 +323,7 @@ export class FleetParser {
           );
 
           tool = await client.createTool({ source_code: sourceCode });
-          if (verbose) console.log(`Tool ${toolName} registered`);
+          if (verbose) log(`Tool ${toolName} registered`);
         } catch (error: any) {
           console.warn(`Failed to register tool ${toolName}: ${error.message}`);
           continue;
@@ -332,7 +333,7 @@ export class FleetParser {
         if (isBuiltin) {
           // Mark as builtin for logging
           builtinTools.add(toolName);
-          if (verbose) console.log(`Using built-in tool: ${toolName}`);
+          if (verbose) log(`Using built-in tool: ${toolName}`);
         } else {
           // Custom tool exists - check if source code has actually changed
           const defaultPath = path.join(this.basePath, 'tools', `${toolName}.py`);
@@ -352,18 +353,18 @@ export class FleetParser {
 
             if (newHash !== existingHash) {
               // Source code actually changed - re-register
-              if (verbose) console.log(`Tool ${toolName} source changed (${existingHash} -> ${newHash}), re-registering`);
+              if (verbose) log(`Tool ${toolName} source changed (${existingHash} -> ${newHash}), re-registering`);
               tool = await client.createTool({ source_code: newSourceCode });
               updatedTools.add(toolName);
             } else {
-              if (verbose) console.log(`Tool ${toolName} unchanged, reusing existing`);
+              if (verbose) log(`Tool ${toolName} unchanged, reusing existing`);
             }
           } catch (error: any) {
             // Only warn if it's NOT a "file not found" error, as missing local source for existing tool is valid
             if (!error.message.includes('not found') && !error.message.includes('no value')) {
                console.warn(`Failed to check tool ${toolName}: ${error.message}`);
             } else if (verbose) {
-               console.log(`Using existing tool ${toolName} (local source not found)`);
+               log(`Using existing tool ${toolName} (local source not found)`);
             }
             // Continue with existing tool
           }
@@ -412,13 +413,13 @@ export class FleetParser {
 
       if (!server) {
         // Create new MCP server
-        if (verbose) console.log(`Creating MCP server: ${serverName}`);
+        if (verbose) log(`Creating MCP server: ${serverName}`);
 
         const createParams = this.buildMcpServerParams(serverConfig);
         try {
           server = await client.createMcpServer(createParams);
           created.push(serverName);
-          if (verbose) console.log(`MCP server ${serverName} created`);
+          if (verbose) log(`MCP server ${serverName} created`);
         } catch (error: any) {
           failed.push(serverName);
           console.warn(`Failed to create MCP server ${serverName}: ${error.message}`);
@@ -429,12 +430,12 @@ export class FleetParser {
         const configChanged = this.mcpServerConfigChanged(server, serverConfig);
 
         if (configChanged) {
-          if (verbose) console.log(`Updating MCP server: ${serverName}`);
+          if (verbose) log(`Updating MCP server: ${serverName}`);
           const updateParams = this.buildMcpServerParams(serverConfig);
           try {
             server = await client.updateMcpServer(server.id, updateParams);
             updated.push(serverName);
-            if (verbose) console.log(`MCP server ${serverName} updated`);
+            if (verbose) log(`MCP server ${serverName} updated`);
           } catch (error: any) {
             failed.push(serverName);
             console.warn(`Failed to update MCP server ${serverName}: ${error.message}`);
@@ -442,7 +443,7 @@ export class FleetParser {
           }
         } else {
           unchanged.push(serverName);
-          if (verbose) console.log(`MCP server ${serverName} unchanged`);
+          if (verbose) log(`MCP server ${serverName} unchanged`);
         }
       }
 

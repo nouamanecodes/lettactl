@@ -1,6 +1,7 @@
 import Table from 'cli-table3';
 import { AgentUpdateOperations } from './diff-engine';
 import { isBuiltinTool } from './builtin-tools';
+import { log, output } from './logger';
 
 /**
  * Formats run/job status as bracketed labels
@@ -258,7 +259,7 @@ export class OutputFormatter {
    */
   static handleJsonOutput(data: any, format?: string): boolean {
     if (format === 'json') {
-      console.log(JSON.stringify(data, null, 2));
+      output(JSON.stringify(data, null, 2));
       return true;
     }
     return false;
@@ -274,22 +275,22 @@ export class OutputFormatter {
     // System prompt and basic field changes
     if (operations.updateFields) {
       if (operations.updateFields.system !== undefined) {
-        console.log(`  ~ System prompt: updated`);
+        log(`  ~ System prompt: updated`);
       }
       if (operations.updateFields.model !== undefined) {
         const { from, to } = operations.updateFields.model;
-        console.log(`  ~ Model: ${from} → ${to}`);
+        log(`  ~ Model: ${from} → ${to}`);
       }
       if (operations.updateFields.embedding !== undefined) {
         const { from, to } = operations.updateFields.embedding;
-        console.log(`  ~ Embedding: ${from} → ${to}`);
+        log(`  ~ Embedding: ${from} → ${to}`);
       }
       if (operations.updateFields.contextWindow !== undefined) {
         const { from, to } = operations.updateFields.contextWindow;
-        console.log(`  ~ Context window: ${from} → ${to}`);
+        log(`  ~ Context window: ${from} → ${to}`);
       }
     } else {
-      console.log(`  = Basic fields: unchanged`);
+      log(`  = Basic fields: unchanged`);
     }
 
     // Tools changes
@@ -301,16 +302,16 @@ export class OutputFormatter {
         (builtinTools?.has(name) || isBuiltinTool(name)) ? ' [builtin]' : '';
 
       if (toAdd.length > 0 || toRemove.length > 0 || toUpdate.length > 0) {
-        console.log(`  ~ Tools: ${unchanged.length} unchanged, ${toAdd.length + toRemove.length + toUpdate.length} modified`);
+        log(`  ~ Tools: ${unchanged.length} unchanged, ${toAdd.length + toRemove.length + toUpdate.length} modified`);
 
-        toAdd.forEach(tool => console.log(`    + Added tool: ${tool.name}${getBuiltinTag(tool.name)}`));
-        toRemove.forEach(tool => console.log(`    - Removed tool: ${tool.name}${getBuiltinTag(tool.name)}`));
-        toUpdate.forEach(tool => console.log(`    ~ Updated tool: ${tool.name} (${tool.reason})`));
+        toAdd.forEach(tool => log(`    + Added tool: ${tool.name}${getBuiltinTag(tool.name)}`));
+        toRemove.forEach(tool => log(`    - Removed tool: ${tool.name}${getBuiltinTag(tool.name)}`));
+        toUpdate.forEach(tool => log(`    ~ Updated tool: ${tool.name} (${tool.reason})`));
       } else {
-        console.log(`  = Tools: unchanged`);
+        log(`  = Tools: unchanged`);
       }
     } else {
-      console.log(`  = Tools: unchanged`);
+      log(`  = Tools: unchanged`);
     }
 
     // Memory blocks changes  
@@ -318,16 +319,16 @@ export class OutputFormatter {
       const { toAdd, toRemove, toUpdate, unchanged } = operations.blocks;
       
       if (toAdd.length > 0 || toRemove.length > 0 || toUpdate.length > 0) {
-        console.log(`  ~ Memory blocks: ${unchanged.length} unchanged, ${toAdd.length + toRemove.length + toUpdate.length} modified`);
+        log(`  ~ Memory blocks: ${unchanged.length} unchanged, ${toAdd.length + toRemove.length + toUpdate.length} modified`);
         
-        toAdd.forEach(block => console.log(`    + Added block: ${block.name}`));
-        toRemove.forEach(block => console.log(`    - Removed block: ${block.name}`));
-        toUpdate.forEach(block => console.log(`    ~ Updated block: ${block.name}`));
+        toAdd.forEach(block => log(`    + Added block: ${block.name}`));
+        toRemove.forEach(block => log(`    - Removed block: ${block.name}`));
+        toUpdate.forEach(block => log(`    ~ Updated block: ${block.name}`));
       } else {
-        console.log(`  = Memory blocks: unchanged`);
+        log(`  = Memory blocks: unchanged`);
       }
     } else {
-      console.log(`  = Memory blocks: unchanged`);
+      log(`  = Memory blocks: unchanged`);
     }
 
     // Folders changes
@@ -335,23 +336,23 @@ export class OutputFormatter {
       const { toAttach, toDetach, toUpdate, unchanged } = operations.folders;
       
       if (toAttach.length > 0 || toDetach.length > 0 || toUpdate.length > 0) {
-        console.log(`  ~ Folders: ${unchanged.length} unchanged, ${toAttach.length + toDetach.length + toUpdate.length} modified`);
+        log(`  ~ Folders: ${unchanged.length} unchanged, ${toAttach.length + toDetach.length + toUpdate.length} modified`);
         
-        toAttach.forEach(folder => console.log(`    + Added folder: ${folder.name}`));
-        toDetach.forEach(folder => console.log(`    - Removed folder: ${folder.name}`));
+        toAttach.forEach(folder => log(`    + Added folder: ${folder.name}`));
+        toDetach.forEach(folder => log(`    - Removed folder: ${folder.name}`));
         toUpdate.forEach(folder => {
-          console.log(`    ~ Updated folder: ${folder.name}`);
-          folder.filesToAdd.forEach(file => console.log(`      + Added file: ${file}`));
-          folder.filesToRemove.forEach(file => console.log(`      - Removed file: ${file}`));
-          folder.filesToUpdate.forEach(file => console.log(`      ~ Updated file: ${file}`));
+          log(`    ~ Updated folder: ${folder.name}`);
+          folder.filesToAdd.forEach(file => log(`      + Added file: ${file}`));
+          folder.filesToRemove.forEach(file => log(`      - Removed file: ${file}`));
+          folder.filesToUpdate.forEach(file => log(`      ~ Updated file: ${file}`));
         });
       } else {
-        console.log(`  = Folders: unchanged`);
+        log(`  = Folders: unchanged`);
       }
     } else {
-      console.log(`  = Folders: unchanged`);
+      log(`  = Folders: unchanged`);
     }
 
-    console.log(`  Total operations: ${operations.operationCount}, preserves conversation: ${operations.preservesConversation}`);
+    log(`  Total operations: ${operations.operationCount}, preserves conversation: ${operations.preservesConversation}`);
   }
 }

@@ -10,28 +10,30 @@ import { applyTemplateMode } from './apply-template';
 import { processSharedBlocks, processFolders, updateExistingAgent, createNewAgent } from '../lib/apply-helpers';
 import { formatLettaError } from '../lib/error-handler';
 import { computeDryRunDiffs, displayDryRunResults } from '../lib/dry-run';
+import { log, warn, isQuietMode } from '../lib/logger';
 
 
 export async function applyCommand(options: { file: string; agent?: string; match?: string; dryRun?: boolean; root?: string }, command: any) {
-  const verbose = command.parent?.opts().verbose || false;
+  // Quiet mode overrides verbose
+  const verbose = isQuietMode() ? false : (command.parent?.opts().verbose || false);
   try {
-    console.log(`Applying configuration from ${options.file}`);
-    
+    log(`Applying configuration from ${options.file}`);
+
     if (options.dryRun) {
-      console.log('Dry-run mode enabled');
+      log('Dry-run mode enabled');
     }
 
     if (options.agent) {
-      if (verbose) console.log(`Filtering agents by pattern: ${options.agent}`);
+      if (verbose) log(`Filtering agents by pattern: ${options.agent}`);
     }
 
     // Initialize Supabase backend if environment variables are available
     let supabaseBackend: SupabaseStorageBackend | undefined;
-    
+
     try {
       if (hasSupabaseConfig()) {
         supabaseBackend = new SupabaseStorageBackend();
-        console.log('Supabase backend configured for cloud storage access');
+        log('Supabase backend configured for cloud storage access');
       }
     } catch (error: any) {
       throw new Error(`Supabase configuration error: ${error.message}`);
@@ -43,7 +45,7 @@ export async function applyCommand(options: { file: string; agent?: string; matc
     });
     const config = await parser.parseFleetConfig(options.file);
     
-    if (verbose) console.log(`Found ${config.agents.length} agents in configuration`);
+    if (verbose) log(`Found ${config.agents.length} agents in configuration`);
 
     // Template mode: apply config to existing agents matching pattern
     if (options.match) {
@@ -58,10 +60,10 @@ export async function applyCommand(options: { file: string; agent?: string; matc
     const fileTracker = new FileContentTracker(parser.basePath, parser.storageBackend);
 
     // Load existing resources
-    if (verbose) console.log('Loading existing blocks...');
+    if (verbose) log('Loading existing blocks...');
     await blockManager.loadExistingBlocks();
 
-    if (verbose) console.log('Loading existing agents...');
+    if (verbose) log('Loading existing agents...');
     await agentManager.loadExistingAgents();
 
     // Dry-run mode: compute and display diffs without applying
@@ -92,45 +94,45 @@ export async function applyCommand(options: { file: string; agent?: string; matc
     }
     const globalToolSourceHashes = fileTracker.generateToolSourceHashes(Array.from(allToolNames), parser.toolConfigs);
 
-    if (verbose) console.log('Registering tools...');
+    if (verbose) log('Registering tools...');
     const { toolNameToId, updatedTools, builtinTools } = await parser.registerRequiredTools(config, client, verbose, globalToolSourceHashes);
 
     // Register MCP servers
     if (config.mcp_servers && config.mcp_servers.length > 0) {
-      if (verbose) console.log('Registering MCP servers...');
+      if (verbose) log('Registering MCP servers...');
       const mcpResult = await parser.registerMcpServers(config, client, verbose);
 
       // Display MCP server operation summary
       if (mcpResult.created.length > 0) {
-        console.log(`MCP servers created: ${mcpResult.created.join(', ')}`);
+        log(`MCP servers created: ${mcpResult.created.join(', ')}`);
       }
       if (mcpResult.updated.length > 0) {
-        console.log(`MCP servers updated: ${mcpResult.updated.join(', ')}`);
+        log(`MCP servers updated: ${mcpResult.updated.join(', ')}`);
       }
       if (mcpResult.unchanged.length > 0 && verbose) {
-        console.log(`MCP servers unchanged: ${mcpResult.unchanged.join(', ')}`);
+        log(`MCP servers unchanged: ${mcpResult.unchanged.join(', ')}`);
       }
       if (mcpResult.failed.length > 0) {
-        console.warn(`MCP servers failed: ${mcpResult.failed.join(', ')}`);
+        warn(`MCP servers failed: ${mcpResult.failed.join(', ')}`);
       }
     }
 
     // Process folders
     const createdFolders = await processFolders(config, client, parser, options, verbose);
-    
+
     // Process agents
     const spinnerEnabled = getSpinnerEnabled(command);
-    if (verbose) console.log('Processing agents...');
+    if (verbose) log('Processing agents...');
 
     for (const agent of config.agents) {
       if (options.agent && !agent.name.includes(options.agent)) continue;
 
-      console.log(`Processing agent: ${agent.name}`);
+      log(`Processing agent: ${agent.name}`);
       if (verbose) {
-        console.log(`  Description: ${agent.description}`);
-        console.log(`  Tools: ${agent.tools?.join(', ') || 'none'}`);
-        console.log(`  Memory blocks: ${agent.memory_blocks?.length || 0}`);
-        console.log(`  Folders: ${agent.folders?.length || 0}`);
+        log(`  Description: ${agent.description}`);
+        log(`  Tools: ${agent.tools?.join(', ') || 'none'}`);
+        log(`  Memory blocks: ${agent.memory_blocks?.length || 0}`);
+        log(`  Folders: ${agent.folders?.length || 0}`);
       }
 
       try {
@@ -174,7 +176,7 @@ export async function applyCommand(options: { file: string; agent?: string; matc
           // Check if changes needed
           const changes = agentManager.getConfigChanges(existingAgent, agentConfig);
           if (!changes.hasChanges) {
-            console.log(`Agent ${agent.name} already exists and is up to date`);
+            log(`Agent ${agent.name} already exists and is up to date`);
             continue;
           }
 
@@ -217,7 +219,7 @@ export async function applyCommand(options: { file: string; agent?: string; matc
       }
     }
 
-    console.log('Apply completed successfully');
+    log('Apply completed successfully');
 
   } catch (error: any) {
     throw new Error(`Apply failed: ${formatLettaError(error.message || error)}`);
