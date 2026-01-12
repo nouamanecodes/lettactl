@@ -1,6 +1,6 @@
 {
   "name": "lettactl",
-  "version": "0.7.22",
+  "version": "0.7.23",
   "description": "kubectl-style CLI for managing Letta AI agent fleets",
   "main": "dist/sdk.js",
   "exports": {
