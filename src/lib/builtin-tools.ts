@@ -52,6 +52,12 @@ export const CORE_MEMORY_TOOLS = [
 ];
 
 /**
+ * File search tools auto-added when folders are attached
+ * Note: open_files excluded - it loads files into context which bloats the window
+ */
+export const FILE_SEARCH_TOOLS = ['grep_files', 'semantic_search_files'];
+
+/**
  * Check if a tool name is a known built-in tool
  */
 export function isBuiltinTool(toolName: string): boolean {

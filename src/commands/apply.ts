@@ -11,7 +11,7 @@ import { processSharedBlocks, processFolders, updateExistingAgent, createNewAgen
 import { formatLettaError } from '../lib/error-handler';
 import { computeDryRunDiffs, displayDryRunResults } from '../lib/dry-run';
 import { log, warn, isQuietMode } from '../lib/logger';
-
+import { FILE_SEARCH_TOOLS } from '../lib/builtin-tools';
 
 export async function applyCommand(options: { file: string; agent?: string; match?: string; dryRun?: boolean; root?: string }, command: any) {
   // Quiet mode overrides verbose
@@ -117,6 +117,12 @@ export async function applyCommand(options: { file: string; agent?: string; matc
       for (const toolName of agent.tools || []) {
         allToolNames.add(toolName);
       }
+      // Include file search tools for agents with folders
+      if ((agent.folders || []).length > 0) {
+        for (const fileTool of FILE_SEARCH_TOOLS) {
+          allToolNames.add(fileTool);
+        }
+      }
     }
     const globalToolSourceHashes = fileTracker.generateToolSourceHashes(Array.from(allToolNames), parser.toolConfigs);
 
@@ -172,11 +178,27 @@ export async function applyCommand(options: { file: string; agent?: string; matc
         const toolSourceHashes = fileTracker.generateToolSourceHashes(agent.tools || [], parser.toolConfigs);
         const memoryBlockFileHashes = await fileTracker.generateMemoryBlockFileHashes(agent.memory_blocks || []);
 
-        // Build agent config
+        // Build agent config - auto-manage file search tools based on folder presence
+        const hasFolders = (agent.folders || []).length > 0;
+        let tools = agent.tools || [];
+
+        if (hasFolders) {
+          // Add file search tools if not already present
+          const toolSet = new Set(tools);
+          for (const fileTool of FILE_SEARCH_TOOLS) {
+            if (!toolSet.has(fileTool)) {
+              tools = [...tools, fileTool];
+            }
+          }
+        } else {
+          // Remove auto-added file search tools if no folders
+          tools = tools.filter((t: string) => !FILE_SEARCH_TOOLS.includes(t));
+        }
+
         const agentConfig = {
           systemPrompt: agent.system_prompt.value || '',
           description: agent.description || '',
-          tools: agent.tools || [],
+          tools,
           toolSourceHashes,
           model: agent.llm_config?.model,
           embedding: agent.embedding,
