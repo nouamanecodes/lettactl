@@ -58,10 +58,21 @@ export const CORE_MEMORY_TOOLS = [
 export const FILE_SEARCH_TOOLS = ['grep_files', 'semantic_search_files'];
 
 /**
+ * Aggregated set of all builtin tool names for fast lookup
+ * Add new builtin tools here
+ */
+export const ALL_BUILTIN_TOOLS = new Set([
+  ...Object.keys(BUILTIN_TOOLS),
+  ...CORE_MEMORY_TOOLS,
+  ...FILE_SEARCH_TOOLS,
+  'open_files', // Server-added file tool, not auto-added by lettactl
+]);
+
+/**
  * Check if a tool name is a known built-in tool
  */
 export function isBuiltinTool(toolName: string): boolean {
-  return toolName in BUILTIN_TOOLS || CORE_MEMORY_TOOLS.includes(toolName);
+  return ALL_BUILTIN_TOOLS.has(toolName);
 }
 
 /**
