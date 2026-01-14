@@ -13,6 +13,14 @@ function getFileName(fileConfig: FolderFileConfig): string {
   return fileConfig.from_bucket.path.split('/').pop() || fileConfig.from_bucket.path;
 }
 
+/**
+ * Normalize file name by stripping Letta's auto-rename suffix _(N)
+ * e.g., "file-a_(1).md" -> "file-a.md", "doc_(23).txt" -> "doc.txt"
+ */
+function normalizeFileName(fileName: string): string {
+  return fileName.replace(/_\(\d+\)(\.[^.]+)$/, '$1');
+}
+
 // Helper to get file identifier for comparison
 function getFileIdentifier(fileConfig: FolderFileConfig): string {
   if (typeof fileConfig === 'string') {
@@ -177,39 +185,85 @@ export async function analyzeFolderChanges(
         try {
           const currentFilesResponse = await client.listFolderFiles(folder.id);
           const currentFiles = normalizeResponse(currentFilesResponse);
-          const currentFileNames = new Set(currentFiles.map((f: any) => f.name || f.file_name || String(f)).filter(Boolean));
-          const desiredFileNames = new Set(desiredFolder.files.map(f => getFileName(f)));
+
+          // Build normalized lookup: normalized name -> actual file names on server
+          const normalizedToActual = new Map<string, string[]>();
+          for (const f of currentFiles) {
+            const actualName = f.name || f.file_name || String(f);
+            if (actualName) {
+              const normalized = normalizeFileName(actualName);
+              if (!normalizedToActual.has(normalized)) {
+                normalizedToActual.set(normalized, []);
+              }
+              normalizedToActual.get(normalized)!.push(actualName);
+            }
+          }
+
+          // Desired files come from expanded hashes (includes bucket glob expansions)
+          const desiredFileNames = new Set(Object.keys(desiredFolder.fileContentHashes));
 
           const filesToAdd: string[] = [];
           const filesToRemove: string[] = [];
           const filesToUpdate: string[] = [];
 
+          // Helper to find the file config that produced this file name
+          const findFileConfig = (fileName: string): FolderFileConfig | undefined => {
+            return desiredFolder.files.find(f => {
+              if (typeof f === 'string') {
+                return f.split('/').pop() === fileName;
+              }
+              if (f.from_bucket) {
+                // For bucket globs, any glob config could have produced this file
+                if (f.from_bucket.path.includes('*')) {
+                  return true; // Glob could match any expanded file
+                }
+                return f.from_bucket.path.split('/').pop() === fileName;
+              }
+              return false;
+            });
+          };
+
           // Find files to add or update
           const prevHashes = previousFolderFileHashes?.[folder.name] || {};
-          for (const fileConfig of desiredFolder.files) {
-            const fileName = getFileName(fileConfig);
-            const fileId = getFileIdentifier(fileConfig);
-            if (!currentFileNames.has(fileName)) {
-              filesToAdd.push(fileId);
+          for (const fileName of desiredFileNames) {
+            const currentHash = desiredFolder.fileContentHashes[fileName];
+            const previousHash = prevHashes[fileName];
+
+            // Check if file exists on server (exact or _(N) variant)
+            const variants = normalizedToActual.get(fileName) || [];
+            const hasExactMatch = variants.includes(fileName);
+            const suffixedVariants = variants.filter(v => v !== fileName);
+
+            if (!hasExactMatch && suffixedVariants.length === 0) {
+              // File doesn't exist at all - need to add
+              const fileConfig = findFileConfig(fileName);
+              filesToAdd.push(fileConfig ? getFileIdentifier(fileConfig) : fileName);
+            } else if (suffixedVariants.length > 0 && !hasExactMatch) {
+              // Only _(N) variant exists - remove variants and re-add clean
+              for (const variant of suffixedVariants) {
+                filesToRemove.push(variant);
+              }
+              const fileConfig = findFileConfig(fileName);
+              filesToAdd.push(fileConfig ? getFileIdentifier(fileConfig) : fileName);
             } else {
-              // Only check for updates on local files (strings), not bucket files
-              if (typeof fileConfig === 'string' && hasSourceContent(fileConfig, desiredFolder.fileContentHashes || {})) {
-                const currentHash = desiredFolder.fileContentHashes?.[fileConfig];
-                const previousHash = prevHashes[fileConfig];
-                // Only update if hash changed or no previous hash (first apply)
-                if (currentHash && currentHash !== previousHash) {
-                  console.log(`File ${fileConfig} content changed, will update...`);
-                  filesToUpdate.push(fileId);
-                }
+              // Exact match exists - check for content changes
+              if (currentHash && currentHash !== previousHash) {
+                const fileConfig = findFileConfig(fileName);
+                filesToUpdate.push(fileConfig ? getFileIdentifier(fileConfig) : fileName);
+              }
+              // Also clean up any _(N) variants if exact match exists
+              for (const variant of suffixedVariants) {
+                filesToRemove.push(variant);
               }
             }
           }
 
-          // Find files to remove
-          for (const currentFile of currentFiles) {
-            const fileName = currentFile.name || currentFile.file_name || String(currentFile);
-            if (fileName && !desiredFileNames.has(fileName)) {
-              filesToRemove.push(fileName);
+          // Find files to remove (on server but not in desired)
+          for (const [normalized, actuals] of normalizedToActual) {
+            if (!desiredFileNames.has(normalized)) {
+              for (const actual of actuals) {
+                filesToRemove.push(actual);
+              }
             }
           }
 

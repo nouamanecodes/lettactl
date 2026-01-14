@@ -104,7 +104,11 @@ export class LettaClientWrapper {
   }
 
   async listFolderFiles(folderId: string) {
-    return await this.client.folders.files.list(folderId);
+    const allFiles: any[] = [];
+    for await (const file of this.client.folders.files.list(folderId)) {
+      allFiles.push(file);
+    }
+    return allFiles;
   }
 
   async updateAgent(agentId: string, agentData: any) {

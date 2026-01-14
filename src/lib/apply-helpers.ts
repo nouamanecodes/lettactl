@@ -181,20 +181,8 @@ export async function processFolders(
         } else {
           if (verbose) log(`Using existing folder: ${folderConfig.name}`);
           createdFolders.set(folderConfig.name, folder.id);
-
-          // Still upload from_bucket files for existing folders
-          for (const fileConfig of folderConfig.files) {
-            try {
-              if (isFromBucketConfig(fileConfig)) {
-                await uploadBucketFilesToFolder(fileConfig.from_bucket, folder.id, client, verbose);
-              }
-            } catch (error: any) {
-              const fileDesc = isFromBucketConfig(fileConfig)
-                ? `${fileConfig.from_bucket.bucket}/${fileConfig.from_bucket.path}`
-                : fileConfig;
-              console.error(`  Failed to upload ${fileDesc}:`, error.message);
-            }
-          }
+          // File uploads for existing folders are handled by the diff engine
+          // during agent update - this avoids creating duplicate files
         }
       }
     }

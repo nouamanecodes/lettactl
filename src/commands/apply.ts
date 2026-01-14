@@ -174,7 +174,7 @@ export async function applyCommand(options: { file: string; agent?: string; matc
 
       try {
         // Generate hashes for change detection
-        const folderContentHashes = fileTracker.generateFolderFileHashes(agent.folders || []);
+        const folderContentHashes = await fileTracker.generateFolderFileHashes(agent.folders || []);
         const toolSourceHashes = fileTracker.generateToolSourceHashes(agent.tools || [], parser.toolConfigs);
         const memoryBlockFileHashes = await fileTracker.generateMemoryBlockFileHashes(agent.memory_blocks || []);
 

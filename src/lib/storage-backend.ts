@@ -96,7 +96,24 @@ export class StorageBackendManager {
 
     throw new Error(`Provider '${config.provider}' not yet supported. Supported: supabase. Coming soon: s3, gcs`);
   }
-  
+
+  /**
+   * List files in a bucket with optional prefix filter
+   */
+  async listBucketFiles(bucket: string, prefix: string = ''): Promise<string[]> {
+    if (!this.supabaseBackend) {
+      throw new Error('Supabase backend not configured');
+    }
+    return this.supabaseBackend.listFiles(bucket, prefix);
+  }
+
+  /**
+   * Download text content from bucket
+   */
+  async downloadFromBucket(config: BucketConfig): Promise<string> {
+    return this.readFromBucket(config);
+  }
+
   private validateBucketConfig(config: any): void {
     if (!config || typeof config !== 'object') {
       throw new Error(

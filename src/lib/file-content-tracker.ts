@@ -120,17 +120,62 @@ export class FileContentTracker {
 
   /**
    * Generates content hashes for folder files (grouped by folder)
-   * Skips from_bucket files as they're remote and tracked differently
+   * Includes both local files and bucket files (with glob expansion)
    */
-  generateFolderFileHashes(folderConfigs: FolderConfig[]): Map<string, FileContentMap> {
+  async generateFolderFileHashes(folderConfigs: FolderConfig[]): Promise<Map<string, FileContentMap>> {
     const folderHashes = new Map<string, FileContentMap>();
 
     for (const folder of folderConfigs) {
-      // Filter to only local file paths (strings), skip from_bucket configs
-      const localFiles = folder.files.filter(
-        (f): f is string => typeof f === 'string'
-      );
-      const fileHashes = this.generateFileContentHashes(localFiles);
+      const fileHashes: FileContentMap = {};
+
+      for (const fileConfig of folder.files) {
+        if (typeof fileConfig === 'string') {
+          // Local file
+          const fileName = fileConfig.split('/').pop() || fileConfig;
+          fileHashes[fileName] = this.generateFileContentHash(fileConfig);
+        } else if (fileConfig.from_bucket && this.storageManager) {
+          // Bucket file - may be a glob pattern
+          const { bucket, path: filePath } = fileConfig.from_bucket;
+
+          if (filePath.includes('*')) {
+            // Glob pattern - expand and hash each file
+            try {
+              const prefix = filePath.split('*')[0];
+              const files = await this.storageManager.listBucketFiles(bucket, prefix);
+
+              for (const file of files) {
+                const fileName = file.split('/').pop() || file;
+                try {
+                  const content = await this.storageManager.downloadFromBucket({
+                    provider: fileConfig.from_bucket.provider || 'supabase',
+                    bucket,
+                    path: file
+                  });
+                  fileHashes[fileName] = crypto.createHash('sha256').update(content).digest('hex').substring(0, 16);
+                } catch (error) {
+                  warn(`Could not hash bucket file ${file}:`, (error as Error).message);
+                }
+              }
+            } catch (error) {
+              warn(`Could not list bucket files for glob ${filePath}:`, (error as Error).message);
+            }
+          } else {
+            // Single bucket file
+            const fileName = filePath.split('/').pop() || filePath;
+            try {
+              const content = await this.storageManager.downloadFromBucket({
+                provider: fileConfig.from_bucket.provider || 'supabase',
+                bucket,
+                path: filePath
+              });
+              fileHashes[fileName] = crypto.createHash('sha256').update(content).digest('hex').substring(0, 16);
+            } catch (error) {
+              warn(`Could not hash bucket file ${filePath}:`, (error as Error).message);
+            }
+          }
+        }
+      }
+
       folderHashes.set(folder.name, fileHashes);
     }
 
