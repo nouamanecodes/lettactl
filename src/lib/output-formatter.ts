@@ -314,16 +314,17 @@ export class OutputFormatter {
       log(`  = Tools: unchanged`);
     }
 
-    // Memory blocks changes  
+    // Memory blocks changes
     if (operations.blocks) {
-      const { toAdd, toRemove, toUpdate, unchanged } = operations.blocks;
-      
-      if (toAdd.length > 0 || toRemove.length > 0 || toUpdate.length > 0) {
-        log(`  ~ Memory blocks: ${unchanged.length} unchanged, ${toAdd.length + toRemove.length + toUpdate.length} modified`);
-        
+      const { toAdd, toRemove, toUpdate, toUpdateValue, unchanged } = operations.blocks;
+
+      if (toAdd.length > 0 || toRemove.length > 0 || toUpdate.length > 0 || toUpdateValue.length > 0) {
+        log(`  ~ Memory blocks: ${unchanged.length} unchanged, ${toAdd.length + toRemove.length + toUpdate.length + toUpdateValue.length} modified`);
+
         toAdd.forEach(block => log(`    + Added block: ${block.name}`));
         toRemove.forEach(block => log(`    - Removed block: ${block.name}`));
         toUpdate.forEach(block => log(`    ~ Updated block: ${block.name}`));
+        toUpdateValue.forEach(block => log(`    ~ Synced block: ${block.name} (value from YAML)`));
       } else {
         log(`  = Memory blocks: unchanged`);
       }

@@ -122,7 +122,8 @@ async function computeAgentDiff(
       name: b.name,
       description: b.description,
       limit: b.limit,
-      value: b.value || ''
+      value: b.value || '',
+      mutable: b.mutable
     })),
     memoryBlockFileHashes,
     folders: (agent.folders || []).map((f: any) => ({
@@ -267,6 +268,7 @@ function displayUpdateResult(result: DryRunResult, verbose: boolean): void {
     for (const b of ops.blocks.toAdd) console.log(`    Block [+]: ${b.name}`);
     for (const b of ops.blocks.toRemove) console.log(`    Block [-]: ${b.name}`);
     for (const b of ops.blocks.toUpdate) console.log(`    Block [~]: ${b.name}`);
+    for (const b of ops.blocks.toUpdateValue) console.log(`    Block [~]: ${b.name} (value sync)`);
     if (verbose && ops.blocks.unchanged.length > 0) {
       console.log(`    Blocks unchanged: ${ops.blocks.unchanged.length}`);
     }

@@ -207,7 +207,8 @@ export async function applyCommand(options: { file: string; agent?: string; matc
             name: block.name,
             description: block.description,
             limit: block.limit,
-            value: block.value || ''
+            value: block.value || '',
+            mutable: block.mutable
           })),
           memoryBlockFileHashes,
           folders: (agent.folders || []).map((folder: any) => ({

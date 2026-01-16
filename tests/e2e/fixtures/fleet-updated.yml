@@ -456,3 +456,28 @@ agents:
               provider: supabase
               bucket: test-bucket
               path: test-doc.txt
+
+  # ============================================================================
+  # MUTABLE BLOCKS - Value Sync (#101)
+  # ============================================================================
+
+  # 25: Updated policy value - should sync to server because mutable: false
+  # The learned_data block should NOT sync because mutable: true (default)
+  - name: e2e-25-immutable-block
+    description: Tests mutable false block value sync
+    embedding: openai/text-embedding-3-small
+    system_prompt:
+      value: Agent with immutable block.
+    llm_config:
+      model: google_ai/gemini-2.5-pro
+      context_window: 32000
+    memory_blocks:
+      - name: policies
+        description: Agent policies that sync from YAML
+        limit: 2000
+        value: "Policy version 2: Be helpful, concise, and professional."
+        mutable: false
+      - name: learned_data
+        description: Data the agent learns (mutable by default)
+        limit: 2000
+        value: "Initial state"

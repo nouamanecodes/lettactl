@@ -98,6 +98,11 @@ export class DiffApplier {
         await this.client.detachBlockFromAgent(agentId, block.currentId);
         await this.client.attachBlockToAgent(agentId, block.newId);
       }
+
+      for (const block of operations.blocks.toUpdateValue) {
+        if (verbose) console.log(`  Syncing block value: ${block.name}`);
+        await this.client.updateBlock(block.id, { value: block.newValue });
+      }
     }
 
     // Apply folder changes
