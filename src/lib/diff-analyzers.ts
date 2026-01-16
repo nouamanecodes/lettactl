@@ -85,7 +85,7 @@ export async function analyzeToolChanges(
 
 export async function analyzeBlockChanges(
   currentBlocks: any[],
-  desiredBlocks: Array<{ name: string; isShared?: boolean; description?: string; limit?: number; value?: string }>,
+  desiredBlocks: Array<{ name: string; isShared?: boolean; description?: string; limit?: number; value?: string; mutable?: boolean }>,
   blockManager: BlockManager,
   agentName?: string,
   dryRun: boolean = false
@@ -96,6 +96,7 @@ export async function analyzeBlockChanges(
   const toAdd: Array<{ name: string; id: string }> = [];
   const toRemove: Array<{ name: string; id: string }> = [];
   const toUpdate: Array<{ name: string; currentId: string; newId: string }> = [];
+  const toUpdateValue: Array<{ name: string; id: string; newValue: string }> = [];
   const unchanged: Array<{ name: string; id: string }> = [];
 
   // Find blocks to add
@@ -129,16 +130,30 @@ export async function analyzeBlockChanges(
     }
   }
 
-  // Find blocks to remove or mark as unchanged
+  // Find blocks to remove, update value, or mark as unchanged
   for (const block of currentBlocks) {
     if (desiredBlockNames.has(block.label)) {
+      // Block exists on both sides - check if value needs updating
+      const desiredConfig = desiredBlocks.find(b => b.name === block.label);
+
+      // For mutable: false blocks, compare values and update if different
+      if (desiredConfig && desiredConfig.mutable === false && !desiredConfig.isShared) {
+        const desiredValue = desiredConfig.value || '';
+        const currentValue = block.value || '';
+
+        if (desiredValue !== currentValue) {
+          toUpdateValue.push({ name: block.label, id: block.id, newValue: desiredValue });
+          continue;
+        }
+      }
+
       unchanged.push({ name: block.label, id: block.id });
     } else {
       toRemove.push({ name: block.label, id: block.id });
     }
   }
 
-  return { toAdd, toRemove, toUpdate, unchanged };
+  return { toAdd, toRemove, toUpdate, toUpdateValue, unchanged };
 }
 
 export async function analyzeFolderChanges(

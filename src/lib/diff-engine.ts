@@ -138,7 +138,7 @@ export class DiffEngine {
       existingAgent.name,
       dryRun
     );
-    operations.operationCount += operations.blocks.toAdd.length + operations.blocks.toRemove.length + operations.blocks.toUpdate.length;
+    operations.operationCount += operations.blocks.toAdd.length + operations.blocks.toRemove.length + operations.blocks.toUpdate.length + operations.blocks.toUpdateValue.length;
 
     // Analyze folder changes
     operations.folders = await analyzeFolderChanges(

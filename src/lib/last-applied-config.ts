@@ -66,7 +66,7 @@ export function hashCurrentBlocks(blocks: Array<{ label: string; value?: string 
 export function applyThreeWayMerge(
   ops: {
     tools?: { toRemove: Array<{ name: string; id: string }>; toAdd: any[]; toUpdate: any[] };
-    blocks?: { toRemove: Array<{ name: string; id: string }>; toAdd: any[]; toUpdate: any[] };
+    blocks?: { toRemove: Array<{ name: string; id: string }>; toAdd: any[]; toUpdate: any[]; toUpdateValue?: any[] };
     folders?: { toDetach: Array<{ name: string; id: string }>; toAttach: any[]; toUpdate: any[] };
     operationCount: number;
     updateFields?: any;
@@ -157,7 +157,7 @@ export function applyThreeWayMerge(
   ops.operationCount = 0;
   if (ops.updateFields) ops.operationCount += Object.keys(ops.updateFields).length;
   if (ops.tools) ops.operationCount += ops.tools.toAdd.length + ops.tools.toRemove.length + ops.tools.toUpdate.length;
-  if (ops.blocks) ops.operationCount += ops.blocks.toAdd.length + ops.blocks.toRemove.length + ops.blocks.toUpdate.length;
+  if (ops.blocks) ops.operationCount += ops.blocks.toAdd.length + ops.blocks.toRemove.length + ops.blocks.toUpdate.length + (ops.blocks.toUpdateValue?.length || 0);
   if (ops.folders) {
     ops.operationCount += ops.folders.toAttach.length + ops.folders.toDetach.length;
     for (const f of ops.folders.toUpdate || []) {

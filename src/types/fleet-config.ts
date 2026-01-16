@@ -75,6 +75,7 @@ export interface MemoryBlock {
   value?: string;
   from_file?: string;
   version?: string; // Optional user-defined version tag
+  mutable?: boolean; // Default: true. If false, value syncs from YAML on every apply
 }
 
 export interface LLMConfig {

@@ -9,6 +9,7 @@ export interface BlockDiff {
   toAdd: Array<{ name: string; id: string }>;
   toRemove: Array<{ name: string; id: string }>;
   toUpdate: Array<{ name: string; currentId: string; newId: string }>;
+  toUpdateValue: Array<{ name: string; id: string; newValue: string }>; // For mutable: false blocks
   unchanged: Array<{ name: string; id: string }>;
 }
 

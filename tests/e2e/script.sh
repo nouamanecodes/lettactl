@@ -201,7 +201,7 @@ else
     cat $OUT
 fi
 
-# Verify all 24 agents exist
+# Verify all 25 agents exist
 section "Verify All Agents Created"
 
 AGENTS=(
@@ -229,6 +229,7 @@ AGENTS=(
     "e2e-22-bucket-glob"
     "e2e-23-bucket-single"
     "e2e-24-mixed-sources"
+    "e2e-25-immutable-block"
 )
 
 for agent in "${AGENTS[@]}"; do
@@ -469,6 +470,20 @@ if $CLI get blocks --agent e2e-20-kitchen-sink > $OUT 2>&1; then
     fi
 else
     fail "Get blocks for agent 20 failed"
+fi
+
+# Check agent 25 immutable block value synced (mutable: false)
+# The policies block value should update from "Policy version 1..." to "Policy version 2..."
+# describe block shows the actual value preview
+if $CLI describe block policies > $OUT 2>&1; then
+    if output_contains "version 2"; then
+        pass "Agent 25 immutable block value synced"
+    else
+        fail "Agent 25 immutable block value not synced (should contain 'version 2')"
+        cat $OUT
+    fi
+else
+    fail "Describe block policies failed"
 fi
 
 # ============================================================================

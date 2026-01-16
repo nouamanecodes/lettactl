@@ -350,7 +350,8 @@ export async function createNewAgent(
         name: block.name,
         description: block.description,
         limit: block.limit,
-        value: block.value || ''
+        value: block.value || '',
+        mutable: block.mutable
       })),
       folders: agent.folders || [],
       sharedBlocks: agent.shared_blocks || []
