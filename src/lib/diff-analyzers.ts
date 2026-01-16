@@ -206,14 +206,13 @@ export async function analyzeFolderChanges(
           const filesToRemove: string[] = [];
           const filesToUpdate: string[] = [];
 
-          // Helper to find the file config that produced this file name
-          const findFileConfig = (fileName: string): FolderFileConfig | undefined => {
-            return desiredFolder.files.find(f => {
+          // Helper to get the identifier for a file - for bucket globs, construct full path
+          const getFileId = (fileName: string): string => {
+            const config = desiredFolder.files.find(f => {
               if (typeof f === 'string') {
                 return f.split('/').pop() === fileName;
               }
               if (f.from_bucket) {
-                // For bucket globs, any glob config could have produced this file
                 if (f.from_bucket.path.includes('*')) {
                   return true; // Glob could match any expanded file
                 }
@@ -221,6 +220,14 @@ export async function analyzeFolderChanges(
               }
               return false;
             });
+            // For bucket globs, construct the full bucket path for the individual file
+            if (config && typeof config !== 'string' && config.from_bucket?.path.includes('*')) {
+              const { bucket, path: globPath } = config.from_bucket;
+              // Replace glob pattern with the actual filename
+              const dir = globPath.substring(0, globPath.lastIndexOf('/') + 1);
+              return `bucket:${bucket}/${dir}${fileName}`;
+            }
+            return config ? getFileIdentifier(config) : fileName;
           };
 
           // Find files to add or update
@@ -236,20 +243,17 @@ export async function analyzeFolderChanges(
 
             if (!hasExactMatch && suffixedVariants.length === 0) {
               // File doesn't exist at all - need to add
-              const fileConfig = findFileConfig(fileName);
-              filesToAdd.push(fileConfig ? getFileIdentifier(fileConfig) : fileName);
+              filesToAdd.push(getFileId(fileName));
             } else if (suffixedVariants.length > 0 && !hasExactMatch) {
               // Only _(N) variant exists - remove variants and re-add clean
               for (const variant of suffixedVariants) {
                 filesToRemove.push(variant);
               }
-              const fileConfig = findFileConfig(fileName);
-              filesToAdd.push(fileConfig ? getFileIdentifier(fileConfig) : fileName);
+              filesToAdd.push(getFileId(fileName));
             } else {
               // Exact match exists - check for content changes
               if (currentHash && currentHash !== previousHash) {
-                const fileConfig = findFileConfig(fileName);
-                filesToUpdate.push(fileConfig ? getFileIdentifier(fileConfig) : fileName);
+                filesToUpdate.push(getFileId(fileName));
               }
               // Also clean up any _(N) variants if exact match exists
               for (const variant of suffixedVariants) {

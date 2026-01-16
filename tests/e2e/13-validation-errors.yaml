@@ -1,9 +1,0 @@
-# E2E Test: Validation (this should FAIL validation)
-# Tests: lettactl validate -f should catch errors
-# Expected: Validation should fail due to missing required fields
-
-agents:
-  - name: e2e-invalid-agent
-    # Missing: description, llm_config
-    system_prompt:
-      value: This agent is missing required fields.

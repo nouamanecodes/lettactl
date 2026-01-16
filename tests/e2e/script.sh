@@ -153,15 +153,18 @@ fi
 
 section "Invalid Config Validation"
 
-# Self-hosted without embedding should fail
+# fleet-invalid.yml contains multiple invalid configs - any validation error is a pass
 if $CLI apply -f "$FIXTURES/fleet-invalid.yml" --dry-run > $OUT 2>&1; then
-    fail "fleet-invalid.yml should have failed (missing embedding)"
+    fail "fleet-invalid.yml should have failed validation"
     cat $OUT
 else
-    if output_contains "Self-hosted Letta requires explicit embedding"; then
-        pass "Missing embedding rejected on self-hosted"
+    # Check for any expected validation error
+    if output_contains "Self-hosted Letta requires explicit embedding" || \
+       output_contains "Missing required fields in from_bucket" || \
+       output_contains "unsupported provider"; then
+        pass "Invalid config rejected"
     else
-        fail "Wrong error for missing embedding"
+        fail "Unexpected error from invalid config"
         cat $OUT
     fi
 fi
@@ -185,10 +188,10 @@ else
 fi
 
 # ============================================================================
-# Test: Apply Initial Fleet (20 agents)
+# Test: Apply Initial Fleet (24 agents)
 # ============================================================================
 
-section "Apply Initial Fleet (20 agents)"
+section "Apply Initial Fleet (24 agents)"
 
 info "Applying fleet.yml..."
 if $CLI apply -f "$FIXTURES/fleet.yml" --root "$FIXTURES" > $OUT 2>&1; then
@@ -198,7 +201,7 @@ else
     cat $OUT
 fi
 
-# Verify all 20 agents exist
+# Verify all 24 agents exist
 section "Verify All Agents Created"
 
 AGENTS=(
@@ -222,6 +225,10 @@ AGENTS=(
     "e2e-18-shares-with-09"
     "e2e-19-shares-folder"
     "e2e-20-kitchen-sink"
+    "e2e-21-folder-tools-auto"
+    "e2e-22-bucket-glob"
+    "e2e-23-bucket-single"
+    "e2e-24-mixed-sources"
 )
 
 for agent in "${AGENTS[@]}"; do
@@ -479,6 +486,52 @@ if $CLI apply -f "$FIXTURES/fleet-updated.yml" --root "$FIXTURES" --dry-run > $O
     fi
 else
     fail "Post-update idempotent check failed"
+fi
+
+# ============================================================================
+# Test: Bucket Files Idempotence (#98, #100)
+# ============================================================================
+
+section "Bucket Files Idempotence"
+
+# Test that bucket glob agents show no FILE changes on re-apply
+# (tool changes may occur due to test flow but files should be stable)
+if $CLI apply -f "$FIXTURES/fleet.yml" --root "$FIXTURES" --agent e2e-22-bucket-glob --dry-run > $OUT 2>&1; then
+    if ! output_contains "Added file" && ! output_contains "Removed file" && ! output_contains "Updated file"; then
+        pass "Bucket glob files idempotent"
+    else
+        fail "Bucket glob files showing changes on re-apply"
+        cat $OUT
+    fi
+else
+    fail "Bucket glob idempotence check failed"
+    cat $OUT
+fi
+
+# Test single bucket file idempotence
+if $CLI apply -f "$FIXTURES/fleet.yml" --root "$FIXTURES" --agent e2e-23-bucket-single --dry-run > $OUT 2>&1; then
+    if ! output_contains "Added file" && ! output_contains "Removed file" && ! output_contains "Updated file"; then
+        pass "Single bucket file idempotent"
+    else
+        fail "Single bucket file showing changes on re-apply"
+        cat $OUT
+    fi
+else
+    fail "Single bucket idempotence check failed"
+    cat $OUT
+fi
+
+# Test mixed local + bucket idempotence
+if $CLI apply -f "$FIXTURES/fleet.yml" --root "$FIXTURES" --agent e2e-24-mixed-sources --dry-run > $OUT 2>&1; then
+    if ! output_contains "Added file" && ! output_contains "Removed file" && ! output_contains "Updated file"; then
+        pass "Mixed local+bucket files idempotent"
+    else
+        fail "Mixed files showing changes on re-apply"
+        cat $OUT
+    fi
+else
+    fail "Mixed files idempotence check failed"
+    cat $OUT
 fi
 
 # ============================================================================

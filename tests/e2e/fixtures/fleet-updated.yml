@@ -421,3 +421,38 @@ agents:
               provider: supabase
               bucket: test-bucket
               path: "*.txt"
+
+  # 23: Same single bucket file - should show NO changes
+  - name: e2e-23-bucket-single
+    description: Tests single bucket file (no glob)
+    embedding: openai/text-embedding-3-small
+    system_prompt:
+      value: Agent with single bucket file.
+    llm_config:
+      model: google_ai/gemini-2.5-pro
+      context_window: 32000
+    folders:
+      - name: e2e-bucket-single
+        files:
+          - from_bucket:
+              provider: supabase
+              bucket: test-bucket
+              path: test-doc.txt
+
+  # 24: Same mixed sources - should show NO changes
+  - name: e2e-24-mixed-sources
+    description: Tests folder with both local and bucket files
+    embedding: openai/text-embedding-3-small
+    system_prompt:
+      value: Agent with mixed file sources.
+    llm_config:
+      model: google_ai/gemini-2.5-pro
+      context_window: 32000
+    folders:
+      - name: e2e-mixed-folder
+        files:
+          - folder-files/doc1.txt
+          - from_bucket:
+              provider: supabase
+              bucket: test-bucket
+              path: test-doc.txt
