@@ -4,7 +4,7 @@ import { ResourceClassifier } from '../lib/resource-classifier';
 import { validateResourceType, validateRequired } from '../lib/validators';
 import { withErrorHandling } from '../lib/error-handler';
 import { normalizeResponse } from '../lib/response-normalizer';
-import { createSpinner, getSpinnerEnabled } from '../lib/spinner';
+import { createSpinner, getSpinnerEnabled } from '../lib/ux/spinner';
 
 async function deleteCommandImpl(resource: string, name: string, options?: { force?: boolean }, command?: any) {
   validateResourceType(resource, ['agent', 'agents', 'mcp-servers']);

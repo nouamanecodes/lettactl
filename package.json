@@ -60,9 +60,11 @@
     "ora": "^9.0.0"
   },
   "devDependencies": {
+    "@types/figlet": "^1.7.0",
     "@types/jest": "^30.0.0",
     "@types/js-yaml": "^4.0.9",
     "@types/node": "^24.10.9",
+    "figlet": "^1.9.4",
     "husky": "^9.1.7",
     "jest": "^30.2.0",
     "ts-jest": "^29.4.6",

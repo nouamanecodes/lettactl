@@ -1,6 +1,6 @@
 import { LettaClientWrapper } from '../lib/letta-client';
 import { AgentResolver } from '../lib/agent-resolver';
-import { OutputFormatter } from '../lib/output-formatter';
+import { OutputFormatter } from '../lib/ux/output-formatter';
 
 interface AgentFile {
   id: string;

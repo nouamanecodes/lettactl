@@ -188,10 +188,10 @@ else
 fi
 
 # ============================================================================
-# Test: Apply Initial Fleet (24 agents)
+# Test: Apply Initial Fleet (30 agents)
 # ============================================================================
 
-section "Apply Initial Fleet (24 agents)"
+section "Apply Initial Fleet (30 agents)"
 
 info "Applying fleet.yml..."
 if $CLI apply -f "$FIXTURES/fleet.yml" --root "$FIXTURES" > $OUT 2>&1; then
@@ -201,7 +201,7 @@ else
     cat $OUT
 fi
 
-# Verify all 25 agents exist
+# Verify all 30 agents exist
 section "Verify All Agents Created"
 
 AGENTS=(
@@ -230,6 +230,11 @@ AGENTS=(
     "e2e-23-bucket-single"
     "e2e-24-mixed-sources"
     "e2e-25-immutable-block"
+    "e2e-26-empty-block"
+    "e2e-27-block-removal"
+    "e2e-28-special-chars"
+    "e2e-29-unicode-content"
+    "e2e-30-cleanup-test"
 )
 
 for agent in "${AGENTS[@]}"; do

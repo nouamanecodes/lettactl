@@ -1,8 +1,8 @@
 import { LettaClientWrapper } from '../lib/letta-client';
 import { AgentResolver } from '../lib/agent-resolver';
 import { normalizeResponse } from '../lib/response-normalizer';
-import { OutputFormatter } from '../lib/output-formatter';
-import { createSpinner, getSpinnerEnabled } from '../lib/spinner';
+import { OutputFormatter } from '../lib/ux/output-formatter';
+import { createSpinner, getSpinnerEnabled } from '../lib/ux/spinner';
 import { sendMessageToAgent } from '../lib/message-sender';
 
 /**

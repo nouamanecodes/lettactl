@@ -56,7 +56,7 @@ export class AgentResolver {
       console.warn(`Warning: Could not fetch folders for agent ${agentId}`);
       agentWithDetails.folders = [];
     }
-    
+
     return agentWithDetails;
   }
 }

@@ -1,7 +1,22 @@
 import Table from 'cli-table3';
-import { AgentUpdateOperations } from './diff-engine';
-import { isBuiltinTool } from './builtin-tools';
-import { log, output } from './logger';
+import { AgentUpdateOperations } from '../diff-engine';
+import { isBuiltinTool } from '../builtin-tools';
+import { log, output } from '../logger';
+import {
+  displayAgents,
+  displayBlocks,
+  displayTools,
+  displayFolders,
+  displayMcpServers,
+  displayFiles,
+  AgentData,
+  BlockData,
+  ToolData,
+  FolderData,
+  McpServerData,
+  FileData,
+} from './box';
+import { AgentDisplayData } from '../agent-data-fetcher';
 
 /**
  * Formats run/job status as bracketed labels
@@ -31,227 +46,113 @@ export class OutputFormatter {
     switch (format) {
       case 'json':
         return JSON.stringify(data, null, 2);
-      
+
       case 'yaml':
         // TODO: Implement YAML formatting
         return 'YAML output not yet implemented';
-      
+
       default:
         return ''; // Default handling should be done by caller
     }
   }
 
   /**
-   * Creates a table for agent listing
+   * Creates a table for agent listing from standardized AgentDisplayData
+   * @param wide - Show additional columns (folders, MCP servers, files)
    */
-  static createAgentTable(agents: any[], wide: boolean = false): string {
-    if (wide) {
-      const table = new Table({
-        head: ['NAME', 'ID', 'MODEL', 'BLOCKS', 'TOOLS', 'CREATED']
-      });
+  static createAgentTable(agents: AgentDisplayData[], wide: boolean = false): string {
+    const data: AgentData[] = agents.map(agent => ({
+      name: agent.name,
+      id: agent.id,
+      description: agent.description,
+      model: agent.model,
+      blockCount: agent.blockCount,
+      toolCount: agent.toolCount,
+      folderCount: agent.folderCount,
+      mcpServerCount: agent.mcpServerCount,
+      fileCount: agent.fileCount,
+      created: agent.created,
+    }));
 
-      for (const agent of agents) {
-        const model = agent.llm_config?.model || agent.model || '-';
-        const blockCount = agent.memory?.blocks?.length || agent.blocks?.length || 0;
-        const toolCount = agent.tools?.length || 0;
-        const created = this.formatDate(agent.created_at);
-        table.push([
-          agent.name || 'Unknown',
-          agent.id || 'Unknown',
-          model,
-          blockCount.toString(),
-          toolCount.toString(),
-          created
-        ]);
-      }
-
-      return table.toString();
-    }
-
-    const table = new Table({
-      head: ['NAME', 'ID', 'DESCRIPTION', 'MODEL', 'CREATED']
-    });
-
-    for (const agent of agents) {
-      const model = agent.llm_config?.model || agent.model || '-';
-      const desc = this.truncate(agent.description, 20);
-      const created = this.formatDate(agent.created_at);
-      table.push([
-        agent.name || 'Unknown',
-        agent.id || 'Unknown',
-        desc,
-        model,
-        created
-      ]);
-    }
-
-    return table.toString();
-  }
-
-  /**
-   * Truncates a string to max length with ellipsis
-   */
-  private static truncate(str?: string, maxLen: number = 20): string {
-    if (!str) return '-';
-    if (str.length <= maxLen) return str;
-    return str.substring(0, maxLen - 3) + '...';
-  }
-
-  /**
-   * Formats a date string to a readable short format
-   */
-  private static formatDate(dateStr?: string): string {
-    if (!dateStr) return '-';
-    try {
-      const date = new Date(dateStr);
-      return date.toLocaleDateString('en-US', {
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric'
-      });
-    } catch {
-      return '-';
-    }
+    return displayAgents(data, wide);
   }
 
   /**
    * Creates a table for block listing
    * @param agentCounts - Optional map of block ID to agent count (for wide output)
    */
-  static createBlockTable(blocks: any[], wide: boolean = false, agentCounts?: Map<string, number>): string {
-    if (wide) {
-      const table = new Table({
-        head: ['NAME', 'ID', 'LIMIT', 'SIZE', 'AGENTS'],
-        colWidths: [30, 35, 8, 8, 8]
-      });
+  static createBlockTable(blocks: any[], _wide: boolean = false, agentCounts?: Map<string, number>): string {
+    const data: BlockData[] = blocks.map(block => ({
+      name: block.label || block.name || 'Unknown',
+      id: block.id || 'Unknown',
+      limit: block.limit,
+      size: block.value?.length || 0,
+      agentCount: agentCounts?.get(block.id),
+    }));
 
-      for (const block of blocks) {
-        const valueSize = block.value?.length || 0;
-        const agentCount = agentCounts?.get(block.id) ?? '-';
-        table.push([
-          block.label || block.name || 'Unknown',
-          block.id || 'Unknown',
-          block.limit?.toString() || '-',
-          valueSize.toString(),
-          agentCount.toString()
-        ]);
-      }
-
-      return table.toString();
-    }
-
-    const table = new Table({
-      head: ['NAME', 'ID', 'LIMIT'],
-      colWidths: [35, 40, 10]
-    });
-
-    for (const block of blocks) {
-      table.push([
-        block.label || block.name || 'Unknown',
-        block.id || 'Unknown',
-        block.limit?.toString() || '-'
-      ]);
-    }
-
-    return table.toString();
+    return displayBlocks(data);
   }
 
   /**
    * Creates a table for tool listing
    * @param agentCounts - Optional map of tool ID to agent count (for wide output)
    */
-  static createToolTable(tools: any[], wide: boolean = false, agentCounts?: Map<string, number>): string {
-    if (wide) {
-      const table = new Table({
-        head: ['NAME', 'ID', 'AGENTS'],
-        colWidths: [35, 45, 8]
-      });
+  static createToolTable(tools: any[], _wide: boolean = false, agentCounts?: Map<string, number>): string {
+    const data: ToolData[] = tools.map(tool => ({
+      name: tool.name || 'Unknown',
+      id: tool.id || 'Unknown',
+      agentCount: agentCounts?.get(tool.id),
+    }));
 
-      for (const tool of tools) {
-        const agentCount = agentCounts?.get(tool.id) ?? '-';
-        table.push([
-          tool.name || 'Unknown',
-          tool.id || 'Unknown',
-          agentCount.toString()
-        ]);
-      }
-
-      return table.toString();
-    }
-
-    const table = new Table({
-      head: ['NAME', 'ID'],
-      colWidths: [35, 50]
-    });
-
-    for (const tool of tools) {
-      table.push([
-        tool.name || 'Unknown',
-        tool.id || 'Unknown'
-      ]);
-    }
-
-    return table.toString();
+    return displayTools(data);
   }
 
   /**
    * Creates a table for folder listing
-   * @param agentCounts - Optional map of folder ID to agent count (for wide output)
+   * @param agentCounts - Optional map of folder ID to agent count
+   * @param fileCounts - Optional map of folder ID to file count
    */
-  static createFolderTable(folders: any[], wide: boolean = false, agentCounts?: Map<string, number>): string {
-    if (wide) {
-      const table = new Table({
-        head: ['NAME', 'ID', 'AGENTS'],
-        colWidths: [35, 45, 8]
-      });
+  static createFolderTable(folders: any[], _wide: boolean = false, agentCounts?: Map<string, number>, fileCounts?: Map<string, number>): string {
+    const data: FolderData[] = folders.map(folder => ({
+      name: folder.name || 'Unknown',
+      id: folder.id || 'Unknown',
+      fileCount: fileCounts?.get(folder.id),
+      agentCount: agentCounts?.get(folder.id),
+    }));
 
-      for (const folder of folders) {
-        const agentCount = agentCounts?.get(folder.id) ?? '-';
-        table.push([
-          folder.name || 'Unknown',
-          folder.id || 'Unknown',
-          agentCount.toString()
-        ]);
-      }
-
-      return table.toString();
-    }
-
-    const table = new Table({
-      head: ['NAME', 'ID'],
-      colWidths: [35, 50]
-    });
-
-    for (const folder of folders) {
-      table.push([
-        folder.name || 'Unknown',
-        folder.id || 'Unknown'
-      ]);
-    }
-
-    return table.toString();
+    return displayFolders(data);
   }
 
   /**
    * Creates a table for MCP server listing
    */
   static createMcpServerTable(servers: any[]): string {
-    const table = new Table({
-      head: ['NAME', 'ID', 'TYPE', 'URL/COMMAND']
-    });
+    const data: McpServerData[] = servers.map(server => ({
+      name: server.server_name || server.name || 'Unknown',
+      id: server.id || 'Unknown',
+      type: server.mcp_server_type,
+      url: server.server_url || server.command,
+    }));
 
-    for (const server of servers) {
-      const type = server.mcp_server_type || '-';
-      const urlOrCmd = server.server_url || server.command || '-';
-      table.push([
-        server.server_name || server.name || 'Unknown',
-        server.id || 'Unknown',
-        type,
-        urlOrCmd
-      ]);
-    }
+    return displayMcpServers(data);
+  }
 
-    return table.toString();
+  /**
+   * Creates a table for file listing
+   * @param files - Raw file data with folder info
+   * @param agentCounts - Optional map of folder ID to agent count
+   * @param wide - Show all file instances instead of deduplicated view
+   */
+  static createFileTable(files: any[], agentCounts?: Map<string, number>, wide: boolean = false): string {
+    const data: FileData[] = files.map(file => ({
+      name: file.name || file.file_name || 'Unknown',
+      id: file.id || file.file_id || 'Unknown',
+      folderName: file.folderName || file.folder_name || 'Unknown',
+      folderId: file.folderId || file.folder_id || 'Unknown',
+      agentCount: agentCounts?.get(file.folderId || file.folder_id),
+    }));
+
+    return displayFiles(data, wide);
   }
 
   /**
@@ -335,10 +236,10 @@ export class OutputFormatter {
     // Folders changes
     if (operations.folders) {
       const { toAttach, toDetach, toUpdate, unchanged } = operations.folders;
-      
+
       if (toAttach.length > 0 || toDetach.length > 0 || toUpdate.length > 0) {
         log(`  ~ Folders: ${unchanged.length} unchanged, ${toAttach.length + toDetach.length + toUpdate.length} modified`);
-        
+
         toAttach.forEach(folder => log(`    + Added folder: ${folder.name}`));
         toDetach.forEach(folder => log(`    - Removed folder: ${folder.name}`));
         toUpdate.forEach(folder => {

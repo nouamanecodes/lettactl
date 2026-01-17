@@ -5,6 +5,7 @@ import { version } from '../package.json';
 import { applyCommand } from './commands/apply';
 import getCommand from './commands/get';
 import deleteCommand, { deleteAllCommand } from './commands/delete';
+import { cleanupCommand } from './commands/cleanup';
 import describeCommand from './commands/describe';
 import updateCommand from './commands/update';
 import exportCommand from './commands/export';
@@ -24,9 +25,11 @@ import { contextCommand } from './commands/context';
 import { listRunsCommand, getRunCommand, deleteRunCommand } from './commands/runs';
 
 import { setQuietMode } from './lib/logger';
+import { printFancyHelp } from './lib/ux/help-formatter';
 
 // Global verbose flag for error handling
 let verboseMode = false;
+let noUxMode = false;
 
 // Validate required environment variables
 function validateEnvironment(thisCommand: any, actionCommand: any) {
@@ -67,7 +70,23 @@ program
   .option('-v, --verbose', 'enable verbose output')
   .option('-q, --quiet', 'suppress progress output (for CI)')
   .option('--no-spinner', 'disable loading spinners')
+  .option('--no-ux', 'plain output without fancy formatting (for CI/CD)')
   .hook('preAction', validateEnvironment);
+
+// Check if fancy UX should be used
+function shouldUseFancyUx(): boolean {
+  return !process.argv.includes('--no-ux') && process.stdout.isTTY === true;
+}
+
+// Intercept help for main command to show fancy version
+const originalHelpInformation = program.helpInformation.bind(program);
+program.helpInformation = function() {
+  if (shouldUseFancyUx()) {
+    printFancyHelp();
+    return '';
+  }
+  return originalHelpInformation();
+};
 
 // Apply command - deploy fleet from YAML
 program
@@ -83,8 +102,8 @@ program
 // Get command - list resources
 program
   .command('get')
-  .description('Display resources (agents, blocks, tools, folders, mcp-servers)')
-  .argument('<resource>', 'resource type (agents|blocks|tools|folders|mcp-servers)')
+  .description('Display resources (agents, blocks, tools, folders, files, mcp-servers)')
+  .argument('<resource>', 'resource type (agents|blocks|tools|folders|files|mcp-servers)')
   .argument('[name]', 'specific resource name (optional)')
   .option('-o, --output <format>', 'output format (table|json|yaml)', 'table')
   .option('-a, --agent <name>', 'filter by agent name (for blocks, tools, folders)')
@@ -96,7 +115,7 @@ program
 program
   .command('describe')
   .description('Show detailed information about a resource')
-  .argument('<resource>', 'resource type (agent|block|tool|folder|mcp-servers)')
+  .argument('<resource>', 'resource type (agent|block|tool|folder|file|mcp-servers)')
   .argument('<name>', 'resource name')
   .option('-o, --output <format>', 'output format (table, json)', 'table')
   .action(describeCommand);
@@ -118,6 +137,15 @@ program
   .option('--pattern <pattern>', 'regex pattern to match agent names/IDs')
   .option('--force', 'force deletion without confirmation')
   .action(deleteAllCommand);
+
+// Cleanup command - remove orphaned resources
+program
+  .command('cleanup')
+  .description('Delete orphaned resources (blocks, folders not attached to any agent)')
+  .argument('<resource>', 'resource type (blocks|folders|all)')
+  .option('--force', 'actually delete (default is dry-run)')
+  .option('--dry-run', 'show what would be deleted without deleting')
+  .action(cleanupCommand);
 
 // Create command - create new agents
 program

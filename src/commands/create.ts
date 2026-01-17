@@ -1,5 +1,5 @@
 import { LettaClientWrapper } from '../lib/letta-client';
-import { createSpinner, getSpinnerEnabled } from '../lib/spinner';
+import { createSpinner, getSpinnerEnabled } from '../lib/ux/spinner';
 
 export default async function createCommand(
   resource: string,

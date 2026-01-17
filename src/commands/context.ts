@@ -1,6 +1,6 @@
 import { AgentResolver } from '../lib/agent-resolver';
 import { LettaClientWrapper } from '../lib/letta-client';
-import { OutputFormatter } from '../lib/output-formatter';
+import { OutputFormatter } from '../lib/ux/output-formatter';
 
 interface ContextWindow {
   context_window_size_max: number;

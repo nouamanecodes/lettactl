@@ -1,12 +1,27 @@
 import { LettaClientWrapper } from '../lib/letta-client';
 import { AgentResolver } from '../lib/agent-resolver';
-import { OutputFormatter } from '../lib/output-formatter';
+import { OutputFormatter } from '../lib/ux/output-formatter';
 import { validateResourceType, validateRequired } from '../lib/validators';
 import { withErrorHandling } from '../lib/error-handler';
-import { createSpinner, getSpinnerEnabled } from '../lib/spinner';
+import { createSpinner, getSpinnerEnabled } from '../lib/ux/spinner';
 import { normalizeToArray, findAttachedAgents } from '../lib/resource-usage';
+import {
+  displayAgentDetails,
+  displayBlockDetails,
+  displayToolDetails,
+  displayFolderDetails,
+  displayFileDetails,
+  displayMcpServerDetails,
+  AgentDetailsData,
+  BlockDetailsData,
+  ToolDetailsData,
+  FolderDetailsData,
+  FileDetailsData,
+  McpServerDetailsData,
+} from '../lib/ux/box';
+import { output } from '../lib/logger';
 
-const SUPPORTED_RESOURCES = ['agent', 'agents', 'block', 'blocks', 'tool', 'tools', 'folder', 'folders', 'mcp-servers'];
+const SUPPORTED_RESOURCES = ['agent', 'agents', 'block', 'blocks', 'tool', 'tools', 'folder', 'folders', 'file', 'files', 'mcp-servers'];
 
 async function describeCommandImpl(resource: string, name: string, options?: { output?: string }, command?: any) {
   const verbose = command?.parent?.opts().verbose || false;
@@ -33,6 +48,9 @@ async function describeCommandImpl(resource: string, name: string, options?: { o
     case 'folder':
       await describeFolder(client, resolver, name, options, spinnerEnabled);
       break;
+    case 'file':
+      await describeFile(client, resolver, name, options, spinnerEnabled);
+      break;
     case 'mcp-servers':
       await describeMcpServer(client, name, options, spinnerEnabled);
       break;
@@ -56,133 +74,81 @@ async function describeAgent(
     // Get full agent details
     const agentDetails = await resolver.getAgentWithDetails(agent.id);
 
+    // Get folders with file info
+    const folders = (agentDetails as any).folders || [];
+    const folderData: { name: string; id: string; fileCount: number; files: string[] }[] = [];
+
+    for (const folder of folders) {
+      try {
+        const fileList = normalizeToArray(await client.listFolderFiles(folder.id));
+        folderData.push({
+          name: folder.name || folder.id,
+          id: folder.id,
+          fileCount: fileList.length,
+          files: fileList.map((f: any) => f.file_name || f.original_file_name || f.name || f.id),
+        });
+      } catch {
+        folderData.push({
+          name: folder.name || folder.id,
+          id: folder.id,
+          fileCount: 0,
+          files: [],
+        });
+      }
+    }
+
+    // Get recent messages
+    let messages: { createdAt?: string; role?: string; preview?: string }[] = [];
+    try {
+      const messageList = normalizeToArray(await client.getAgentMessages(agentDetails.id, 5));
+      messages = messageList.map((msg: any) => {
+        // Get the text content from various possible fields
+        const text = msg.content || msg.text || msg.reasoning || '';
+        return {
+          createdAt: msg.date || msg.created_at,
+          role: msg.message_type || msg.role,
+          preview: text ? text.substring(0, 100) : undefined,
+        };
+      });
+    } catch {
+      // Messages unavailable
+    }
+
     spinner.stop();
 
     if (OutputFormatter.handleJsonOutput(agentDetails, options?.output)) {
       return;
     }
 
-    await displayAgentDetails(client, agentDetails, verbose);
+    // Build display data
+    const displayData: AgentDetailsData = {
+      id: agentDetails.id,
+      name: agentDetails.name,
+      description: agentDetails.description,
+      model: agentDetails.llm_config?.model,
+      contextWindow: agentDetails.llm_config?.context_window,
+      embedding: agentDetails.embedding_config?.embedding_model,
+      created: agentDetails.created_at,
+      updated: agentDetails.updated_at,
+      systemPrompt: agentDetails.system,
+      blocks: agentDetails.blocks?.map((b: any) => ({
+        label: b.label || b.id,
+        description: b.description,
+        limit: b.limit,
+        valueLength: b.value?.length || 0,
+      })),
+      tools: agentDetails.tools?.map((t: any) => ({
+        name: t.name || t,
+        description: t.description,
+      })),
+      folders: folderData,
+      messages,
+    };
+
+    output(displayAgentDetails(displayData, verbose));
   } catch (error) {
     spinner.fail(`Failed to load details for agent ${name}`);
     throw error;
-  }
-}
-
-/**
- * Display agent details - shared function for describe and post-creation display
- */
-export async function displayAgentDetails(
-  client: LettaClientWrapper,
-  agentDetails: any,
-  verbose?: boolean
-): Promise<void> {
-  // Display formatted information
-  console.log(`\nAgent Details: ${agentDetails.name}`);
-  console.log(`${'='.repeat(50)}`);
-  console.log(`ID:               ${agentDetails.id}`);
-  console.log(`Name:             ${agentDetails.name}`);
-  console.log(`Description:      ${agentDetails.description || '-'}`);
-  console.log(`Model:            ${agentDetails.llm_config?.model || 'Unknown'}`);
-  console.log(`Context Window:   ${agentDetails.llm_config?.context_window || 'Default'}`);
-  console.log(`Embedding:        ${agentDetails.embedding_config?.embedding_model || 'Unknown'}`);
-  console.log(`Created:          ${agentDetails.created_at || 'Unknown'}`);
-  console.log(`Last Updated:     ${agentDetails.updated_at || 'Unknown'}`);
-
-  // System prompt (truncated)
-  if (agentDetails.system) {
-    console.log(`\nSystem Prompt:`);
-    const truncated = agentDetails.system.length > 200
-      ? agentDetails.system.substring(0, 200) + '...'
-      : agentDetails.system;
-    console.log(`${truncated}`);
-  }
-
-  // Memory blocks
-  if (agentDetails.blocks && agentDetails.blocks.length > 0) {
-    console.log(`\nMemory Blocks (${agentDetails.blocks.length}):`);
-    for (const block of agentDetails.blocks) {
-      console.log(`  - ${block.label || block.id}`);
-      console.log(`    Description: ${block.description || 'No description'}`);
-      console.log(`    Limit: ${block.limit || 'No limit'} characters`);
-      console.log(`    Value: ${block.value ? `${block.value.length} characters` : 'No content'}`);
-      console.log();
-    }
-  } else {
-    console.log(`\nMemory Blocks: None`);
-  }
-
-  // Tools
-  if (agentDetails.tools && agentDetails.tools.length > 0) {
-    console.log(`Tools (${agentDetails.tools.length}):`);
-    for (const tool of agentDetails.tools) {
-      console.log(`  - ${tool.name || tool}`);
-      if (tool.description) {
-        if (verbose) {
-          console.log(`    ${tool.description}`);
-        } else {
-          // Truncate to first line, max 80 chars
-          const firstLine = tool.description.split('\n')[0].trim();
-          const truncated = firstLine.length > 80 ? firstLine.substring(0, 77) + '...' : firstLine;
-          console.log(`    ${truncated}`);
-        }
-      }
-    }
-    console.log();
-  } else {
-    console.log(`Tools: None\n`);
-  }
-
-  // Attached folders
-  const folders = (agentDetails as any).folders;
-  if (folders && folders.length > 0) {
-    console.log(`Attached Folders (${folders.length}):`);
-    for (const folder of folders) {
-      console.log(`  - ${folder.name || folder.id}`);
-      console.log(`    ID: ${folder.id}`);
-
-      // Get folder file count
-      try {
-        const fileList = normalizeToArray(await client.listFolderFiles(folder.id));
-        console.log(`    Files: ${fileList.length}`);
-
-        // Show first few files
-        if (fileList.length > 0) {
-          const displayFiles = fileList.slice(0, 3);
-          for (const file of displayFiles) {
-            console.log(`      - ${file.file_name || file.original_file_name || file.name || file.id}`);
-          }
-          if (fileList.length > 3) {
-            console.log(`      ... and ${fileList.length - 3} more files`);
-          }
-        }
-      } catch (error) {
-        console.log(`    Files: Unable to retrieve file list`);
-      }
-      console.log();
-    }
-  } else {
-    console.log(`Attached Folders: None\n`);
-  }
-
-  // Messages (recent)
-  try {
-    const messageList = normalizeToArray(await client.getAgentMessages(agentDetails.id, 5));
-
-    if (messageList.length > 0) {
-      console.log(`Recent Messages (${messageList.length} of last 5):`);
-      for (const message of messageList.slice(-3)) { // Show last 3
-        console.log(`  - ${message.created_at || 'Unknown time'}`);
-        console.log(`    Role: ${message.role}`);
-        const preview = message.text?.substring(0, 100) || 'No content';
-        console.log(`    Preview: ${preview}${message.text?.length > 100 ? '...' : ''}`);
-        console.log();
-      }
-    } else {
-      console.log(`Recent Messages: None\n`);
-    }
-  } catch (error) {
-    console.log(`Recent Messages: Unable to retrieve messages\n`);
   }
 }
 
@@ -215,31 +181,18 @@ async function describeBlock(
       return;
     }
 
-    console.log(`Block Details: ${block.label || block.name}`);
-    console.log(`${'='.repeat(50)}`);
-    console.log(`ID:            ${block.id}`);
-    console.log(`Label:         ${block.label || '-'}`);
-    console.log(`Description:   ${block.description || '-'}`);
-    console.log(`Limit:         ${block.limit || 'No limit'} characters`);
-    console.log(`Current Size:  ${block.value?.length || 0} characters`);
-    console.log(`Created:       ${block.created_at || 'Unknown'}`);
+    const displayData: BlockDetailsData = {
+      id: block.id,
+      label: block.label || block.name || 'Unknown',
+      description: block.description,
+      limit: block.limit,
+      currentSize: block.value?.length || 0,
+      created: block.created_at,
+      attachedAgents: attachedAgents.map((a: any) => ({ name: a.name, id: a.id })),
+      valuePreview: block.value?.length > 500 ? block.value.substring(0, 500) + '...' : block.value,
+    };
 
-    console.log(`\nAttached Agents (${attachedAgents.length}):`);
-    if (attachedAgents.length > 0) {
-      for (const agent of attachedAgents) {
-        console.log(`  - ${agent.name} (${agent.id})`);
-      }
-    } else {
-      console.log(`  (none - orphaned block)`);
-    }
-
-    console.log(`\nValue Preview:`);
-    if (block.value) {
-      const preview = block.value.length > 500 ? block.value.substring(0, 500) + '...' : block.value;
-      console.log(preview);
-    } else {
-      console.log(`  (empty)`);
-    }
+    output(displayBlockDetails(displayData));
   } catch (error) {
     spinner.fail(`Failed to load details for block ${name}`);
     throw error;
@@ -275,28 +228,17 @@ async function describeTool(
       return;
     }
 
-    console.log(`Tool Details: ${tool.name}`);
-    console.log(`${'='.repeat(50)}`);
-    console.log(`ID:            ${tool.id}`);
-    console.log(`Name:          ${tool.name}`);
-    console.log(`Description:   ${tool.description || '-'}`);
-    console.log(`Module:        ${tool.module || '-'}`);
-    console.log(`Created:       ${tool.created_at || 'Unknown'}`);
+    const displayData: ToolDetailsData = {
+      id: tool.id,
+      name: tool.name,
+      description: tool.description,
+      module: tool.module,
+      created: tool.created_at,
+      attachedAgents: attachedAgents.map((a: any) => ({ name: a.name, id: a.id })),
+      sourceCode: tool.source_code,
+    };
 
-    console.log(`\nAttached Agents (${attachedAgents.length}):`);
-    if (attachedAgents.length > 0) {
-      for (const agent of attachedAgents) {
-        console.log(`  - ${agent.name} (${agent.id})`);
-      }
-    } else {
-      console.log(`  (none - orphaned tool)`);
-    }
-
-    if (tool.source_code) {
-      console.log(`\nSource Code:`);
-      const preview = tool.source_code.length > 1000 ? tool.source_code.substring(0, 1000) + '\n...(truncated)' : tool.source_code;
-      console.log(preview);
-    }
+    output(displayToolDetails(displayData));
   } catch (error) {
     spinner.fail(`Failed to load details for tool ${name}`);
     throw error;
@@ -336,30 +278,16 @@ async function describeFolder(
       return;
     }
 
-    console.log(`Folder Details: ${folder.name}`);
-    console.log(`${'='.repeat(50)}`);
-    console.log(`ID:            ${folder.id}`);
-    console.log(`Name:          ${folder.name}`);
-    console.log(`Description:   ${folder.description || '-'}`);
-    console.log(`Created:       ${folder.created_at || 'Unknown'}`);
+    const displayData: FolderDetailsData = {
+      id: folder.id,
+      name: folder.name,
+      description: folder.description,
+      created: folder.created_at,
+      attachedAgents: attachedAgents.map((a: any) => ({ name: a.name, id: a.id })),
+      files: fileList.map((f: any) => f.name || f.file_name || f.id),
+    };
 
-    console.log(`\nAttached Agents (${attachedAgents.length}):`);
-    if (attachedAgents.length > 0) {
-      for (const agent of attachedAgents) {
-        console.log(`  - ${agent.name} (${agent.id})`);
-      }
-    } else {
-      console.log(`  (none - orphaned folder)`);
-    }
-
-    console.log(`\nFiles (${fileList.length}):`);
-    if (fileList.length > 0) {
-      for (const file of fileList) {
-        console.log(`  - ${file.name || file.file_name || file.id}`);
-      }
-    } else {
-      console.log(`  (empty folder)`);
-    }
+    output(displayFolderDetails(displayData));
   } catch (error) {
     spinner.fail(`Failed to load details for folder ${name}`);
     throw error;
@@ -406,41 +334,85 @@ async function describeMcpServer(
       return;
     }
 
-    console.log(`MCP Server Details: ${s.server_name || s.name}`);
-    console.log(`${'='.repeat(50)}`);
-    console.log(`ID:            ${s.id}`);
-    console.log(`Name:          ${s.server_name || s.name || '-'}`);
-    console.log(`Type:          ${s.mcp_server_type || '-'}`);
+    const displayData: McpServerDetailsData = {
+      id: s.id,
+      name: s.server_name || s.name || 'Unknown',
+      type: s.mcp_server_type,
+      serverUrl: s.server_url,
+      command: s.command,
+      args: s.args,
+      authHeader: s.auth_header,
+      tools: tools.map((t: any) => ({ name: t.name || t.id, description: t.description })),
+    };
 
-    if (s.server_url) {
-      console.log(`Server URL:    ${s.server_url}`);
-    }
-    if (s.command) {
-      console.log(`Command:       ${s.command}`);
-      if (s.args && s.args.length > 0) {
-        console.log(`Args:          ${s.args.join(' ')}`);
-      }
-    }
-    if (s.auth_header) {
-      console.log(`Auth Header:   ${s.auth_header}`);
-    }
-
-    console.log(`\nTools (${tools.length}):`);
-    if (tools.length > 0) {
-      for (const tool of tools) {
-        console.log(`  - ${tool.name || tool.id}`);
-        if (tool.description) {
-          const truncated = tool.description.length > 80
-            ? tool.description.substring(0, 77) + '...'
-            : tool.description;
-          console.log(`    ${truncated}`);
-        }
-      }
-    } else {
-      console.log(`  (no tools registered)`);
-    }
+    output(displayMcpServerDetails(displayData));
   } catch (error) {
     spinner.fail(`Failed to load details for MCP server ${name}`);
+    throw error;
+  }
+}
+
+async function describeFile(
+  client: LettaClientWrapper,
+  resolver: AgentResolver,
+  name: string,
+  options?: { output?: string },
+  spinnerEnabled?: boolean
+) {
+  const spinner = createSpinner(`Loading details for file ${name}...`, spinnerEnabled).start();
+
+  try {
+    // Find file by name or ID across all folders
+    spinner.text = 'Searching for file...';
+    const allFolders = await client.listFolders();
+
+    let foundFile: any = null;
+    const foldersContainingFile: { name: string; id: string; agentCount?: number }[] = [];
+
+    // Search through all folders to find the file
+    for (const folder of allFolders) {
+      const files = normalizeToArray(await client.listFolderFiles(folder.id));
+      const matchingFile = files.find((f: any) =>
+        f.name === name || f.file_name === name || f.id === name
+      );
+
+      if (matchingFile) {
+        if (!foundFile) {
+          foundFile = matchingFile;
+        }
+        // Compute agents attached to this folder
+        const attachedAgents = await findAttachedAgents(client, resolver, 'folders', folder.id);
+        foldersContainingFile.push({
+          name: folder.name || folder.id,
+          id: folder.id,
+          agentCount: attachedAgents.length,
+        });
+      }
+    }
+
+    if (!foundFile) {
+      spinner.fail(`File "${name}" not found`);
+      throw new Error(`File "${name}" not found in any folder`);
+    }
+
+    spinner.stop();
+
+    if (OutputFormatter.handleJsonOutput({ ...foundFile, folders: foldersContainingFile }, options?.output)) {
+      return;
+    }
+
+    const displayData: FileDetailsData = {
+      id: foundFile.id || foundFile.file_id,
+      name: foundFile.name || foundFile.file_name,
+      size: foundFile.size || foundFile.file_size,
+      mimeType: foundFile.mime_type || foundFile.content_type,
+      created: foundFile.created_at,
+      folders: foldersContainingFile,
+    };
+
+    output(displayFileDetails(displayData));
+  } catch (error) {
+    spinner.fail(`Failed to load details for file ${name}`);
     throw error;
   }
 }

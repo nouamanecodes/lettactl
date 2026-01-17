@@ -234,35 +234,64 @@ lettactl delete-all agents --pattern "PROD.*" --force   # Matches "prod-agent-1"
 - Pattern matching is case-insensitive
 - Supports complex regex patterns
 
+### Cleanup Orphaned Resources
+```bash
+# Preview orphaned resources (dry-run by default)
+lettactl cleanup blocks                # Find orphaned blocks
+lettactl cleanup folders               # Find orphaned folders (and their files)
+lettactl cleanup all                   # Find all orphaned resources
+
+# Actually delete orphaned resources
+lettactl cleanup blocks --force        # Delete orphaned blocks
+lettactl cleanup folders --force       # Delete orphaned folders (cascades to files)
+lettactl cleanup all --force           # Delete all orphaned resources
+```
+
+**What gets cleaned up:**
+- **Orphaned blocks**: Memory blocks attached to 0 agents
+- **Orphaned folders**: Folders attached to 0 agents (files inside are also deleted)
+
+**Safety Features:**
+- Dry-run by default - shows what would be deleted
+- Requires `--force` to actually delete
+- Shows file counts for orphaned folders
+- Uses API's native orphan detection for efficiency
+
 ### View Resources
 ```bash
 # List resources
 lettactl get agents                    # List all agents
 lettactl get blocks                    # List all memory blocks
 lettactl get tools                     # List all tools
-lettactl get folders                   # List all folders
+lettactl get folders                   # List all folders (with file counts)
+lettactl get files                     # List all files (deduplicated by name)
 lettactl get mcp-servers               # List all MCP servers
 
 # Wide output with extra columns (agent counts, sizes, models)
-lettactl get agents -o wide
+lettactl get agents -o wide            # +folders, MCP servers, files columns
 lettactl get blocks -o wide
 lettactl get tools -o wide
+lettactl get files -o wide             # Shows every file instance per folder
 
 # Scoped to specific agent
 lettactl get blocks -a my-agent        # Blocks attached to my-agent
 lettactl get tools -a my-agent         # Tools attached to my-agent
 lettactl get folders -a my-agent       # Folders attached to my-agent
+lettactl get files -a my-agent         # Files accessible to my-agent
 
 # Fleet analysis
 lettactl get tools --shared            # Tools used by 2+ agents
 lettactl get blocks --orphaned         # Blocks not attached to any agent
-lettactl get folders --shared -o wide  # Shared folders with agent counts
+lettactl get folders --shared          # Shared folders with agent counts
+lettactl get files --shared            # Files in folders used by 2+ agents
+lettactl get files --orphaned          # Files in folders not used by any agent
 
 # Detailed resource info
-lettactl describe agent my-agent       # Agent details + blocks/tools/folders
+lettactl describe agent my-agent       # Agent details + blocks/tools/folders/messages
 lettactl describe block persona        # Block details + attached agents + value preview
 lettactl describe tool my-tool         # Tool details + attached agents + source code
 lettactl describe folder docs          # Folder details + files + attached agents
+lettactl describe file report.pdf      # File details + which folders contain it
 lettactl describe mcp-servers my-mcp   # MCP server details + tools
 
 # JSON output for scripting
@@ -843,28 +872,36 @@ Comprehensive commands for understanding your agent fleet:
 ```bash
 # Quick health check
 lettactl get agents                    # Are agents running?
-lettactl get agents -o wide            # Check models, block/tool counts
+lettactl get agents -o wide            # Check models, block/tool/folder/file counts
 
 # Find resource usage across fleet
-lettactl get tools --shared -o wide    # Which tools are reused?
-lettactl get blocks --shared -o wide   # Which blocks are shared?
-lettactl get folders --shared -o wide  # Which folders are shared?
+lettactl get tools --shared            # Which tools are reused?
+lettactl get blocks --shared           # Which blocks are shared?
+lettactl get folders --shared          # Which folders are shared?
+lettactl get files --shared            # Files in shared folders
 
 # Find orphaned resources (cleanup candidates)
 lettactl get blocks --orphaned         # Blocks attached to 0 agents
 lettactl get tools --orphaned          # Tools attached to 0 agents
 lettactl get folders --orphaned        # Folders attached to 0 agents
+lettactl get files --orphaned          # Files in orphaned folders
 
 # Inspect specific agent's resources
 lettactl get blocks -a my-agent        # What memory does this agent have?
 lettactl get tools -a my-agent         # What can this agent do?
-lettactl get folders -a my-agent       # What documents can it access?
+lettactl get folders -a my-agent       # What folders can it access?
+lettactl get files -a my-agent         # What files can it access?
+
+# File deduplication analysis
+lettactl get files                     # Deduplicated view (unique files)
+lettactl get files -o wide             # All instances (files may exist in multiple folders)
 
 # Deep inspection
-lettactl describe agent my-agent       # Full agent config + resources
+lettactl describe agent my-agent       # Full agent config + resources + recent messages
 lettactl describe tool my-tool         # Source code + which agents use it
 lettactl describe block persona        # Value preview + which agents use it
 lettactl describe folder docs          # File list + which agents use it
+lettactl describe file report.pdf      # File size/type + which folders contain it
 
 # Export for analysis
 lettactl get tools --shared -o json | jq '.[] | .name'

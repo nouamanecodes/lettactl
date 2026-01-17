@@ -6,15 +6,14 @@ import { BlockManager } from './block-manager';
 import { AgentManager, AgentVersion } from './agent-manager';
 import { DiffEngine } from './diff-engine';
 import { FileContentTracker } from './file-content-tracker';
-import { OutputFormatter } from './output-formatter';
-import { createSpinner } from './spinner';
+import { OutputFormatter } from './ux/output-formatter';
+import { createSpinner } from './ux/spinner';
 import { FleetParser } from './fleet-parser';
 import { StorageBackendManager, SupabaseStorageBackend, hasSupabaseConfig } from './storage-backend';
 import { FolderFileConfig } from '../types/fleet-config';
 import { isBuiltinTool } from './builtin-tools';
-import { displayAgentDetails } from '../commands/describe';
 import { AgentResolver } from './agent-resolver';
-import { log, warn, isQuietMode } from './logger';
+import { log, warn } from './logger';
 
 export async function processSharedBlocks(
   config: any,
@@ -385,14 +384,12 @@ export async function createNewAgent(
       });
     }
 
-    creationSpinner.succeed(`Agent ${agentName} created successfully`);
+    // Count resources for summary
+    const blockCount = (agent.memory_blocks?.length || 0) + (agent.shared_blocks?.length || 0);
+    const toolCount = agent.tools?.length || 0;
+    const folderCount = agent.folders?.length || 0;
 
-    // Display agent details (skip in quiet mode)
-    if (!isQuietMode()) {
-      const resolver = new AgentResolver(client);
-      const fullAgent = await resolver.getAgentWithDetails(createdAgent.id);
-      await displayAgentDetails(client, fullAgent, verbose);
-    }
+    creationSpinner.succeed(`Agent ${agentName} created (${blockCount} blocks, ${toolCount} tools, ${folderCount} folders)`);
   } catch (error) {
     creationSpinner.fail(`Failed to create agent ${agentName}`);
     throw error;

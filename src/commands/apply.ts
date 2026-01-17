@@ -4,7 +4,7 @@ import { BlockManager } from '../lib/block-manager';
 import { AgentManager } from '../lib/agent-manager';
 import { DiffEngine } from '../lib/diff-engine';
 import { FileContentTracker } from '../lib/file-content-tracker';
-import { createSpinner, getSpinnerEnabled } from '../lib/spinner';
+import { createSpinner, getSpinnerEnabled } from '../lib/ux/spinner';
 import { SupabaseStorageBackend, hasSupabaseConfig } from '../lib/storage-backend';
 import { applyTemplateMode } from './apply-template';
 import { processSharedBlocks, processFolders, updateExistingAgent, createNewAgent } from '../lib/apply-helpers';

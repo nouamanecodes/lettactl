@@ -1,7 +1,7 @@
 import { LettaClientWrapper } from '../lib/letta-client';
 import { AgentResolver } from '../lib/agent-resolver';
 import { normalizeResponse, sleep } from '../lib/response-normalizer';
-import { formatStatus, OutputFormatter } from '../lib/output-formatter';
+import { formatStatus, OutputFormatter } from '../lib/ux/output-formatter';
 import { getMessageContent } from './messages';
 import { Run } from '../types/run';
 

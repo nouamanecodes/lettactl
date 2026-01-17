@@ -1,13 +1,14 @@
 import { LettaClientWrapper } from '../lib/letta-client';
 import { AgentResolver } from '../lib/agent-resolver';
-import { OutputFormatter } from '../lib/output-formatter';
+import { OutputFormatter } from '../lib/ux/output-formatter';
 import { validateResourceType } from '../lib/validators';
 import { withErrorHandling } from '../lib/error-handler';
-import { createSpinner, getSpinnerEnabled } from '../lib/spinner';
+import { createSpinner, getSpinnerEnabled } from '../lib/ux/spinner';
 import { normalizeToArray, computeAgentCounts } from '../lib/resource-usage';
 import { log } from '../lib/logger';
+import { AgentDataFetcher, DetailLevel } from '../lib/agent-data-fetcher';
 
-const SUPPORTED_RESOURCES = ['agents', 'blocks', 'tools', 'folders', 'mcp-servers'];
+const SUPPORTED_RESOURCES = ['agents', 'blocks', 'tools', 'folders', 'files', 'mcp-servers'];
 
 interface GetOptions {
   output?: string;
@@ -66,6 +67,9 @@ async function getCommandImpl(resource: string, _name?: string, options?: GetOpt
     case 'folders':
       await getFolders(client, resolver, options, spinnerEnabled, agentId);
       break;
+    case 'files':
+      await getFiles(client, resolver, options, spinnerEnabled, agentId);
+      break;
     case 'mcp-servers':
       await getMcpServers(client, options, spinnerEnabled);
       break;
@@ -73,41 +77,42 @@ async function getCommandImpl(resource: string, _name?: string, options?: GetOpt
 }
 
 async function getAgents(
-  resolver: AgentResolver,
+  _resolver: AgentResolver,
   client: LettaClientWrapper,
   options?: GetOptions,
   spinnerEnabled?: boolean
 ) {
   const isWide = options?.output === 'wide';
+  const fetcher = new AgentDataFetcher(client);
+
+  // Determine detail level based on output format
+  // 'standard' fetches tools/blocks counts (default for readable output)
+  // 'full' also fetches folders, files, MCP servers (for wide view)
+  const detailLevel: DetailLevel = isWide ? 'full' : 'standard';
+
   const spinner = createSpinner('Loading agents...', spinnerEnabled).start();
 
   try {
-    const agents = await resolver.getAllAgents();
+    spinner.text = 'Fetching agent details...';
 
-    // For wide output, fetch detailed agent info (blocks/tools counts)
-    let detailedAgents = agents;
-    if (isWide) {
-      spinner.text = 'Fetching agent details...';
-      detailedAgents = await Promise.all(
-        agents.map(async (agent: any) => {
-          const details = await resolver.getAgentWithDetails(agent.id);
-          return details;
-        })
-      );
-    }
+    const agents = await fetcher.fetchAllAgents(detailLevel);
 
     spinner.stop();
 
-    if (OutputFormatter.handleJsonOutput(detailedAgents, options?.output)) {
+    // For JSON output, return the raw data
+    if (options?.output === 'json') {
+      const rawData = agents.map(a => a.raw);
+      OutputFormatter.handleJsonOutput(rawData, 'json');
       return;
     }
 
     if (options?.output === 'yaml') {
-      console.log(OutputFormatter.formatOutput(detailedAgents, 'yaml'));
+      const rawData = agents.map(a => a.raw);
+      console.log(OutputFormatter.formatOutput(rawData, 'yaml'));
       return;
     }
 
-    console.log(OutputFormatter.createAgentTable(detailedAgents, isWide));
+    console.log(OutputFormatter.createAgentTable(agents, isWide));
   } catch (error) {
     spinner.fail('Failed to load agents');
     throw error;
@@ -134,6 +139,7 @@ async function getBlocks(
     let agentCounts: Map<string, number> | undefined;
 
     if (agentId) {
+      // For agent-specific blocks, no need for agent counts
       blockList = normalizeToArray(await client.listAgentBlocks(agentId));
     } else if (options?.shared) {
       blockList = await client.listBlocks({ connectedAgentsCountGt: 1 });
@@ -143,8 +149,8 @@ async function getBlocks(
       blockList = await client.listBlocks();
     }
 
-    // For wide output, compute agent counts
-    if (isWide && !agentId) {
+    // Always compute agent counts for block listing (unless agent-specific)
+    if (!agentId) {
       spinner.text = 'Computing block usage...';
       agentCounts = await computeAgentCounts(client, resolver, 'blocks', blockList.map((b: any) => b.id));
     }
@@ -178,7 +184,6 @@ async function getTools(
   agentId?: string
 ) {
   const isWide = options?.output === 'wide';
-  const needAgentCounts = isWide || options?.shared || options?.orphaned;
 
   let label = 'Loading tools...';
   if (agentId) label = 'Loading agent tools...';
@@ -192,8 +197,10 @@ async function getTools(
     let agentCounts: Map<string, number> | undefined;
 
     if (agentId) {
+      // For agent-specific tools, no need for agent counts
       toolList = normalizeToArray(await client.listAgentTools(agentId));
-    } else if (needAgentCounts) {
+    } else {
+      // Always compute agent counts for tool listing
       spinner.text = 'Fetching all tools...';
       const allTools = await client.listTools();
 
@@ -208,8 +215,6 @@ async function getTools(
       } else {
         toolList = allTools;
       }
-    } else {
-      toolList = await client.listTools();
     }
     spinner.stop();
 
@@ -240,7 +245,6 @@ async function getFolders(
   agentId?: string
 ) {
   const isWide = options?.output === 'wide';
-  const needAgentCounts = isWide || options?.shared || options?.orphaned;
 
   let label = 'Loading folders...';
   if (agentId) label = 'Loading agent folders...';
@@ -249,13 +253,27 @@ async function getFolders(
 
   const spinner = createSpinner(label, spinnerEnabled).start();
 
+  // Helper to safely get file count for a folder
+  const getFileCount = async (folderId: string): Promise<number> => {
+    try {
+      const files = await client.listFolderFiles(folderId);
+      const fileList = Array.isArray(files) ? files : ((files as any)?.items || []);
+      return fileList.length;
+    } catch {
+      return 0;
+    }
+  };
+
   try {
     let folderList: any[];
     let agentCounts: Map<string, number> | undefined;
+    let fileCounts: Map<string, number> | undefined;
 
     if (agentId) {
+      // For agent-specific folders, no need for agent counts
       folderList = normalizeToArray(await client.listAgentFolders(agentId));
-    } else if (needAgentCounts) {
+    } else {
+      // Always compute agent counts for folder listing
       spinner.text = 'Fetching all folders...';
       const allFolders = await client.listFolders();
 
@@ -270,9 +288,15 @@ async function getFolders(
       } else {
         folderList = allFolders;
       }
-    } else {
-      folderList = await client.listFolders();
     }
+
+    // Compute file counts for all folders in parallel
+    spinner.text = 'Computing file counts...';
+    const fileCountResults = await Promise.all(
+      folderList.map(async (f: any) => ({ id: f.id, count: await getFileCount(f.id) }))
+    );
+    fileCounts = new Map(fileCountResults.map(r => [r.id, r.count]));
+
     spinner.stop();
 
     if (OutputFormatter.handleJsonOutput(folderList, options?.output)) {
@@ -287,7 +311,7 @@ async function getFolders(
       return;
     }
 
-    console.log(OutputFormatter.createFolderTable(folderList, isWide, agentCounts));
+    console.log(OutputFormatter.createFolderTable(folderList, isWide, agentCounts, fileCounts));
   } catch (error) {
     spinner.fail('Failed to load folders');
     throw error;
@@ -319,6 +343,99 @@ async function getMcpServers(
     console.log(OutputFormatter.createMcpServerTable(servers));
   } catch (error) {
     spinner.fail('Failed to load MCP servers');
+    throw error;
+  }
+}
+
+async function getFiles(
+  client: LettaClientWrapper,
+  resolver: AgentResolver,
+  options?: GetOptions,
+  spinnerEnabled?: boolean,
+  agentId?: string
+) {
+  const isWide = options?.output === 'wide';
+
+  let label = 'Loading files...';
+  if (agentId) label = 'Loading agent files...';
+  else if (options?.shared) label = 'Loading shared files...';
+  else if (options?.orphaned) label = 'Loading orphaned files...';
+
+  const spinner = createSpinner(label, spinnerEnabled).start();
+
+  // Helper to safely get files from a folder
+  const getFolderFiles = async (folderId: string): Promise<any[]> => {
+    try {
+      const files = await client.listFolderFiles(folderId);
+      return Array.isArray(files) ? files : ((files as any)?.items || []);
+    } catch {
+      return [];
+    }
+  };
+
+  try {
+    let fileList: any[] = [];
+    let agentCounts: Map<string, number> | undefined;
+
+    if (agentId) {
+      // For agent-specific files, get folders attached to agent then get their files
+      const agentFolders = normalizeToArray(await client.listAgentFolders(agentId));
+
+      for (const folder of agentFolders) {
+        const files = await getFolderFiles(folder.id);
+        for (const file of files) {
+          fileList.push({
+            ...file,
+            folderName: folder.name,
+            folderId: folder.id,
+          });
+        }
+      }
+    } else {
+      // Get all folders and their files
+      spinner.text = 'Fetching all folders...';
+      const allFolders = await client.listFolders();
+
+      spinner.text = 'Computing folder usage...';
+      agentCounts = await computeAgentCounts(client, resolver, 'folders', allFolders.map((f: any) => f.id));
+
+      spinner.text = 'Fetching files from folders...';
+      for (const folder of allFolders) {
+        const files = await getFolderFiles(folder.id);
+        for (const file of files) {
+          fileList.push({
+            ...file,
+            folderName: folder.name,
+            folderId: folder.id,
+          });
+        }
+      }
+
+      // Filter based on flag (by folder's agent count)
+      if (options?.shared) {
+        fileList = fileList.filter((f: any) => (agentCounts!.get(f.folderId) || 0) >= 2);
+      } else if (options?.orphaned) {
+        fileList = fileList.filter((f: any) => (agentCounts!.get(f.folderId) || 0) === 0);
+      }
+    }
+
+    spinner.stop();
+
+    if (OutputFormatter.handleJsonOutput(fileList, options?.output)) {
+      return;
+    }
+
+    if (fileList.length === 0) {
+      if (agentId) console.log('No files attached to this agent');
+      else if (options?.shared) console.log('No shared files found (in folders attached to 2+ agents)');
+      else if (options?.orphaned) console.log('No orphaned files found (in folders attached to 0 agents)');
+      else console.log('No files found');
+      return;
+    }
+
+    console.log(OutputFormatter.createFileTable(fileList, agentCounts, isWide));
+  } catch (error) {
+    spinner.fail('Failed to load files');
     throw error;
   }
 }
