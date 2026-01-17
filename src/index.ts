@@ -23,6 +23,7 @@ import { healthCommand } from './commands/health';
 import { filesCommand } from './commands/files';
 import { contextCommand } from './commands/context';
 import { listRunsCommand, getRunCommand, deleteRunCommand } from './commands/runs';
+import { completionCommand } from './commands/completion';
 
 import { setQuietMode } from './lib/logger';
 import { printFancyHelp } from './lib/ux/help-formatter';
@@ -38,6 +39,11 @@ function validateEnvironment(thisCommand: any, actionCommand: any) {
 
   // Set quiet mode globally
   setQuietMode(thisCommand.opts().quiet || false);
+
+  // Skip validation for completion command (doesn't need API access)
+  if (actionCommand.name() === 'completion') {
+    return;
+  }
 
   if (!process.env.LETTA_BASE_URL) {
     console.error('Error: LETTA_BASE_URL environment variable is required');
@@ -322,6 +328,13 @@ program
   .description('Delete/cancel a run')
   .argument('<run-id>', 'run ID')
   .action(deleteRunCommand);
+
+// Completion command - generate shell completions
+program
+  .command('completion')
+  .description('Generate shell completion script')
+  .argument('<shell>', 'shell type (bash|zsh|fish)')
+  .action(completionCommand);
 
 // Global error handler to prevent stack traces from leaking
 process.on('unhandledRejection', (error: any) => {
