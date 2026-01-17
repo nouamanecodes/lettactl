@@ -170,6 +170,41 @@ else
 fi
 
 # ============================================================================
+# Test: Partial Failure Handling (kubectl-style continue on error)
+# ============================================================================
+
+section "Partial Failure Handling"
+
+# Cleanup any existing partial failure test agents
+$CLI delete-all agents --pattern "e2e-partial-.*" --force > /dev/null 2>&1 || true
+
+# Apply should continue despite failures and exit non-zero
+if $CLI apply -f "$FIXTURES/fleet-partial-failure.yml" > $OUT 2>&1; then
+    fail "Apply should have exited non-zero due to failures"
+    cat $OUT
+else
+    # Verify we continued processing (both valid agents should exist)
+    if $CLI get agents 2>/dev/null | grep -q "e2e-partial-valid-1" && \
+       $CLI get agents 2>/dev/null | grep -q "e2e-partial-valid-2"; then
+        pass "Continued after failure - both valid agents created"
+    else
+        fail "Did not continue after failure"
+        cat $OUT
+    fi
+
+    # Verify summary output
+    if output_contains "Succeeded:" && output_contains "Failed:"; then
+        pass "Summary shows succeeded/failed counts"
+    else
+        fail "Missing summary output"
+        cat $OUT
+    fi
+fi
+
+# Cleanup partial failure test agents
+$CLI delete-all agents --pattern "e2e-partial-.*" --force > /dev/null 2>&1 || true
+
+# ============================================================================
 # Test: Dry Run (should show creates)
 # ============================================================================
 

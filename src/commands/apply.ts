@@ -10,7 +10,7 @@ import { applyTemplateMode } from './apply-template';
 import { processSharedBlocks, processFolders, updateExistingAgent, createNewAgent } from '../lib/apply-helpers';
 import { formatLettaError } from '../lib/error-handler';
 import { computeDryRunDiffs, displayDryRunResults } from '../lib/dry-run';
-import { log, warn, isQuietMode } from '../lib/logger';
+import { log, warn, output, isQuietMode } from '../lib/logger';
 import { FILE_SEARCH_TOOLS } from '../lib/builtin-tools';
 
 export async function applyCommand(options: { file: string; agent?: string; match?: string; dryRun?: boolean; root?: string }, command: any) {
@@ -163,6 +163,11 @@ export async function applyCommand(options: { file: string; agent?: string; matc
     // Process agents
     if (verbose) log('Processing agents...');
 
+    // Track results for summary (kubectl-style: continue on failure)
+    const succeeded: string[] = [];
+    const failed: { name: string; error: string }[] = [];
+    const skipped: string[] = [];
+
     for (const agent of config.agents) {
       if (options.agent && !agent.name.includes(options.agent)) continue;
       if (verbose) {
@@ -230,7 +235,8 @@ export async function applyCommand(options: { file: string; agent?: string; matc
           // Check if changes needed
           const changes = agentManager.getConfigChanges(existingAgent, agentConfig);
           if (!changes.hasChanges) {
-            log(`Agent ${agent.name} already up to date`);
+            skipped.push(agent.name);
+            if (verbose) log(`Agent ${agent.name} already up to date`);
             continue;
           }
 
@@ -252,6 +258,7 @@ export async function applyCommand(options: { file: string; agent?: string; matc
             verbose,
             previousFolderFileHashes
           });
+          succeeded.push(agent.name);
         } else {
           // Create new agent
           await createNewAgent(agent, agentName, {
@@ -266,14 +273,35 @@ export async function applyCommand(options: { file: string; agent?: string; matc
             verbose,
             folderContentHashes
           });
+          succeeded.push(agent.name);
         }
       } catch (error: any) {
-        console.error(`Failed to process agent ${agent.name}:`, formatLettaError(error.message));
-        throw error;
+        const errorMsg = formatLettaError(error.message);
+        failed.push({ name: agent.name, error: errorMsg });
+        warn(`Failed: ${agent.name}: ${errorMsg}`);
+        // Continue processing remaining agents (kubectl-style)
       }
     }
 
-    log('Apply completed successfully');
+    // Display summary (use output() so it shows even in quiet mode)
+    const total = succeeded.length + failed.length + skipped.length;
+    if (failed.length > 0) {
+      output('');
+      output(`Apply completed with errors:`);
+      output(`  Succeeded: ${succeeded.length}/${total} agents`);
+      output(`  Failed: ${failed.length}/${total} agents`);
+      if (skipped.length > 0) output(`  Unchanged: ${skipped.length}/${total} agents`);
+      output('');
+      output('Failures:');
+      for (const f of failed) {
+        output(`  - ${f.name}: ${f.error}`);
+      }
+      throw new Error(`${failed.length} agent(s) failed to apply`);
+    } else if (succeeded.length > 0) {
+      log(`Apply completed: ${succeeded.length} succeeded, ${skipped.length} unchanged`);
+    } else {
+      log(`Apply completed: all ${skipped.length} agents already up to date`);
+    }
 
   } catch (error: any) {
     throw new Error(`Apply failed: ${formatLettaError(error.message || error)}`);
