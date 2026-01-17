@@ -13,7 +13,7 @@ import { StorageBackendManager, SupabaseStorageBackend, hasSupabaseConfig } from
 import { FolderFileConfig } from '../types/fleet-config';
 import { isBuiltinTool } from './builtin-tools';
 import { AgentResolver } from './agent-resolver';
-import { log, warn } from './logger';
+import { log } from './logger';
 
 export async function processSharedBlocks(
   config: any,
@@ -159,8 +159,7 @@ export async function processFolders(
                 const resolvedPath = path.resolve(parser.basePath, filePath);
 
                 if (!fs.existsSync(resolvedPath)) {
-                  warn(`File not found, skipping: ${filePath}`);
-                  continue;
+                  throw new Error(`File not found: ${filePath}`);
                 }
 
                 if (verbose) log(`  Uploading ${filePath}...`);
@@ -288,7 +287,7 @@ export async function createNewAgent(
         blockIds.push(sharedBlockId);
         if (verbose) log(`  Using shared block: ${sharedBlockName}`);
       } else {
-        warn(`  Shared block not found: ${sharedBlockName}`);
+        throw new Error(`Shared block '${sharedBlockName}' not found. Define it in shared_blocks.`);
       }
     }
   }
@@ -313,7 +312,7 @@ export async function createNewAgent(
         if (toolId) {
           toolIds.push(toolId);
         } else {
-          warn(`  Tool not found: ${toolName}`);
+          throw new Error(`Tool '${toolName}' not found. Check tool name or ensure tools/${toolName}.py exists.`);
         }
       }
     }

@@ -1,5 +1,6 @@
 #!/bin/bash
 # Test: Partial failure handling (kubectl-style continue on error)
+# Tests: invalid model, missing shared block, missing tool
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -24,11 +25,27 @@ else
         cat $OUT
     fi
 
-    # Verify summary output
-    if output_contains "Succeeded:" && output_contains "Failed:"; then
-        pass "Summary shows succeeded/failed counts"
+    # Verify summary output shows 2 succeeded, 3 failed
+    if output_contains "Succeeded: 2" && output_contains "Failed: 3"; then
+        pass "Summary shows correct counts (2 succeeded, 3 failed)"
     else
-        fail "Missing summary output"
+        fail "Incorrect summary counts"
+        cat $OUT
+    fi
+
+    # Verify explicit error for missing shared block
+    if output_contains "Shared block" && output_contains "not found"; then
+        pass "Missing shared block error surfaced"
+    else
+        fail "Missing shared block error not shown"
+        cat $OUT
+    fi
+
+    # Verify explicit error for missing tool
+    if output_contains "Tool" && output_contains "not found"; then
+        pass "Missing tool error surfaced"
+    else
+        fail "Missing tool error not shown"
         cat $OUT
     fi
 fi
