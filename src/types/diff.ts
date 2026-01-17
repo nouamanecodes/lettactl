@@ -9,7 +9,7 @@ export interface BlockDiff {
   toAdd: Array<{ name: string; id: string }>;
   toRemove: Array<{ name: string; id: string }>;
   toUpdate: Array<{ name: string; currentId: string; newId: string }>;
-  toUpdateValue: Array<{ name: string; id: string; newValue: string }>; // For mutable: false blocks
+  toUpdateValue: Array<{ name: string; id: string; oldValue: string; newValue: string }>; // For mutable: false blocks
   unchanged: Array<{ name: string; id: string }>;
 }
 
@@ -34,7 +34,7 @@ export interface FieldChange<T> {
 export interface AgentUpdateOperations {
   // Basic agent field updates (preserve conversation)
   updateFields?: {
-    system?: string;
+    system?: FieldChange<string>;
     description?: FieldChange<string>;
     model?: FieldChange<string>;
     embedding?: FieldChange<string>;
