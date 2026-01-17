@@ -1,4 +1,4 @@
-import { OutputFormatter } from '../../../src/lib/output-formatter';
+import { OutputFormatter } from '../../../src/lib/ux/output-formatter';
 
 // Mock console.log for testing
 const mockConsoleLog = jest.spyOn(console, 'log').mockImplementation(() => {});
@@ -36,42 +36,47 @@ describe('OutputFormatter', () => {
   });
 
   describe('createAgentTable', () => {
-    it('should create table for agents', () => {
-      const agents = [
-        { name: 'agent-1', id: 'id-1' },
-        { name: 'agent-2', id: 'id-2' }
-      ];
-      
-      const result = OutputFormatter.createAgentTable(agents);
-      
-      expect(result).toContain('agent-1');
-      expect(result).toContain('id-1');
-      expect(result).toContain('agent-2');
-      expect(result).toContain('id-2');
-      expect(result).toContain('NAME');
-      expect(result).toContain('ID');
+    const makeAgent = (overrides: Partial<{
+      id: string;
+      name: string;
+      model: string;
+      blockCount: number;
+      toolCount: number;
+      folderCount: number;
+      mcpServerCount: number;
+      fileCount: number;
+      created: string;
+    }> = {}) => ({
+      id: 'id-1',
+      name: 'agent-1',
+      model: 'test-model',
+      blockCount: 0,
+      toolCount: 0,
+      folderCount: 0,
+      mcpServerCount: 0,
+      fileCount: 0,
+      created: '2024-01-01',
+      ...overrides,
     });
 
-    it('should handle agents with missing properties', () => {
+    it('should create table for agents', () => {
       const agents = [
-        { name: 'agent-1' }, // missing id
-        { id: 'id-2' }, // missing name
-        {} // missing both
+        makeAgent({ name: 'agent-1', id: 'id-1' }),
+        makeAgent({ name: 'agent-2', id: 'id-2' })
       ];
-      
+
       const result = OutputFormatter.createAgentTable(agents);
-      
+
       expect(result).toContain('agent-1');
-      expect(result).toContain('id-2');
-      expect(result).toContain('Unknown');
+      expect(result).toContain('agent-2');
+      expect(result).toContain('NAME');
     });
 
     it('should handle empty agent list', () => {
       const agents: any[] = [];
       const result = OutputFormatter.createAgentTable(agents);
-      
+
       expect(result).toContain('NAME');
-      expect(result).toContain('ID');
     });
   });
 

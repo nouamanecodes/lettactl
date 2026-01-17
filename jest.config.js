@@ -7,6 +7,9 @@ module.exports = {
   transform: {
     '^.+\\.ts$': 'ts-jest',
   },
+  moduleNameMapper: {
+    '^chalk$': '<rootDir>/tests/mocks/chalk.js',
+  },
   collectCoverageFrom: [
     'src/**/*.ts',
     '!src/index.ts', // Skip CLI entry point
