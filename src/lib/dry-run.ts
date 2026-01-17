@@ -235,21 +235,44 @@ function displayCreateResult(result: DryRunResult): void {
   }
 }
 
+/**
+ * Truncate text for display, showing first N chars with ellipsis
+ */
+function truncate(text: string, maxLen: number = 60): string {
+  const singleLine = text.replace(/\n/g, '\\n').replace(/\r/g, '');
+  if (singleLine.length <= maxLen) return singleLine;
+  return singleLine.substring(0, maxLen - 3) + '...';
+}
+
+/**
+ * Display a text diff with - and + lines
+ */
+function displayTextDiff(label: string, from: string, to: string, indent: string = '    '): void {
+  console.log(`${indent}${label}:`);
+  console.log(`${indent}  - ${truncate(from, 70)}`);
+  console.log(`${indent}  + ${truncate(to, 70)}`);
+}
+
 function displayUpdateResult(result: DryRunResult, verbose: boolean): void {
   const ops = result.operations!;
   console.log(`[~] ${result.name} (UPDATE - ${ops.operationCount} changes)`);
 
   // Field changes
   if (ops.updateFields) {
-    if (ops.updateFields.system) console.log(`    System prompt: modified`);
+    if (ops.updateFields.system) {
+      displayTextDiff('system_prompt', ops.updateFields.system.from, ops.updateFields.system.to);
+    }
+    if (ops.updateFields.description) {
+      displayTextDiff('description', ops.updateFields.description.from, ops.updateFields.description.to);
+    }
     if (ops.updateFields.model) {
-      console.log(`    Model: ${ops.updateFields.model.from} -> ${ops.updateFields.model.to}`);
+      console.log(`    model: ${ops.updateFields.model.from} -> ${ops.updateFields.model.to}`);
     }
     if (ops.updateFields.embedding) {
-      console.log(`    Embedding: ${ops.updateFields.embedding.from} -> ${ops.updateFields.embedding.to}`);
+      console.log(`    embedding: ${ops.updateFields.embedding.from} -> ${ops.updateFields.embedding.to}`);
     }
     if (ops.updateFields.contextWindow) {
-      console.log(`    Context: ${ops.updateFields.contextWindow.from} -> ${ops.updateFields.contextWindow.to}`);
+      console.log(`    context_window: ${ops.updateFields.contextWindow.from} -> ${ops.updateFields.contextWindow.to}`);
     }
   }
 
@@ -268,7 +291,11 @@ function displayUpdateResult(result: DryRunResult, verbose: boolean): void {
     for (const b of ops.blocks.toAdd) console.log(`    Block [+]: ${b.name}`);
     for (const b of ops.blocks.toRemove) console.log(`    Block [-]: ${b.name}`);
     for (const b of ops.blocks.toUpdate) console.log(`    Block [~]: ${b.name}`);
-    for (const b of ops.blocks.toUpdateValue) console.log(`    Block [~]: ${b.name} (value sync)`);
+    for (const b of ops.blocks.toUpdateValue) {
+      console.log(`    Block [~]: ${b.name} (value sync)`);
+      console.log(`      - ${truncate(b.oldValue, 60)}`);
+      console.log(`      + ${truncate(b.newValue, 60)}`);
+    }
     if (verbose && ops.blocks.unchanged.length > 0) {
       console.log(`    Blocks unchanged: ${ops.blocks.unchanged.length}`);
     }

@@ -40,7 +40,7 @@ export class DiffApplier {
       const fields = operations.updateFields;
 
       if (fields.system !== undefined) {
-        apiFields.system = fields.system;
+        apiFields.system = fields.system.to;
       }
       if (fields.description !== undefined) {
         apiFields.description = fields.description.to;

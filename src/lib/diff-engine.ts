@@ -82,7 +82,7 @@ export class DiffEngine {
     
     if (normalizedCurrent !== normalizedDesired) {
       if (verbose) log(`    System prompt differs - current length: ${normalizedCurrent.length}, desired length: ${normalizedDesired.length}`);
-      fieldUpdates.system = desiredConfig.systemPrompt;
+      fieldUpdates.system = { from: normalizedCurrent, to: normalizedDesired };
       operations.operationCount++;
     }
 

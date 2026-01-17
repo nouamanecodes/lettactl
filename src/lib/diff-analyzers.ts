@@ -96,7 +96,7 @@ export async function analyzeBlockChanges(
   const toAdd: Array<{ name: string; id: string }> = [];
   const toRemove: Array<{ name: string; id: string }> = [];
   const toUpdate: Array<{ name: string; currentId: string; newId: string }> = [];
-  const toUpdateValue: Array<{ name: string; id: string; newValue: string }> = [];
+  const toUpdateValue: Array<{ name: string; id: string; oldValue: string; newValue: string }> = [];
   const unchanged: Array<{ name: string; id: string }> = [];
 
   // Find blocks to add
@@ -142,7 +142,7 @@ export async function analyzeBlockChanges(
         const currentValue = block.value || '';
 
         if (desiredValue !== currentValue) {
-          toUpdateValue.push({ name: block.label, id: block.id, newValue: desiredValue });
+          toUpdateValue.push({ name: block.label, id: block.id, oldValue: currentValue, newValue: desiredValue });
           continue;
         }
       }
