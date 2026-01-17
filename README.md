@@ -37,6 +37,23 @@ For DevOps workflows
 npm install -g lettactl
 ```
 
+### Shell Completions
+
+Enable tab-completion for commands, resources, and options:
+
+```bash
+# Bash
+lettactl completion bash >> ~/.bashrc
+
+# Zsh
+lettactl completion zsh >> ~/.zshrc
+
+# Fish
+lettactl completion fish > ~/.config/fish/completions/lettactl.fish
+```
+
+Restart your shell or source the file to activate.
+
 ### For Letta Cloud
 
 ```bash

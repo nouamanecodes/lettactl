@@ -19,7 +19,7 @@ const COMMAND_GROUPS: CommandGroup[] = [
       { key: 'export', value: 'Export agent to file' },
       { key: 'import', value: 'Import agent from file' },
       { key: 'config', value: 'Manage configuration' },
-      { key: '', value: '' }, // padding for alignment
+      { key: 'completion', value: 'Shell completion script' },
     ],
   },
   {
@@ -105,6 +105,7 @@ export function printFancyHelp(): void {
 
   // Tagline
   console.log(chalk.dim('        kubectl-style CLI for Letta AI agent fleets'));
+  console.log(chalk.dim('        run lettactl --help --no-ux for full text help'));
   console.log();
 
   // Usage
