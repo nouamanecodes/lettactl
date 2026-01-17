@@ -8,6 +8,7 @@
 
 A kubectl-style CLI for managing stateful Letta AI agent fleets with declarative configuration. Think "Docker Compose" but for AI agents - define your entire agent setup in YAML and deploy with one command.
 
+![lettactl_demo] (https://github.com/user-attachments/assets/28657b1b-f394-47b4-a76d-0018d7ed041d)
 ## Two Ways to Use LettaCtl
 
 | **CLI Tool** | **Programmatic SDK** |
