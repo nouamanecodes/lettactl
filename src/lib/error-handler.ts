@@ -35,7 +35,19 @@ const PROVIDER_ENV_VARS: Record<string, string> = {
 /**
  * Formats Letta API errors with helpful context
  */
-export function formatLettaError(message: string): string {
+export function formatLettaError(message: string, context?: { blockName?: string }): string {
+  // Check for memory block character limit exceeded
+  const limitMatch = message.match(/Exceeds (\d+) character limit \(requested (\d+)\)/i);
+  if (limitMatch) {
+    const limit = parseInt(limitMatch[1], 10);
+    const actual = parseInt(limitMatch[2], 10);
+    const blockInfo = context?.blockName ? `Memory block '${context.blockName}'` : 'Memory block';
+    return `${blockInfo} exceeds character limit\n` +
+      `  Limit: ${limit.toLocaleString()} characters\n` +
+      `  Actual: ${actual.toLocaleString()} characters\n` +
+      `  Hint: Increase the 'limit' field in your YAML or reduce content size`;
+  }
+
   // Check for provider not supported error
   const providerMatch = message.match(/Provider (\w+) is not supported/i);
   if (providerMatch) {
