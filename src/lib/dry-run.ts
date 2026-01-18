@@ -280,7 +280,7 @@ function displayUpdateResult(result: DryRunResult, verbose: boolean): void {
   // Tool changes
   if (ops.tools) {
     for (const t of ops.tools.toAdd) output(`    Tool [+]: ${t.name}`);
-    for (const t of ops.tools.toRemove) output(`    Tool [-]: ${t.name}`);
+    for (const t of ops.tools.toRemove) output(`    Tool [-]: ${t.name} (requires --force)`);
     for (const t of ops.tools.toUpdate) output(`    Tool [~]: ${t.name} (${t.reason})`);
     if (verbose && ops.tools.unchanged.length > 0) {
       output(`    Tools unchanged: ${ops.tools.unchanged.length}`);
@@ -290,7 +290,7 @@ function displayUpdateResult(result: DryRunResult, verbose: boolean): void {
   // Block changes
   if (ops.blocks) {
     for (const b of ops.blocks.toAdd) output(`    Block [+]: ${b.name}`);
-    for (const b of ops.blocks.toRemove) output(`    Block [-]: ${b.name}`);
+    for (const b of ops.blocks.toRemove) output(`    Block [-]: ${b.name} (requires --force)`);
     for (const b of ops.blocks.toUpdate) output(`    Block [~]: ${b.name}`);
     for (const b of ops.blocks.toUpdateValue) {
       output(`    Block [~]: ${b.name} (value sync)`);
@@ -305,7 +305,7 @@ function displayUpdateResult(result: DryRunResult, verbose: boolean): void {
   // Folder changes
   if (ops.folders) {
     for (const f of ops.folders.toAttach) output(`    Folder [+]: ${f.name}`);
-    for (const f of ops.folders.toDetach) output(`    Folder [-]: ${f.name}`);
+    for (const f of ops.folders.toDetach) output(`    Folder [-]: ${f.name} (requires --force)`);
     for (const f of ops.folders.toUpdate) {
       const changes = [];
       if (f.filesToAdd.length) changes.push(`+${f.filesToAdd.length} files`);

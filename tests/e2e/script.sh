@@ -640,6 +640,90 @@ else
 fi
 
 # ============================================================================
+# Test: --force Reconciliation (#123)
+# ============================================================================
+
+section "Force Reconciliation (--force flag)"
+
+# Cleanup any existing force test agent
+$CLI delete agent e2e-force-test --force > /dev/null 2>&1 || true
+
+# Create agent with multiple blocks and tools
+info "Creating agent with block_keep, block_remove, send_message, conversation_search..."
+if $CLI apply -f "$FIXTURES/fleet-force-test.yml" > $OUT 2>&1; then
+    pass "Created force test agent"
+else
+    fail "Failed to create force test agent"
+    cat $OUT
+fi
+
+# Verify both blocks exist
+if $CLI get blocks --agent e2e-force-test > $OUT 2>&1; then
+    if output_contains "block_keep" && output_contains "block_remove"; then
+        pass "Both blocks attached initially"
+    else
+        fail "Initial blocks not attached"
+        cat $OUT
+    fi
+fi
+
+# Apply reduced config WITHOUT --force - blocks should remain
+info "Applying reduced config WITHOUT --force..."
+if $CLI apply -f "$FIXTURES/fleet-force-test-reduced.yml" > $OUT 2>&1; then
+    # Check that block_remove is still attached (not removed without --force)
+    if $CLI get blocks --agent e2e-force-test > $OUT 2>&1; then
+        if output_contains "block_remove"; then
+            pass "block_remove retained without --force"
+        else
+            fail "block_remove incorrectly removed without --force"
+        fi
+    fi
+else
+    fail "Apply reduced config failed"
+    cat $OUT
+fi
+
+# Verify dry-run shows "(requires --force)" for removals
+info "Checking dry-run shows --force requirement..."
+if $CLI apply -f "$FIXTURES/fleet-force-test-reduced.yml" --dry-run > $OUT 2>&1; then
+    if output_contains "requires --force"; then
+        pass "Dry-run indicates --force required for removals"
+    else
+        # If block was already removed, this would fail - check if block still exists
+        if $CLI get blocks --agent e2e-force-test 2>/dev/null | grep -q "block_remove"; then
+            fail "Dry-run missing --force indicator"
+            cat $OUT
+        else
+            pass "No removals pending (block already processed)"
+        fi
+    fi
+fi
+
+# Apply reduced config WITH --force - block_remove should be detached
+info "Applying reduced config WITH --force..."
+if $CLI apply -f "$FIXTURES/fleet-force-test-reduced.yml" --force > $OUT 2>&1; then
+    # Check that block_remove is now gone
+    if $CLI get blocks --agent e2e-force-test > $OUT 2>&1; then
+        if output_contains "block_keep" && ! output_contains "block_remove"; then
+            pass "block_remove detached with --force"
+        else
+            if output_contains "block_remove"; then
+                fail "block_remove not removed with --force"
+            else
+                fail "block_keep also missing"
+            fi
+            cat $OUT
+        fi
+    fi
+else
+    fail "Apply with --force failed"
+    cat $OUT
+fi
+
+# Cleanup force test agent
+$CLI delete agent e2e-force-test --force > /dev/null 2>&1 || true
+
+# ============================================================================
 # Cleanup
 # ============================================================================
 
