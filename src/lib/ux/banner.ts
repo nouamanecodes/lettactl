@@ -1,7 +1,8 @@
 import chalk from 'chalk';
 import { LETTA_PURPLE, BANNER } from './constants';
+import { output } from '../logger';
 
 export function printBanner(): void {
-  console.log(chalk.hex(LETTA_PURPLE)(BANNER));
-  console.log();
+  output(chalk.hex(LETTA_PURPLE)(BANNER));
+  output();
 }

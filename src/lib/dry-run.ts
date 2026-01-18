@@ -4,6 +4,7 @@ import { AgentManager } from './agent-manager';
 import { DiffEngine, AgentUpdateOperations } from './diff-engine';
 import { FileContentTracker } from './file-content-tracker';
 import { FleetParser } from './fleet-parser';
+import { output } from './logger';
 
 export interface DryRunResult {
   name: string;
@@ -178,8 +179,8 @@ async function computeAgentDiff(
  * Display dry-run results
  */
 export function displayDryRunResults(results: DryRunResult[], verbose: boolean): void {
-  console.log('');
-  console.log('='.repeat(50));
+  output('');
+  output('='.repeat(50));
 
   let created = 0, updated = 0, unchanged = 0;
   let totalChanges = 0;
@@ -195,42 +196,42 @@ export function displayDryRunResults(results: DryRunResult[], verbose: boolean):
       displayUpdateResult(result, verbose);
     } else if (verbose) {
       unchanged++;
-      console.log(`[=] ${result.name} (no changes)`);
+      output(`[=] ${result.name} (no changes)`);
     } else {
       unchanged++;
     }
   }
 
   // Summary
-  console.log('');
-  console.log('='.repeat(50));
-  console.log('Summary:');
-  if (created > 0) console.log(`  [+] ${created} agent(s) to create`);
-  if (updated > 0) console.log(`  [~] ${updated} agent(s) to update`);
-  if (unchanged > 0) console.log(`  [=] ${unchanged} agent(s) unchanged`);
-  console.log(`  Total changes: ${totalChanges}`);
+  output('');
+  output('='.repeat(50));
+  output('Summary:');
+  if (created > 0) output(`  [+] ${created} agent(s) to create`);
+  if (updated > 0) output(`  [~] ${updated} agent(s) to update`);
+  if (unchanged > 0) output(`  [=] ${unchanged} agent(s) unchanged`);
+  output(`  Total changes: ${totalChanges}`);
 
   if (totalChanges === 0) {
-    console.log('\nNo changes to apply.');
+    output('\nNo changes to apply.');
   } else {
-    console.log('\nRun "lettactl apply" to apply these changes.');
+    output('\nRun "lettactl apply" to apply these changes.');
   }
 }
 
 function displayCreateResult(result: DryRunResult): void {
-  console.log(`[+] ${result.name} (CREATE)`);
+  output(`[+] ${result.name} (CREATE)`);
   if (result.config) {
-    console.log(`    Model: ${result.config.model || 'default'}`);
-    console.log(`    Embedding: ${result.config.embedding || 'default'}`);
+    output(`    Model: ${result.config.model || 'default'}`);
+    output(`    Embedding: ${result.config.embedding || 'default'}`);
     if (result.config.tools?.length) {
-      console.log(`    Tools: ${result.config.tools.length}`);
+      output(`    Tools: ${result.config.tools.length}`);
     }
     if (result.config.memoryBlocks?.length) {
-      console.log(`    Memory blocks: ${result.config.memoryBlocks.length}`);
+      output(`    Memory blocks: ${result.config.memoryBlocks.length}`);
     }
     if (result.config.folders?.length) {
       const fileCount = result.config.folders.reduce((sum: number, f: any) => sum + f.files.length, 0);
-      console.log(`    Folders: ${result.config.folders.length} (${fileCount} files)`);
+      output(`    Folders: ${result.config.folders.length} (${fileCount} files)`);
     }
   }
 }
@@ -248,14 +249,14 @@ function truncate(text: string, maxLen: number = 60): string {
  * Display a text diff with - and + lines
  */
 function displayTextDiff(label: string, from: string, to: string, indent: string = '    '): void {
-  console.log(`${indent}${label}:`);
-  console.log(`${indent}  - ${truncate(from, 70)}`);
-  console.log(`${indent}  + ${truncate(to, 70)}`);
+  output(`${indent}${label}:`);
+  output(`${indent}  - ${truncate(from, 70)}`);
+  output(`${indent}  + ${truncate(to, 70)}`);
 }
 
 function displayUpdateResult(result: DryRunResult, verbose: boolean): void {
   const ops = result.operations!;
-  console.log(`[~] ${result.name} (UPDATE - ${ops.operationCount} changes)`);
+  output(`[~] ${result.name} (UPDATE - ${ops.operationCount} changes)`);
 
   // Field changes
   if (ops.updateFields) {
@@ -266,54 +267,54 @@ function displayUpdateResult(result: DryRunResult, verbose: boolean): void {
       displayTextDiff('description', ops.updateFields.description.from, ops.updateFields.description.to);
     }
     if (ops.updateFields.model) {
-      console.log(`    model: ${ops.updateFields.model.from} -> ${ops.updateFields.model.to}`);
+      output(`    model: ${ops.updateFields.model.from} -> ${ops.updateFields.model.to}`);
     }
     if (ops.updateFields.embedding) {
-      console.log(`    embedding: ${ops.updateFields.embedding.from} -> ${ops.updateFields.embedding.to}`);
+      output(`    embedding: ${ops.updateFields.embedding.from} -> ${ops.updateFields.embedding.to}`);
     }
     if (ops.updateFields.contextWindow) {
-      console.log(`    context_window: ${ops.updateFields.contextWindow.from} -> ${ops.updateFields.contextWindow.to}`);
+      output(`    context_window: ${ops.updateFields.contextWindow.from} -> ${ops.updateFields.contextWindow.to}`);
     }
   }
 
   // Tool changes
   if (ops.tools) {
-    for (const t of ops.tools.toAdd) console.log(`    Tool [+]: ${t.name}`);
-    for (const t of ops.tools.toRemove) console.log(`    Tool [-]: ${t.name}`);
-    for (const t of ops.tools.toUpdate) console.log(`    Tool [~]: ${t.name} (${t.reason})`);
+    for (const t of ops.tools.toAdd) output(`    Tool [+]: ${t.name}`);
+    for (const t of ops.tools.toRemove) output(`    Tool [-]: ${t.name}`);
+    for (const t of ops.tools.toUpdate) output(`    Tool [~]: ${t.name} (${t.reason})`);
     if (verbose && ops.tools.unchanged.length > 0) {
-      console.log(`    Tools unchanged: ${ops.tools.unchanged.length}`);
+      output(`    Tools unchanged: ${ops.tools.unchanged.length}`);
     }
   }
 
   // Block changes
   if (ops.blocks) {
-    for (const b of ops.blocks.toAdd) console.log(`    Block [+]: ${b.name}`);
-    for (const b of ops.blocks.toRemove) console.log(`    Block [-]: ${b.name}`);
-    for (const b of ops.blocks.toUpdate) console.log(`    Block [~]: ${b.name}`);
+    for (const b of ops.blocks.toAdd) output(`    Block [+]: ${b.name}`);
+    for (const b of ops.blocks.toRemove) output(`    Block [-]: ${b.name}`);
+    for (const b of ops.blocks.toUpdate) output(`    Block [~]: ${b.name}`);
     for (const b of ops.blocks.toUpdateValue) {
-      console.log(`    Block [~]: ${b.name} (value sync)`);
-      console.log(`      - ${truncate(b.oldValue, 60)}`);
-      console.log(`      + ${truncate(b.newValue, 60)}`);
+      output(`    Block [~]: ${b.name} (value sync)`);
+      output(`      - ${truncate(b.oldValue, 60)}`);
+      output(`      + ${truncate(b.newValue, 60)}`);
     }
     if (verbose && ops.blocks.unchanged.length > 0) {
-      console.log(`    Blocks unchanged: ${ops.blocks.unchanged.length}`);
+      output(`    Blocks unchanged: ${ops.blocks.unchanged.length}`);
     }
   }
 
   // Folder changes
   if (ops.folders) {
-    for (const f of ops.folders.toAttach) console.log(`    Folder [+]: ${f.name}`);
-    for (const f of ops.folders.toDetach) console.log(`    Folder [-]: ${f.name}`);
+    for (const f of ops.folders.toAttach) output(`    Folder [+]: ${f.name}`);
+    for (const f of ops.folders.toDetach) output(`    Folder [-]: ${f.name}`);
     for (const f of ops.folders.toUpdate) {
       const changes = [];
       if (f.filesToAdd.length) changes.push(`+${f.filesToAdd.length} files`);
       if (f.filesToRemove.length) changes.push(`-${f.filesToRemove.length} files`);
       if (f.filesToUpdate.length) changes.push(`~${f.filesToUpdate.length} files`);
-      console.log(`    Folder [~]: ${f.name} (${changes.join(', ')})`);
+      output(`    Folder [~]: ${f.name} (${changes.join(', ')})`);
     }
     if (verbose && ops.folders.unchanged.length > 0) {
-      console.log(`    Folders unchanged: ${ops.folders.unchanged.length}`);
+      output(`    Folders unchanged: ${ops.folders.unchanged.length}`);
     }
   }
 }

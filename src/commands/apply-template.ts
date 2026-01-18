@@ -8,6 +8,7 @@ import { createSpinner, getSpinnerEnabled } from '../lib/ux/spinner';
 import { minimatch } from 'minimatch';
 import { readLastApplied, applyThreeWayMerge, hashCurrentTools, hashCurrentBlocks, METADATA_KEY } from '../lib/last-applied-config';
 import { normalizeResponse } from '../lib/response-normalizer';
+import { log, output } from '../lib/logger';
 
 /**
  * Template mode: apply a template config to all existing agents matching a glob pattern.
@@ -44,10 +45,10 @@ export async function applyTemplateMode(
   }
 
   findSpinner.succeed(`Found ${matchingAgents.length} agents matching "${pattern}"`);
-  matchingAgents.forEach((a: any) => console.log(`  - ${a.name}`));
+  matchingAgents.forEach((a: any) => output(`  - ${a.name}`));
 
   if (options.dryRun) {
-    console.log('\nDry-run mode: no changes will be made');
+    output('\nDry-run mode: no changes will be made');
     return;
   }
 
@@ -80,7 +81,7 @@ export async function applyTemplateMode(
     for (const sharedBlock of config.shared_blocks) {
       const blockId = await blockManager.getOrCreateSharedBlock(sharedBlock);
       sharedBlockIds.set(sharedBlock.name, blockId);
-      if (verbose) console.log(`  ${sharedBlock.name} -> ${blockId}`);
+      if (verbose) output(`  ${sharedBlock.name} -> ${blockId}`);
     }
     blockSpinner.succeed(`Processed ${config.shared_blocks.length} shared blocks`);
   }
@@ -182,10 +183,10 @@ export async function applyTemplateMode(
 
       updateSpinner.succeed(`${existingAgent.name}: updated successfully`);
 
-    } catch (error: any) {
-      agentSpinner.fail(`${existingAgent.name}: ${error.message}`);
+    } catch (err: any) {
+      agentSpinner.fail(`${existingAgent.name}: ${err.message}`);
     }
   }
 
-  console.log('\nTemplate apply completed');
+  output('\nTemplate apply completed');
 }

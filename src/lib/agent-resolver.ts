@@ -1,5 +1,6 @@
 import { LettaClientWrapper } from './letta-client';
 import { normalizeResponse } from './response-normalizer';
+import { warn } from './logger';
 
 export class AgentResolver {
   private client: LettaClientWrapper;
@@ -35,7 +36,7 @@ export class AgentResolver {
       const tools = await this.client.listAgentTools(agentId);
       agentWithDetails.tools = Array.isArray(tools) ? tools : (tools?.items || []);
     } catch (error) {
-      console.warn(`Warning: Could not fetch tools for agent ${agentId}`);
+      warn(`Warning: Could not fetch tools for agent ${agentId}`);
       agentWithDetails.tools = [];
     }
     
@@ -44,7 +45,7 @@ export class AgentResolver {
       const blocks = await this.client.listAgentBlocks(agentId);
       agentWithDetails.blocks = Array.isArray(blocks) ? blocks : (blocks?.items || []);
     } catch (error) {
-      console.warn(`Warning: Could not fetch blocks for agent ${agentId}`);
+      warn(`Warning: Could not fetch blocks for agent ${agentId}`);
       agentWithDetails.blocks = [];
     }
     
@@ -53,7 +54,7 @@ export class AgentResolver {
       const folders = await this.client.listAgentFolders(agentId);
       agentWithDetails.folders = Array.isArray(folders) ? folders : (folders?.items || []);
     } catch (error) {
-      console.warn(`Warning: Could not fetch folders for agent ${agentId}`);
+      warn(`Warning: Could not fetch folders for agent ${agentId}`);
       agentWithDetails.folders = [];
     }
 

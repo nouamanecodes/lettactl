@@ -3,6 +3,7 @@ import { LettaClientWrapper } from '../lib/letta-client';
 import { OutputFormatter } from '../lib/ux/output-formatter';
 import { shouldUseFancyUx } from '../lib/ux/box';
 import { LETTA_PURPLE, STATUS } from '../lib/ux/constants';
+import { output } from '../lib/logger';
 
 const purple = chalk.hex(LETTA_PURPLE);
 
@@ -50,26 +51,26 @@ export async function healthCommand(options: { output?: string }, command: any) 
 
   // Header
   if (fancy) {
-    console.log(purple('Letta Server Health Check'));
-    console.log(purple('─'.repeat(26)) + '\n');
+    output(purple('Letta Server Health Check'));
+    output(purple('─'.repeat(26)) + '\n');
   } else {
-    console.log('Letta Server Health Check');
-    console.log('==========================\n');
+    output('Letta Server Health Check');
+    output('==========================\n');
   }
 
   // Check environment
   if (!baseUrl) {
-    console.log(fancy ? `${STATUS.fail} LETTA_BASE_URL not set` : '[FAIL] LETTA_BASE_URL not set');
+    output(fancy ? `${STATUS.fail} LETTA_BASE_URL not set` : '[FAIL] LETTA_BASE_URL not set');
     process.exit(1);
   }
-  console.log(fancy ? `${chalk.dim('Server URL:')} ${baseUrl}` : `Server URL: ${baseUrl}`);
+  output(fancy ? `${chalk.dim('Server URL:')} ${baseUrl}` : `Server URL: ${baseUrl}`);
 
   // Check connectivity
   try {
     const response = await fetch(`${baseUrl}/v1/health/`);
 
     if (!response.ok) {
-      console.log(fancy ? `${STATUS.fail} Server returned ${response.status}` : `[FAIL] Server returned ${response.status}`);
+      output(fancy ? `${STATUS.fail} Server returned ${response.status}` : `[FAIL] Server returned ${response.status}`);
       process.exit(1);
     }
 
@@ -77,27 +78,27 @@ export async function healthCommand(options: { output?: string }, command: any) 
 
     if (fancy) {
       const statusIcon = health.status === 'ok' ? STATUS.ok : STATUS.fail;
-      console.log(`${chalk.dim('Status:')}     ${statusIcon} ${health.status}`);
-      console.log(`${chalk.dim('Version:')}    ${chalk.cyan(health.version)}`);
+      output(`${chalk.dim('Status:')}     ${statusIcon} ${health.status}`);
+      output(`${chalk.dim('Version:')}    ${chalk.cyan(health.version)}`);
     } else {
-      console.log(`Status:     ${health.status === 'ok' ? '[OK]' : '[FAIL] ' + health.status}`);
-      console.log(`Version:    ${health.version}`);
+      output(`Status:     ${health.status === 'ok' ? '[OK]' : '[FAIL] ' + health.status}`);
+      output(`Version:    ${health.version}`);
     }
 
     if (verbose) {
       // Additional checks in verbose mode
-      console.log(fancy ? '\n' + chalk.dim('Detailed Checks:') : '\nDetailed Checks:');
+      output(fancy ? '\n' + chalk.dim('Detailed Checks:') : '\nDetailed Checks:');
 
       // Check agents endpoint
       try {
         const client = new LettaClientWrapper();
         const agents = await client.listAgents();
         const agentCount = Array.isArray(agents) ? agents.length : 0;
-        console.log(fancy
+        output(fancy
           ? `  ${STATUS.ok} Agents: ${chalk.green(agentCount.toString())} found`
           : `  Agents:   [OK] ${agentCount} found`);
       } catch (e: any) {
-        console.log(fancy
+        output(fancy
           ? `  ${STATUS.fail} Agents: ${chalk.red(e.message)}`
           : `  Agents:   [FAIL] ${e.message}`);
       }
@@ -107,43 +108,43 @@ export async function healthCommand(options: { output?: string }, command: any) 
         const client = new LettaClientWrapper();
         const tools = await client.listTools();
         const toolCount = Array.isArray(tools) ? tools.length : 0;
-        console.log(fancy
+        output(fancy
           ? `  ${STATUS.ok} Tools: ${chalk.green(toolCount.toString())} found`
           : `  Tools:    [OK] ${toolCount} found`);
       } catch (e: any) {
-        console.log(fancy
+        output(fancy
           ? `  ${STATUS.fail} Tools: ${chalk.red(e.message)}`
           : `  Tools:    [FAIL] ${e.message}`);
       }
 
       // Check API key status
       if (process.env.LETTA_API_KEY) {
-        console.log(fancy
+        output(fancy
           ? `  ${STATUS.ok} API Key: ${chalk.green('configured')}`
           : `  API Key:  [OK] configured`);
       } else {
-        console.log(fancy
+        output(fancy
           ? `  ${STATUS.info} API Key: ${chalk.dim('not set (ok for self-hosted)')}`
           : `  API Key:  [--] not set (ok for self-hosted)`);
       }
     }
 
-    console.log(fancy
+    output(fancy
       ? '\n' + STATUS.ok + chalk.green(' Letta server is healthy')
       : '\nLetta server is healthy');
 
   } catch (error: any) {
     const msg = error.cause?.code || error.code || error.message;
     if (msg === 'ECONNREFUSED') {
-      console.log(fancy
+      output(fancy
         ? `${STATUS.fail} Connection refused - is Letta server running at ${baseUrl}?`
         : `[FAIL] Connection refused - is Letta server running at ${baseUrl}?`);
     } else if (msg === 'ENOTFOUND') {
-      console.log(fancy
+      output(fancy
         ? `${STATUS.fail} Host not found - check LETTA_BASE_URL`
         : `[FAIL] Host not found - check LETTA_BASE_URL`);
     } else {
-      console.log(fancy
+      output(fancy
         ? `${STATUS.fail} Cannot connect to ${baseUrl}`
         : `[FAIL] Cannot connect to ${baseUrl}`);
     }

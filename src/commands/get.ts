@@ -5,7 +5,7 @@ import { validateResourceType } from '../lib/validators';
 import { withErrorHandling } from '../lib/error-handler';
 import { createSpinner, getSpinnerEnabled } from '../lib/ux/spinner';
 import { normalizeToArray, computeAgentCounts } from '../lib/resource-usage';
-import { log } from '../lib/logger';
+import { log, output } from '../lib/logger';
 import { AgentDataFetcher, DetailLevel } from '../lib/agent-data-fetcher';
 
 const SUPPORTED_RESOURCES = ['agents', 'blocks', 'tools', 'folders', 'files', 'mcp-servers'];
@@ -108,11 +108,11 @@ async function getAgents(
 
     if (options?.output === 'yaml') {
       const rawData = agents.map(a => a.raw);
-      console.log(OutputFormatter.formatOutput(rawData, 'yaml'));
+      output(OutputFormatter.formatOutput(rawData, 'yaml'));
       return;
     }
 
-    console.log(OutputFormatter.createAgentTable(agents, isWide));
+    output(OutputFormatter.createAgentTable(agents, isWide));
   } catch (error) {
     spinner.fail('Failed to load agents');
     throw error;
@@ -162,14 +162,14 @@ async function getBlocks(
     }
 
     if (blockList.length === 0) {
-      if (agentId) console.log('No blocks attached to this agent');
-      else if (options?.shared) console.log('No shared blocks found (attached to 2+ agents)');
-      else if (options?.orphaned) console.log('No orphaned blocks found (attached to 0 agents)');
-      else console.log('No blocks found');
+      if (agentId) output('No blocks attached to this agent');
+      else if (options?.shared) output('No shared blocks found (attached to 2+ agents)');
+      else if (options?.orphaned) output('No orphaned blocks found (attached to 0 agents)');
+      else output('No blocks found');
       return;
     }
 
-    console.log(OutputFormatter.createBlockTable(blockList, isWide, agentCounts));
+    output(OutputFormatter.createBlockTable(blockList, isWide, agentCounts));
   } catch (error) {
     spinner.fail('Failed to load blocks');
     throw error;
@@ -223,14 +223,14 @@ async function getTools(
     }
 
     if (toolList.length === 0) {
-      if (agentId) console.log('No tools attached to this agent');
-      else if (options?.shared) console.log('No shared tools found (attached to 2+ agents)');
-      else if (options?.orphaned) console.log('No orphaned tools found (attached to 0 agents)');
-      else console.log('No tools found');
+      if (agentId) output('No tools attached to this agent');
+      else if (options?.shared) output('No shared tools found (attached to 2+ agents)');
+      else if (options?.orphaned) output('No orphaned tools found (attached to 0 agents)');
+      else output('No tools found');
       return;
     }
 
-    console.log(OutputFormatter.createToolTable(toolList, isWide, agentCounts));
+    output(OutputFormatter.createToolTable(toolList, isWide, agentCounts));
   } catch (error) {
     spinner.fail('Failed to load tools');
     throw error;
@@ -304,14 +304,14 @@ async function getFolders(
     }
 
     if (folderList.length === 0) {
-      if (agentId) console.log('No folders attached to this agent');
-      else if (options?.shared) console.log('No shared folders found (attached to 2+ agents)');
-      else if (options?.orphaned) console.log('No orphaned folders found (attached to 0 agents)');
-      else console.log('No folders found');
+      if (agentId) output('No folders attached to this agent');
+      else if (options?.shared) output('No shared folders found (attached to 2+ agents)');
+      else if (options?.orphaned) output('No orphaned folders found (attached to 0 agents)');
+      else output('No folders found');
       return;
     }
 
-    console.log(OutputFormatter.createFolderTable(folderList, isWide, agentCounts, fileCounts));
+    output(OutputFormatter.createFolderTable(folderList, isWide, agentCounts, fileCounts));
   } catch (error) {
     spinner.fail('Failed to load folders');
     throw error;
@@ -336,11 +336,11 @@ async function getMcpServers(
     }
 
     if (servers.length === 0) {
-      console.log('No MCP servers found');
+      output('No MCP servers found');
       return;
     }
 
-    console.log(OutputFormatter.createMcpServerTable(servers));
+    output(OutputFormatter.createMcpServerTable(servers));
   } catch (error) {
     spinner.fail('Failed to load MCP servers');
     throw error;
@@ -426,14 +426,14 @@ async function getFiles(
     }
 
     if (fileList.length === 0) {
-      if (agentId) console.log('No files attached to this agent');
-      else if (options?.shared) console.log('No shared files found (in folders attached to 2+ agents)');
-      else if (options?.orphaned) console.log('No orphaned files found (in folders attached to 0 agents)');
-      else console.log('No files found');
+      if (agentId) output('No files attached to this agent');
+      else if (options?.shared) output('No shared files found (in folders attached to 2+ agents)');
+      else if (options?.orphaned) output('No orphaned files found (in folders attached to 0 agents)');
+      else output('No files found');
       return;
     }
 
-    console.log(OutputFormatter.createFileTable(fileList, agentCounts, isWide));
+    output(OutputFormatter.createFileTable(fileList, agentCounts, isWide));
   } catch (error) {
     spinner.fail('Failed to load files');
     throw error;

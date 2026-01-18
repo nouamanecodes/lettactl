@@ -5,6 +5,7 @@ import { LettaClientWrapper } from './letta-client';
 import { AgentUpdateOperations } from './diff-engine';
 import { StorageBackendManager, SupabaseStorageBackend, hasSupabaseConfig } from './storage-backend';
 import { isBuiltinTool } from './builtin-tools';
+import { log, error } from './logger';
 
 /**
  * DiffApplier applies update operations to agents
@@ -27,15 +28,15 @@ export class DiffApplier {
     verbose: boolean = false
   ): Promise<void> {
     if (operations.operationCount === 0) {
-      if (verbose) console.log('  No changes needed');
+      if (verbose) log('  No changes needed');
       return;
     }
 
-    if (verbose) console.log(`  Applying ${operations.operationCount} updates (preserves conversation: ${operations.preservesConversation})`);
+    if (verbose) log(`  Applying ${operations.operationCount} updates (preserves conversation: ${operations.preservesConversation})`);
 
     // Apply field updates
     if (operations.updateFields) {
-      if (verbose) console.log('  Updating agent fields...');
+      if (verbose) log('  Updating agent fields...');
       const apiFields: any = {};
       const fields = operations.updateFields;
 
@@ -63,19 +64,19 @@ export class DiffApplier {
       const getBuiltinTag = (name: string) => isBuiltinTool(name) ? ' [builtin]' : '';
 
       for (const tool of operations.tools.toAdd) {
-        if (verbose) console.log(`  Attaching tool: ${tool.name}${getBuiltinTag(tool.name)}`);
+        if (verbose) log(`  Attaching tool: ${tool.name}${getBuiltinTag(tool.name)}`);
         await this.client.attachToolToAgent(agentId, tool.id);
       }
 
       for (const tool of operations.tools.toUpdate) {
-        if (verbose) console.log(`  Updating tool: ${tool.name} (${tool.reason})`);
+        if (verbose) log(`  Updating tool: ${tool.name} (${tool.reason})`);
         // Detach old version and attach new version
         await this.client.detachToolFromAgent(agentId, tool.currentId);
         await this.client.attachToolToAgent(agentId, tool.newId);
       }
 
       for (const tool of operations.tools.toRemove) {
-        if (verbose) console.log(`  Detaching tool: ${tool.name}${getBuiltinTag(tool.name)}`);
+        if (verbose) log(`  Detaching tool: ${tool.name}${getBuiltinTag(tool.name)}`);
         await this.client.detachToolFromAgent(agentId, tool.id);
       }
     }
@@ -83,24 +84,24 @@ export class DiffApplier {
     // Apply block changes
     if (operations.blocks) {
       for (const block of operations.blocks.toAdd) {
-        if (verbose) console.log(`  Attaching block: ${block.name}`);
+        if (verbose) log(`  Attaching block: ${block.name}`);
         await this.client.attachBlockToAgent(agentId, block.id);
       }
 
       for (const block of operations.blocks.toRemove) {
-        if (verbose) console.log(`  Detaching block: ${block.name}`);
+        if (verbose) log(`  Detaching block: ${block.name}`);
         await this.client.detachBlockFromAgent(agentId, block.id);
       }
 
       for (const block of operations.blocks.toUpdate) {
-        if (verbose) console.log(`  Updating block: ${block.name}`);
+        if (verbose) log(`  Updating block: ${block.name}`);
         // First detach old, then attach new
         await this.client.detachBlockFromAgent(agentId, block.currentId);
         await this.client.attachBlockToAgent(agentId, block.newId);
       }
 
       for (const block of operations.blocks.toUpdateValue) {
-        if (verbose) console.log(`  Syncing block value: ${block.name}`);
+        if (verbose) log(`  Syncing block value: ${block.name}`);
         await this.client.updateBlock(block.id, { value: block.newValue });
       }
     }
@@ -108,45 +109,45 @@ export class DiffApplier {
     // Apply folder changes
     if (operations.folders) {
       for (const folder of operations.folders.toAttach) {
-        if (verbose) console.log(`  Attaching folder: ${folder.name}`);
+        if (verbose) log(`  Attaching folder: ${folder.name}`);
         await this.client.attachFolderToAgent(agentId, folder.id);
       }
 
       for (const folder of operations.folders.toDetach) {
-        if (verbose) console.log(`  Detaching folder: ${folder.name}`);
+        if (verbose) log(`  Detaching folder: ${folder.name}`);
         await this.client.detachFolderFromAgent(agentId, folder.id);
       }
 
       for (const folder of operations.folders.toUpdate) {
-        if (verbose) console.log(`  Updating folder: ${folder.name}`);
+        if (verbose) log(`  Updating folder: ${folder.name}`);
 
         // Add new files to the folder
         for (const filePath of folder.filesToAdd) {
           try {
-            if (verbose) console.log(`    Adding file: ${filePath}`);
+            if (verbose) log(`    Adding file: ${filePath}`);
             await this.addFileToFolder(folder.id, filePath);
-          } catch (error) {
-            console.error(`    Failed to add file ${filePath}:`, (error as Error).message);
+          } catch (err) {
+            error(`    Failed to add file ${filePath}:`, (err as Error).message);
           }
         }
 
         // Remove files from the folder
         for (const fileName of folder.filesToRemove) {
           try {
-            if (verbose) console.log(`    Removing file: ${fileName}`);
+            if (verbose) log(`    Removing file: ${fileName}`);
             await this.removeFileFromFolder(folder.id, fileName);
-          } catch (error) {
-            console.error(`    Failed to remove file ${fileName}:`, (error as Error).message);
+          } catch (err) {
+            error(`    Failed to remove file ${fileName}:`, (err as Error).message);
           }
         }
 
         // Update existing files in the folder
         for (const filePath of folder.filesToUpdate) {
           try {
-            if (verbose) console.log(`    Updating file: ${filePath}`);
+            if (verbose) log(`    Updating file: ${filePath}`);
             await this.updateFileInFolder(folder.id, filePath);
-          } catch (error) {
-            console.error(`    Failed to update file ${filePath}:`, (error as Error).message);
+          } catch (err) {
+            error(`    Failed to update file ${filePath}:`, (err as Error).message);
           }
         }
       }
@@ -160,7 +161,7 @@ export class DiffApplier {
       }
     }
 
-    if (verbose) console.log('  Updates completed successfully');
+    if (verbose) log('  Updates completed successfully');
   }
 
   /**

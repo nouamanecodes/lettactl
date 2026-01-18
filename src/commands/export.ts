@@ -2,6 +2,7 @@ import { LettaClientWrapper } from '../lib/letta-client';
 import { AgentResolver } from '../lib/agent-resolver';
 import * as fs from 'fs';
 import * as path from 'path';
+import { log, output, error } from '../lib/logger';
 
 export default async function exportCommand(
   resource: string, 
@@ -27,7 +28,7 @@ export default async function exportCommand(
     const { agent } = await resolver.findAgentByName(name);
     
     if (verbose) {
-      console.log(`Exporting agent: ${agent.name} (${agent.id})`);
+      output(`Exporting agent: ${agent.name} (${agent.id})`);
     }
 
     // Export the agent
@@ -41,22 +42,22 @@ export default async function exportCommand(
     const resolvedPath = path.resolve(outputFile);
 
     if (verbose) {
-      console.log(`Writing export to: ${resolvedPath}`);
-      console.log(`Format: ${options.legacyFormat ? 'legacy (v1)' : 'standard (v2)'}`);
+      output(`Writing export to: ${resolvedPath}`);
+      output(`Format: ${options.legacyFormat ? 'legacy (v1)' : 'standard (v2)'}`);
     }
 
     // Write the export file
     fs.writeFileSync(resolvedPath, JSON.stringify(exportResponse, null, 2));
     
-    console.log(`Agent ${agent.name} exported to ${outputFile}`);
+    output(`Agent ${agent.name} exported to ${outputFile}`);
     
     if (verbose) {
       const stats = fs.statSync(resolvedPath);
-      console.log(`File size: ${(stats.size / 1024).toFixed(2)} KB`);
+      output(`File size: ${(stats.size / 1024).toFixed(2)} KB`);
     }
 
-  } catch (error: any) {
-    console.error(`Failed to export agent ${name}:`, error.message);
-    throw error;
+  } catch (err: any) {
+    error(`Failed to export agent ${name}:`, err.message);
+    throw err;
   }
 }

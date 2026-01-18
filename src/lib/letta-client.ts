@@ -1,5 +1,6 @@
 import LettaClient from '@letta-ai/letta-client';
 import { sendMessageToAgent, MessageOptions } from './message-sender';
+import { warn } from './logger';
 
 export class LettaClientWrapper {
   private client: LettaClient;
@@ -134,7 +135,7 @@ export class LettaClientWrapper {
     } catch (e) {
       // Fallback: list all and find (though inefficient, it's a safety net)
       // But we already called listTools in the caller, so maybe just return null.
-      console.warn(`Failed to fetch tool by name '${name}':`, (e as Error).message);
+      warn(`Failed to fetch tool by name '${name}':`, (e as Error).message);
     }
     return null;
   }

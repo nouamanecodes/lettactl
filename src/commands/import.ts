@@ -1,6 +1,7 @@
 import { LettaClientWrapper } from '../lib/letta-client';
 import * as fs from 'fs';
 import * as path from 'path';
+import { log, output, error } from '../lib/logger';
 
 export default async function importCommand(
   file: string,
@@ -27,9 +28,9 @@ export default async function importCommand(
     }
 
     if (verbose) {
-      console.log(`Importing from: ${resolvedPath}`);
+      output(`Importing from: ${resolvedPath}`);
       const stats = fs.statSync(resolvedPath);
-      console.log(`File size: ${(stats.size / 1024).toFixed(2)} KB`);
+      output(`File size: ${(stats.size / 1024).toFixed(2)} KB`);
     }
 
     // Prepare import options
@@ -44,7 +45,7 @@ export default async function importCommand(
     if (options.envVars) importOptions.env_vars_json = options.envVars;
 
     if (verbose && Object.keys(importOptions).length > 0) {
-      console.log('Import options:', JSON.stringify(importOptions, null, 2));
+      output('Import options:', JSON.stringify(importOptions, null, 2));
     }
 
     // Create file stream and import
@@ -53,20 +54,20 @@ export default async function importCommand(
     const importResponse = await client.importAgent(fileStream, importOptions);
     
     if (importResponse.agent_ids && importResponse.agent_ids.length > 0) {
-      console.log(`Successfully imported ${importResponse.agent_ids.length} agent(s):`);
+      output(`Successfully imported ${importResponse.agent_ids.length} agent(s):`);
       for (const agentId of importResponse.agent_ids) {
-        console.log(`  - ${agentId}`);
+        output(`  - ${agentId}`);
       }
     } else {
-      console.log('Import completed but no agent IDs returned');
+      output('Import completed but no agent IDs returned');
     }
     
     if (verbose) {
-      console.log('Import response:', JSON.stringify(importResponse, null, 2));
+      output('Import response:', JSON.stringify(importResponse, null, 2));
     }
 
-  } catch (error: any) {
-    console.error(`Failed to import agent from ${file}:`, error.message);
-    throw error;
+  } catch (err: any) {
+    error(`Failed to import agent from ${file}:`, err.message);
+    throw err;
   }
 }

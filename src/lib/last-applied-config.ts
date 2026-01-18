@@ -8,6 +8,7 @@
  */
 
 import { generateContentHash } from '../utils/hash-utils';
+import { log, warn } from './logger';
 
 export interface LastAppliedConfig {
   tools: string[];
@@ -124,7 +125,7 @@ export function applyThreeWayMerge(
       const before = ops.tools.toRemove.length;
       ops.tools.toRemove = ops.tools.toRemove.filter(t => prevTools.has(t.name));
       if (verbose && before > ops.tools.toRemove.length) {
-        console.log(`  Preserving ${before - ops.tools.toRemove.length} user-added tool(s)`);
+        log(`  Preserving ${before - ops.tools.toRemove.length} user-added tool(s)`);
       }
     }
 
@@ -132,7 +133,7 @@ export function applyThreeWayMerge(
       const before = ops.blocks.toRemove.length;
       ops.blocks.toRemove = ops.blocks.toRemove.filter(b => prevBlocks.has(b.name));
       if (verbose && before > ops.blocks.toRemove.length) {
-        console.log(`  Preserving ${before - ops.blocks.toRemove.length} user-added block(s)`);
+        log(`  Preserving ${before - ops.blocks.toRemove.length} user-added block(s)`);
       }
     }
 
@@ -140,16 +141,16 @@ export function applyThreeWayMerge(
       const before = ops.folders.toDetach.length;
       ops.folders.toDetach = ops.folders.toDetach.filter(f => prevFolders.has(f.name));
       if (verbose && before > ops.folders.toDetach.length) {
-        console.log(`  Preserving ${before - ops.folders.toDetach.length} user-added folder(s)`);
+        log(`  Preserving ${before - ops.folders.toDetach.length} user-added folder(s)`);
       }
     }
   }
 
   // Warn about conflicts (kubectl behavior: apply anyway, but inform user)
   if (conflicts.length > 0) {
-    console.warn(`  Warning: ${conflicts.length} conflict(s) detected:`);
+    warn(`  Warning: ${conflicts.length} conflict(s) detected:`);
     for (const conflict of conflicts) {
-      console.warn(`    - ${conflict}`);
+      warn(`    - ${conflict}`);
     }
   }
 

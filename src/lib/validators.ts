@@ -1,9 +1,11 @@
+import { error } from './logger';
+
 /**
  * Validates resource types for commands
  */
 export function validateResourceType(resource: string, validTypes: string[]): void {
   if (!validTypes.includes(resource)) {
-    console.error(`Error: Only "${validTypes.join('/')}" resource is currently supported`);
+    error(`Error: Only "${validTypes.join('/')}" resource is currently supported`);
     process.exit(1);
   }
 }
@@ -13,9 +15,9 @@ export function validateResourceType(resource: string, validTypes: string[]): vo
  */
 export function validateRequired(value: any, paramName: string, usage?: string): void {
   if (!value) {
-    console.error(`Error: ${paramName} is required`);
+    error(`Error: ${paramName} is required`);
     if (usage) {
-      console.error(`Usage: ${usage}`);
+      error(`Usage: ${usage}`);
     }
     process.exit(1);
   }

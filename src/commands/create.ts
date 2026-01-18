@@ -1,5 +1,6 @@
 import { LettaClientWrapper } from '../lib/letta-client';
 import { createSpinner, getSpinnerEnabled } from '../lib/ux/spinner';
+import { log, output, error } from '../lib/logger';
 
 export default async function createCommand(
   resource: string,
@@ -28,7 +29,7 @@ export default async function createCommand(
     const client = new LettaClientWrapper();
 
     if (verbose) {
-      console.log(`Creating agent: ${name}`);
+      log(`Creating agent: ${name}`);
     }
 
     // Build create payload
@@ -64,7 +65,7 @@ export default async function createCommand(
     if (!createPayload.system) createPayload.system = "You are a helpful AI assistant.";
 
     if (verbose) {
-      console.log('Create payload:', JSON.stringify(createPayload, null, 2));
+      log('Create payload:', JSON.stringify(createPayload, null, 2));
     }
 
     // Create the agent
@@ -74,21 +75,21 @@ export default async function createCommand(
       const createdAgent = await client.createAgent(createPayload);
       
       spinner.succeed(`Agent ${name} created successfully`);
-      console.log(`Agent ID: ${createdAgent.id}`);
-      
+      output(`Agent ID: ${createdAgent.id}`);
+
       if (verbose) {
-        console.log(`Model: ${createdAgent.model || createPayload.model}`);
-        console.log(`Embedding: ${createdAgent.embedding || createPayload.embedding}`);
-        if (createPayload.description) console.log(`Description: ${createPayload.description}`);
-        if (createPayload.tags) console.log(`Tags: ${createPayload.tags.join(', ')}`);
+        log(`Model: ${createdAgent.model || createPayload.model}`);
+        log(`Embedding: ${createdAgent.embedding || createPayload.embedding}`);
+        if (createPayload.description) log(`Description: ${createPayload.description}`);
+        if (createPayload.tags) log(`Tags: ${createPayload.tags.join(', ')}`);
       }
-    } catch (error: any) {
+    } catch (err: any) {
       spinner.fail(`Failed to create agent ${name}`);
-      throw error;
+      throw err;
     }
 
-  } catch (error: any) {
-    console.error(`Failed to create agent ${name}:`, error.message);
-    throw error;
+  } catch (err: any) {
+    error(`Failed to create agent ${name}:`, err.message);
+    throw err;
   }
 }

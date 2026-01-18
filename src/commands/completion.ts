@@ -1,6 +1,7 @@
 /**
  * Shell completion scripts for lettactl
  */
+import { output, error } from '../lib/logger';
 
 const COMMANDS = [
   'apply',
@@ -217,27 +218,27 @@ complete -c lettactl -n '__fish_seen_subcommand_from get describe messages runs 
 export function completionCommand(shell: string) {
   switch (shell) {
     case 'bash':
-      console.log(bashCompletion.trim());
+      output(bashCompletion.trim());
       break;
     case 'zsh':
-      console.log(zshCompletion.trim());
+      output(zshCompletion.trim());
       break;
     case 'fish':
-      console.log(fishCompletion.trim());
+      output(fishCompletion.trim());
       break;
     default:
-      console.error(`Unknown shell: ${shell}`);
-      console.error('Supported shells: bash, zsh, fish');
-      console.error('');
-      console.error('Usage:');
-      console.error('  # Bash');
-      console.error('  lettactl completion bash >> ~/.bashrc');
-      console.error('');
-      console.error('  # Zsh');
-      console.error('  lettactl completion zsh >> ~/.zshrc');
-      console.error('');
-      console.error('  # Fish');
-      console.error('  lettactl completion fish > ~/.config/fish/completions/lettactl.fish');
+      error(`Unknown shell: ${shell}`);
+      error('Supported shells: bash, zsh, fish');
+      error('');
+      error('Usage:');
+      error('  # Bash');
+      error('  lettactl completion bash >> ~/.bashrc');
+      error('');
+      error('  # Zsh');
+      error('  lettactl completion zsh >> ~/.zshrc');
+      error('');
+      error('  # Fish');
+      error('  lettactl completion fish > ~/.config/fish/completions/lettactl.fish');
       process.exit(1);
   }
 }

@@ -1,5 +1,5 @@
 import ora from 'ora';
-import { isQuietMode } from '../logger';
+import { isQuietMode, output } from '../logger';
 
 export interface SpinnerInterface {
   text: string;
@@ -17,12 +17,12 @@ class NoSpinner implements SpinnerInterface {
   }
 
   succeed(text?: string): SpinnerInterface {
-    if (text) console.log(`[OK] ${text}`);
+    if (text) output(`[OK] ${text}`);
     return this;
   }
 
   fail(text?: string): SpinnerInterface {
-    if (text) console.log(`[FAIL] ${text}`);
+    if (text) output(`[FAIL] ${text}`);
     return this;
   }
 
@@ -57,7 +57,7 @@ export function createSpinner(text: string, enabled: boolean = true): SpinnerInt
     return new QuietSpinner();
   }
   if (!enabled) {
-    console.log(text);
+    output(text);
     return new NoSpinner();
   }
   return ora(text);

@@ -2,6 +2,7 @@
  * Storage backend interface for lettactl
  * Allows reading content from various sources (filesystem, cloud storage, etc.)
  */
+import { warn } from './logger';
 
 export interface StorageBackend {
   readContent(uri: string): Promise<string>
@@ -246,7 +247,7 @@ export class SupabaseStorageBackend {
         throw new Error(`SUPABASE_URL must use HTTPS protocol, got: ${parsed.protocol}`);
       }
       if (!url.includes('supabase.co') && !url.includes('localhost')) {
-        console.warn(`Warning: SUPABASE_URL doesn't appear to be a standard Supabase URL: ${url}`);
+        warn(`Warning: SUPABASE_URL doesn't appear to be a standard Supabase URL: ${url}`);
       }
     } catch (error) {
       if (error instanceof Error && error.message.includes('HTTPS')) {
@@ -317,11 +318,11 @@ export class SupabaseStorageBackend {
         if (fileInfo && fileInfo.metadata?.size) {
           const size = fileInfo.metadata.size;
           if (size <= 40) {
-            console.warn(
+            warn(
               `Warning: File '${filePath}' in bucket '${bucket}' is very small (${size} bytes). Check file has meaningful content.`
             );
           } else if (size > 50 * 1024 * 1024) { // 50MB
-            console.warn(
+            warn(
               `Warning: File '${filePath}' in bucket '${bucket}' is very large (${Math.round(size / 1024 / 1024 * 100) / 100}MB). This may cause memory issues or timeouts.`
             );
           }

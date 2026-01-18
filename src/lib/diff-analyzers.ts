@@ -3,6 +3,7 @@ import { BlockManager } from './block-manager';
 import { normalizeResponse } from './response-normalizer';
 import { ToolDiff, BlockDiff, FolderDiff } from './diff-engine';
 import { FolderFileConfig } from '../types/fleet-config';
+import { warn } from './logger';
 
 // Helper to extract file name from FolderFileConfig (string or from_bucket object)
 function getFileName(fileConfig: FolderFileConfig): string {
@@ -298,7 +299,7 @@ export async function analyzeFolderChanges(
             unchanged.push({ name: folder.name, id: folder.id });
           }
         } catch (error) {
-          console.warn(`Could not analyze files in folder ${folder.name}:`, error);
+          warn(`Could not analyze files in folder ${folder.name}:`, error);
           unchanged.push({ name: folder.name, id: folder.id });
         }
       } else {

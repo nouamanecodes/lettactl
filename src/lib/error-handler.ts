@@ -1,3 +1,5 @@
+import { error } from './logger';
+
 /**
  * Wraps command functions with consistent error handling
  */
@@ -8,8 +10,8 @@ export function withErrorHandling<T extends any[], R>(
   return async (...args: T): Promise<R> => {
     try {
       return await fn(...args);
-    } catch (error: any) {
-      console.error(`${commandName} failed:`, formatLettaError(error.message || error));
+    } catch (err: any) {
+      error(`${commandName} failed:`, formatLettaError(err.message || err));
       process.exit(1);
     }
   };

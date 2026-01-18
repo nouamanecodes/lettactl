@@ -4,6 +4,7 @@ import { normalizeResponse, sleep } from '../lib/response-normalizer';
 import { formatStatus, OutputFormatter } from '../lib/ux/output-formatter';
 import { getMessageContent } from './messages';
 import { Run } from '../types/run';
+import { output, error } from '../lib/logger';
 
 export async function listRunsCommand(
   options: { active?: boolean; agent?: string; limit?: number; output?: string },
@@ -32,40 +33,40 @@ export async function listRunsCommand(
   }
 
   if (runs.length === 0) {
-    console.log('No runs found.');
+    output('No runs found.');
     return;
   }
 
-  console.log('Runs');
-  console.log('='.repeat(80));
-  console.log('');
+  output('Runs');
+  output('='.repeat(80));
+  output('');
 
   for (const run of runs) {
     const status = formatStatus(run.status);
     const created = new Date(run.created_at).toLocaleString();
 
-    console.log(`${run.id}`);
-    console.log(`  Status:  ${status}`);
-    console.log(`  Agent:   ${run.agent_id}`);
-    console.log(`  Created: ${created}`);
+    output(`${run.id}`);
+    output(`  Status:  ${status}`);
+    output(`  Agent:   ${run.agent_id}`);
+    output(`  Created: ${created}`);
 
     if (run.completed_at) {
       const completed = new Date(run.completed_at).toLocaleString();
-      console.log(`  Completed: ${completed}`);
+      output(`  Completed: ${completed}`);
     }
 
     if (run.stop_reason) {
-      console.log(`  Stop reason: ${run.stop_reason}`);
+      output(`  Stop reason: ${run.stop_reason}`);
     }
 
     if (verbose && run.background !== undefined) {
-      console.log(`  Background: ${run.background}`);
+      output(`  Background: ${run.background}`);
     }
 
-    console.log('');
+    output('');
   }
 
-  console.log(`Total: ${runs.length} run(s)`);
+  output(`Total: ${runs.length} run(s)`);
 }
 
 export async function getRunCommand(
@@ -98,23 +99,23 @@ export async function getRunCommand(
     return;
   }
 
-  console.log(`Run: ${run.id}`);
-  console.log('='.repeat(50));
-  console.log('');
-  console.log(`Status:     ${formatStatus(run.status)}`);
-  console.log(`Agent:      ${run.agent_id}`);
-  console.log(`Created:    ${new Date(run.created_at).toLocaleString()}`);
+  output(`Run: ${run.id}`);
+  output('='.repeat(50));
+  output('');
+  output(`Status:     ${formatStatus(run.status)}`);
+  output(`Agent:      ${run.agent_id}`);
+  output(`Created:    ${new Date(run.created_at).toLocaleString()}`);
 
   if (run.completed_at) {
-    console.log(`Completed:  ${new Date(run.completed_at).toLocaleString()}`);
+    output(`Completed:  ${new Date(run.completed_at).toLocaleString()}`);
   }
 
   if (run.stop_reason) {
-    console.log(`Stop reason: ${run.stop_reason}`);
+    output(`Stop reason: ${run.stop_reason}`);
   }
 
   if (verbose) {
-    console.log(`Background: ${run.background ?? false}`);
+    output(`Background: ${run.background ?? false}`);
   }
 }
 
@@ -127,9 +128,9 @@ export async function deleteRunCommand(
 
   try {
     await client.deleteRun(runId);
-    console.log(`Run ${runId} deleted.`);
-  } catch (error: any) {
-    console.error(`Failed to delete run: ${error.message}`);
+    output(`Run ${runId} deleted.`);
+  } catch (err: any) {
+    error(`Failed to delete run: ${err.message}`);
     process.exit(1);
   }
 }
@@ -139,21 +140,21 @@ async function waitForRun(client: LettaClientWrapper, runId: string, verbose: bo
   const timeout = 5 * 60 * 1000; // 5 minutes
   const startTime = Date.now();
 
-  console.log(`Waiting for run ${runId}...`);
+  output(`Waiting for run ${runId}...`);
 
   while (true) {
     const run = await client.getRun(runId) as Run;
 
     if (verbose) {
-      console.log(`  Status: ${run.status}`);
+      output(`  Status: ${run.status}`);
     }
 
     if (run.status === 'completed' || run.status === 'failed' || run.status === 'cancelled') {
-      console.log('');
-      console.log(`Run ${run.status}.`);
+      output('');
+      output(`Run ${run.status}.`);
 
       if (run.stop_reason) {
-        console.log(`Stop reason: ${run.stop_reason}`);
+        output(`Stop reason: ${run.stop_reason}`);
       }
 
       // Show messages if completed
@@ -165,8 +166,8 @@ async function waitForRun(client: LettaClientWrapper, runId: string, verbose: bo
     }
 
     if (Date.now() - startTime > timeout) {
-      console.log('');
-      console.log('Timeout waiting for run to complete.');
+      output('');
+      output('Timeout waiting for run to complete.');
       process.exit(1);
     }
 
@@ -179,7 +180,7 @@ async function streamRun(client: LettaClientWrapper, runId: string) {
   const run = await client.getRun(runId) as Run;
 
   if (run.status === 'completed' || run.status === 'failed' || run.status === 'cancelled') {
-    console.log(`Run ${run.status}.`);
+    output(`Run ${run.status}.`);
     await showRunMessages(client, runId);
     return;
   }
@@ -197,26 +198,26 @@ async function showRunMessages(client: LettaClientWrapper, runId: string, output
   }
 
   if (messages.length === 0) {
-    console.log('No messages.');
+    output('No messages.');
     return;
   }
 
-  console.log('');
-  console.log('Messages:');
-  console.log('-'.repeat(40));
+  output('');
+  output('Messages:');
+  output('-'.repeat(40));
 
   for (const msg of messages) {
     const role = msg.role || msg.message_type || 'unknown';
     const content = getMessageContent(msg) || JSON.stringify(msg);
 
     if (role === 'assistant_message' || role === 'assistant') {
-      console.log(`[Assistant] ${content}`);
+      output(`[Assistant] ${content}`);
     } else if (role === 'user_message' || role === 'user') {
-      console.log(`[User] ${content}`);
+      output(`[User] ${content}`);
     } else if (role === 'tool_call_message' || role === 'tool_call') {
-      console.log(`[Tool Call] ${msg.tool_call?.name || 'unknown'}`);
+      output(`[Tool Call] ${msg.tool_call?.name || 'unknown'}`);
     } else if (role === 'tool_return_message' || role === 'tool_return') {
-      console.log(`[Tool Return] ${content}`);
+      output(`[Tool Return] ${content}`);
     }
   }
 }

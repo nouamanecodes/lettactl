@@ -1,6 +1,7 @@
 import { LettaClientWrapper } from '../lib/letta-client';
 import { AgentResolver } from '../lib/agent-resolver';
 import { OutputFormatter } from '../lib/ux/output-formatter';
+import { output, error } from '../lib/logger';
 
 interface AgentFile {
   id: string;
@@ -20,7 +21,7 @@ export async function filesCommand(agentName: string, options: { output?: string
   // Resolve agent name to ID
   const { agent } = await resolver.findAgentByName(agentName);
   if (!agent) {
-    console.error(`Agent "${agentName}" not found`);
+    error(`Agent "${agentName}" not found`);
     process.exit(1);
   }
 
@@ -29,7 +30,7 @@ export async function filesCommand(agentName: string, options: { output?: string
   const response = await fetch(`${baseUrl}/v1/agents/${agent.id}/files`);
 
   if (!response.ok) {
-    console.error(`Failed to fetch files: ${response.status}`);
+    error(`Failed to fetch files: ${response.status}`);
     process.exit(1);
   }
 
@@ -40,11 +41,11 @@ export async function filesCommand(agentName: string, options: { output?: string
     return;
   }
 
-  console.log(`Files for agent: ${agentName}`);
-  console.log('='.repeat(40));
+  output(`Files for agent: ${agentName}`);
+  output('='.repeat(40));
 
   if (files.length === 0) {
-    console.log('\nNo files attached');
+    output('\nNo files attached');
     return;
   }
 
@@ -61,21 +62,21 @@ export async function filesCommand(agentName: string, options: { output?: string
   // Summary
   const openCount = files.filter(f => f.is_open).length;
   const closedCount = files.length - openCount;
-  console.log(`\nTotal: ${files.length} files (${openCount} open, ${closedCount} closed)\n`);
+  output(`\nTotal: ${files.length} files (${openCount} open, ${closedCount} closed)\n`);
 
   // List by folder
   for (const [folder, folderFiles] of byFolder) {
-    console.log(`Folder: ${folder}`);
+    output(`Folder: ${folder}`);
     for (const file of folderFiles) {
       const status = file.is_open ? '[OPEN]  ' : '[CLOSED]';
       const name = file.file_name.replace(`${folder}/`, '');
-      console.log(`  ${status} ${name}`);
+      output(`  ${status} ${name}`);
 
       if (verbose) {
-        console.log(`           ID: ${file.file_id}`);
-        console.log(`           Last accessed: ${file.last_accessed_at || 'never'}`);
+        output(`           ID: ${file.file_id}`);
+        output(`           Last accessed: ${file.last_accessed_at || 'never'}`);
       }
     }
-    console.log('');
+    output('');
   }
 }

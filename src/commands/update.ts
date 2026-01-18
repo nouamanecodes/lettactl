@@ -1,5 +1,6 @@
 import { LettaClientWrapper } from '../lib/letta-client';
 import { AgentResolver } from '../lib/agent-resolver';
+import { log, output, error, warn } from '../lib/logger';
 
 export default async function updateCommand(
   resource: string, 
@@ -32,7 +33,7 @@ export default async function updateCommand(
     const { agent } = await resolver.findAgentByName(name);
     
     if (verbose) {
-      console.log(`Updating agent: ${agent.name} (${agent.id})`);
+      output(`Updating agent: ${agent.name} (${agent.id})`);
     }
 
     // Build update payload
@@ -67,15 +68,15 @@ export default async function updateCommand(
           }
           
           if (tool) {
-            if (verbose) console.log(`Attaching tool ${tool.name} (${tool.id})...`);
+            if (verbose) output(`Attaching tool ${tool.name} (${tool.id})...`);
             await client.attachToolToAgent(String(agent.id), String(tool.id));
-            console.log(`Tool attached: ${tool.name}`);
+            output(`Tool attached: ${tool.name}`);
             toolChanges = true;
           } else {
-            console.warn(`Warning: Tool '${toolName}' not found.`);
+            warn(`Warning: Tool '${toolName}' not found.`);
           }
-        } catch (error: any) {
-          console.error(`Failed to attach tool ${toolName}:`, error.message);
+        } catch (err: any) {
+          error(`Failed to attach tool ${toolName}:`, err.message);
         }
       }
     }
@@ -105,43 +106,43 @@ export default async function updateCommand(
              }
           }
           
-          if (verbose) console.log(`Detaching tool ${toolNameDisplay} (${toolId})...`);
+          if (verbose) output(`Detaching tool ${toolNameDisplay} (${toolId})...`);
           await client.detachToolFromAgent(String(agent.id), String(toolId));
-          console.log(`Tool detached: ${toolNameDisplay}`);
+          output(`Tool detached: ${toolNameDisplay}`);
           toolChanges = true;
-        } catch (error: any) {
-          console.warn(`Failed to detach tool ${toolName}:`, error.message);
+        } catch (err: any) {
+          warn(`Failed to detach tool ${toolName}:`, err.message);
         }
       }
     }
 
     if (Object.keys(updatePayload).length === 0 && !toolChanges) {
-      console.log('No updates specified. Use --help to see available options.');
+      output('No updates specified. Use --help to see available options.');
       return;
     }
 
     if (verbose) {
-      console.log('Update payload:', JSON.stringify(updatePayload, null, 2));
+      output('Update payload:', JSON.stringify(updatePayload, null, 2));
     }
 
     // Update the agent
     if (Object.keys(updatePayload).length > 0) {
       const updatedAgent = await client.updateAgent(agent.id, updatePayload);
       
-      console.log(`Agent ${agent.name} updated successfully`);
+      output(`Agent ${agent.name} updated successfully`);
       
       if (verbose) {
-        console.log(`Updated agent ID: ${updatedAgent.id}`);
-        if (updatePayload.name) console.log(`Name changed to: ${updatePayload.name}`);
-        if (updatePayload.model) console.log(`Model changed to: ${updatePayload.model}`);
-        if (updatePayload.embedding) console.log(`Embedding changed to: ${updatePayload.embedding}`);
+        output(`Updated agent ID: ${updatedAgent.id}`);
+        if (updatePayload.name) output(`Name changed to: ${updatePayload.name}`);
+        if (updatePayload.model) output(`Model changed to: ${updatePayload.model}`);
+        if (updatePayload.embedding) output(`Embedding changed to: ${updatePayload.embedding}`);
       }
     } else if (toolChanges) {
-      console.log(`Agent ${agent.name} updated successfully`);
+      output(`Agent ${agent.name} updated successfully`);
     }
 
-  } catch (error: any) {
-    console.error(`Failed to update agent ${name}:`, error.message);
-    throw error;
+  } catch (err: any) {
+    error(`Failed to update agent ${name}:`, err.message);
+    throw err;
   }
 }

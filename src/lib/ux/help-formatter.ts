@@ -2,6 +2,7 @@ import chalk from 'chalk';
 import { printBanner } from './banner';
 import { LETTA_PURPLE } from './constants';
 import { BOX, createBox, mergeColumns, BoxRow } from './box';
+import { output } from '../logger';
 
 const purple = chalk.hex(LETTA_PURPLE);
 
@@ -104,13 +105,13 @@ export function printFancyHelp(): void {
   printBanner();
 
   // Tagline
-  console.log(chalk.dim('        kubectl-style CLI for Letta AI agent fleets'));
-  console.log(chalk.dim('        run lettactl --help --no-ux for full text help'));
-  console.log();
+  output(chalk.dim('        kubectl-style CLI for Letta AI agent fleets'));
+  output(chalk.dim('        run lettactl --help --no-ux for full text help'));
+  output();
 
   // Usage
-  console.log(purple('Usage:') + ' lettactl [options] [command]');
-  console.log();
+  output(purple('Usage:') + ' lettactl [options] [command]');
+  output();
 
   // Build boxes for each group
   const boxes: string[][] = COMMAND_GROUPS.map(group =>
@@ -142,11 +143,11 @@ export function printFancyHelp(): void {
 
   // Merge and print
   const merged = mergeColumns(col1, col2, 2);
-  merged.forEach(line => console.log(line));
+  merged.forEach(line => output(line));
 
-  console.log();
-  console.log(chalk.dim('Run') + ' lettactl <command> --help ' + chalk.dim('for detailed command info'));
-  console.log();
+  output();
+  output(chalk.dim('Run') + ' lettactl <command> --help ' + chalk.dim('for detailed command info'));
+  output();
 }
 
 export function shouldUseFancyHelp(): boolean {

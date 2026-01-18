@@ -6,7 +6,7 @@ import { FleetConfig, FolderConfig, FolderFileConfig } from '../types/fleet-conf
 import { StorageBackendManager, SupabaseStorageBackend, BucketConfig } from './storage-backend';
 import { FleetConfigValidator } from './config-validators';
 import { isBuiltinTool, formatBuiltinToolWarning, CORE_MEMORY_TOOLS } from './builtin-tools';
-import { log } from './logger';
+import { log, warn } from './logger';
 
 export interface FleetParserOptions {
   supabaseBackend?: SupabaseStorageBackend;
@@ -306,7 +306,7 @@ export class FleetParser {
         // Tool doesn't exist on server
         if (isBuiltin) {
           // Built-in tool not available - show helpful warning and skip
-          console.warn(`\n${formatBuiltinToolWarning(toolName)}\n`);
+          warn(`\n${formatBuiltinToolWarning(toolName)}\n`);
           continue;
         }
 
@@ -324,8 +324,8 @@ export class FleetParser {
 
           tool = await client.createTool({ source_code: sourceCode });
           if (verbose) log(`Tool ${toolName} registered`);
-        } catch (error: any) {
-          console.warn(`Failed to register tool ${toolName}: ${error.message}`);
+        } catch (err: any) {
+          warn(`Failed to register tool ${toolName}: ${err.message}`);
           continue;
         }
       } else {
@@ -359,10 +359,10 @@ export class FleetParser {
             } else {
               if (verbose) log(`Tool ${toolName} unchanged, reusing existing`);
             }
-          } catch (error: any) {
+          } catch (err: any) {
             // Only warn if it's NOT a "file not found" error, as missing local source for existing tool is valid
-            if (!error.message.includes('not found') && !error.message.includes('no value')) {
-               console.warn(`Failed to check tool ${toolName}: ${error.message}`);
+            if (!err.message.includes('not found') && !err.message.includes('no value')) {
+               warn(`Failed to check tool ${toolName}: ${err.message}`);
             } else if (verbose) {
                log(`Using existing tool ${toolName} (local source not found)`);
             }
@@ -420,9 +420,9 @@ export class FleetParser {
           server = await client.createMcpServer(createParams);
           created.push(serverName);
           if (verbose) log(`MCP server ${serverName} created`);
-        } catch (error: any) {
+        } catch (err: any) {
           failed.push(serverName);
-          console.warn(`Failed to create MCP server ${serverName}: ${error.message}`);
+          warn(`Failed to create MCP server ${serverName}: ${err.message}`);
           continue;
         }
       } else {
@@ -436,9 +436,9 @@ export class FleetParser {
             server = await client.updateMcpServer(server.id, updateParams);
             updated.push(serverName);
             if (verbose) log(`MCP server ${serverName} updated`);
-          } catch (error: any) {
+          } catch (err: any) {
             failed.push(serverName);
-            console.warn(`Failed to update MCP server ${serverName}: ${error.message}`);
+            warn(`Failed to update MCP server ${serverName}: ${err.message}`);
             continue;
           }
         } else {

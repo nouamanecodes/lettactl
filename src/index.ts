@@ -25,7 +25,7 @@ import { contextCommand } from './commands/context';
 import { listRunsCommand, getRunCommand, deleteRunCommand } from './commands/runs';
 import { completionCommand } from './commands/completion';
 
-import { setQuietMode } from './lib/logger';
+import { setQuietMode, output, error } from './lib/logger';
 import { printFancyHelp } from './lib/ux/help-formatter';
 
 // Global verbose flag for error handling
@@ -46,14 +46,14 @@ function validateEnvironment(thisCommand: any, actionCommand: any) {
   }
 
   if (!process.env.LETTA_BASE_URL) {
-    console.error('Error: LETTA_BASE_URL environment variable is required');
-    console.error('');
-    console.error('For self-hosting:');
-    console.error('  export LETTA_BASE_URL=http://localhost:8283');
-    console.error('');
-    console.error('For Letta Cloud:');
-    console.error('  export LETTA_BASE_URL=https://api.letta.com');
-    console.error('  export LETTA_API_KEY=your_api_key');
+    error('Error: LETTA_BASE_URL environment variable is required');
+    error('');
+    error('For self-hosting:');
+    error('  export LETTA_BASE_URL=http://localhost:8283');
+    error('');
+    error('For Letta Cloud:');
+    error('  export LETTA_BASE_URL=https://api.letta.com');
+    error('  export LETTA_API_KEY=your_api_key');
     process.exit(1);
   }
 
@@ -61,8 +61,8 @@ function validateEnvironment(thisCommand: any, actionCommand: any) {
   const isLocalhost = process.env.LETTA_BASE_URL.includes('localhost');
 
   if (!isLocalhost && !process.env.LETTA_API_KEY) {
-    console.error(`Error: LETTA_API_KEY is required for Letta Cloud (${process.env.LETTA_BASE_URL})`);
-    console.error('Set it with: export LETTA_API_KEY=your_api_key');
+    error(`Error: LETTA_API_KEY is required for Letta Cloud (${process.env.LETTA_BASE_URL})`);
+    error('Set it with: export LETTA_API_KEY=your_api_key');
     process.exit(1);
   }
 }
@@ -135,12 +135,12 @@ program
   .option('--force', 'force deletion without confirmation')
   .action(deleteCommand);
 
-// Delete all command - bulk delete agents
+// Delete all command - bulk delete resources
 program
   .command('delete-all')
-  .description('Delete multiple agents (with optional pattern matching)')
-  .argument('<resource>', 'resource type (agent|agents)')
-  .option('--pattern <pattern>', 'regex pattern to match agent names/IDs')
+  .description('Delete multiple resources (with optional pattern matching)')
+  .argument('<resource>', 'resource type (agents|folders|blocks|tools|mcp-servers)')
+  .option('--pattern <pattern>', 'regex pattern to match resource names/IDs')
   .option('--force', 'force deletion without confirmation')
   .action(deleteAllCommand);
 
@@ -276,7 +276,7 @@ program
   .command('view')
   .description('Show current Letta configuration')
   .action(async () => {
-    console.log('Config view command');
+    output('Config view command');
     // TODO: Implement config view logic
   });
 
@@ -339,9 +339,9 @@ program
 // Global error handler to prevent stack traces from leaking
 process.on('unhandledRejection', (error: any) => {
   if (verboseMode) {
-    console.error(error);
+    error(error);
   } else {
-    console.error(error?.message || error);
+    error(error?.message || error);
   }
   process.exit(1);
 });

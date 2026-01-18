@@ -13,7 +13,7 @@ import { StorageBackendManager, SupabaseStorageBackend, hasSupabaseConfig } from
 import { FolderFileConfig } from '../types/fleet-config';
 import { isBuiltinTool } from './builtin-tools';
 import { AgentResolver } from './agent-resolver';
-import { log } from './logger';
+import { log, error } from './logger';
 
 export async function processSharedBlocks(
   config: any,
@@ -169,11 +169,11 @@ export async function processFolders(
 
                 if (verbose) log(`  Uploaded: ${filePath}`);
               }
-            } catch (error: any) {
+            } catch (err: any) {
               const fileDesc = isFromBucketConfig(fileConfig)
                 ? `${fileConfig.from_bucket.bucket}/${fileConfig.from_bucket.path}`
                 : fileConfig;
-              console.error(`  Failed to upload ${fileDesc}:`, error.message);
+              error(`  Failed to upload ${fileDesc}:`, err.message);
             }
           }
         } else {
@@ -253,7 +253,7 @@ export async function updateExistingAgent(
     agentManager.updateRegistry(existingAgent.name, agentConfig, existingAgent.id);
 
     updateSpinner.succeed(`Agent ${agent.name} updated successfully (conversation history preserved)`);
-  } catch (error) {
+  } catch (err) {
     spinner.fail(`Failed to update agent ${agent.name}`);
     throw error;
   }
@@ -389,7 +389,7 @@ export async function createNewAgent(
     const folderCount = agent.folders?.length || 0;
 
     creationSpinner.succeed(`Agent ${agentName} created (${blockCount} blocks, ${toolCount} tools, ${folderCount} folders)`);
-  } catch (error) {
+  } catch (err) {
     creationSpinner.fail(`Failed to create agent ${agentName}`);
     throw error;
   }

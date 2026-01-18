@@ -98,14 +98,14 @@ export class FileContentTracker {
       } else if (block.from_bucket) {
         // Memory block loads content from cloud bucket
         if (!this.storageManager) {
-          console.warn(`Warning: Cannot hash bucket content for block '${block.name}' - no storage manager available`);
+          warn(`Warning: Cannot hash bucket content for block '${block.name}' - no storage manager available`);
           blockHashes[block.name] = crypto.createHash('sha256').update(`bucket:${block.from_bucket.bucket}/${block.from_bucket.path}`).digest('hex').substring(0, 16);
         } else {
           try {
             const bucketContent = await this.storageManager.readFromBucket(block.from_bucket);
             blockHashes[block.name] = crypto.createHash('sha256').update(bucketContent).digest('hex').substring(0, 16);
           } catch (error) {
-            console.warn(`Warning: Could not read bucket content for block '${block.name}':`, (error as Error).message);
+            warn(`Warning: Could not read bucket content for block '${block.name}':`, (error as Error).message);
             blockHashes[block.name] = crypto.createHash('sha256').update(`bucket-error:${block.from_bucket.bucket}/${block.from_bucket.path}`).digest('hex').substring(0, 16);
           }
         }

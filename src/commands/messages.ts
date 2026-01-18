@@ -4,6 +4,7 @@ import { normalizeResponse } from '../lib/response-normalizer';
 import { OutputFormatter } from '../lib/ux/output-formatter';
 import { createSpinner, getSpinnerEnabled } from '../lib/ux/spinner';
 import { sendMessageToAgent } from '../lib/message-sender';
+import { log, output, error } from '../lib/logger';
 
 /**
  * Safely extracts content from different message types
@@ -46,7 +47,7 @@ export async function listMessagesCommand(
     const { agent } = await resolver.findAgentByName(agentName);
     
     if (verbose) {
-      console.log(`Listing messages for agent: ${agent.name} (${agent.id})`);
+      output(`Listing messages for agent: ${agent.name} (${agent.id})`);
     }
 
     // Prepare query options
@@ -61,26 +62,26 @@ export async function listMessagesCommand(
     const messages = normalizeResponse(response);
 
     if (options.output === 'json') {
-      console.log(JSON.stringify(messages, null, 2));
+      output(JSON.stringify(messages, null, 2));
       return;
     }
 
     if (messages.length === 0) {
-      console.log(`No messages found for agent ${agent.name}`);
+      output(`No messages found for agent ${agent.name}`);
       return;
     }
 
     // Format as table
-    console.log(`Messages for ${agent.name}:`);
-    console.log(`Found ${messages.length} message(s)\n`);
+    output(`Messages for ${agent.name}:`);
+    output(`Found ${messages.length} message(s)\n`);
     
     for (const message of messages) {
       const timestamp = message.created_at 
         ? new Date(message.created_at).toLocaleString() 
         : 'Unknown time';
       
-      console.log(`${timestamp}`);
-      console.log(`  Role: ${message.role || 'unknown'}`);
+      output(`${timestamp}`);
+      output(`  Role: ${message.role || 'unknown'}`);
       
       // Handle different message content types
       const content = getMessageContent(message);
@@ -88,16 +89,16 @@ export async function listMessagesCommand(
         const preview = content.length > 100 
           ? content.substring(0, 100) + '...' 
           : content;
-        console.log(`  Content: ${preview}`);
+        output(`  Content: ${preview}`);
       } else {
-        console.log(`  Preview: [${message.message_type || message.role || 'Unknown type'}]`);
+        output(`  Preview: [${message.message_type || message.role || 'Unknown type'}]`);
       }
-      console.log('');
+      output('');
     }
 
-  } catch (error: any) {
-    console.error(`Failed to list messages for agent ${agentName}:`, error.message);
-    throw error;
+  } catch (err: any) {
+    error(`Failed to list messages for agent ${agentName}:`, err.message);
+    throw err;
   }
 }
 
@@ -122,9 +123,9 @@ export async function sendMessageCommand(
     const { agent } = await resolver.findAgentByName(agentName);
     
     if (verbose) {
-      console.log(`Sending message to agent: ${agent.name} (${agent.id})`);
-      console.log(`Message: ${message}`);
-      console.log(`Options: ${JSON.stringify(options, null, 2)}`);
+      output(`Sending message to agent: ${agent.name} (${agent.id})`);
+      output(`Message: ${message}`);
+      output(`Options: ${JSON.stringify(options, null, 2)}`);
     }
 
     // Use the modular message sender
@@ -138,15 +139,15 @@ export async function sendMessageCommand(
 
     if (options.async) {
       // Async message
-      console.log(`Message sent asynchronously. Run ID: ${response.id}`);
-      console.log(`Status: ${response.status}`);
+      output(`Message sent asynchronously. Run ID: ${response.id}`);
+      output(`Status: ${response.status}`);
       if (verbose) {
-        console.log('Full response:', JSON.stringify(response, null, 2));
+        output('Full response:', JSON.stringify(response, null, 2));
       }
     } else if (options.stream) {
       // Streaming message
-      console.log(`Streaming response from ${agent.name}:`);
-      console.log('---');
+      output(`Streaming response from ${agent.name}:`);
+      output('---');
       
       // Handle streaming response 
       try {
@@ -168,12 +169,12 @@ export async function sendMessageCommand(
             }
           }
         }
-        console.log(); // New line after streaming
+        output(); // New line after streaming
       } catch (streamError) {
-        console.log('\n[Streaming completed]');
+        output('\n[Streaming completed]');
       }
-      console.log('---');
-      console.log('Stream completed');
+      output('---');
+      output('Stream completed');
     } else {
       // Regular synchronous message
       const spinnerEnabled = getSpinnerEnabled(command);
@@ -185,7 +186,7 @@ export async function sendMessageCommand(
         spinner.fail(`Failed to send message to ${agent.name}`);
         throw error;
       }
-      console.log('---');
+      output('---');
 
       if (response.messages && response.messages.length > 0) {
         // Filter for assistant messages, excluding system alerts and internal messages
@@ -200,35 +201,35 @@ export async function sendMessageCommand(
           const lastAssistant = assistantMessages[assistantMessages.length - 1];
           const messageContent = getMessageContent(lastAssistant);
           if (messageContent) {
-            console.log(messageContent);
+            output(messageContent);
           } else {
-            console.log(JSON.stringify(lastAssistant, null, 2));
+            output(JSON.stringify(lastAssistant, null, 2));
           }
         } else {
           // Fallback: show last message if no assistant messages found
           const lastMessage = response.messages[response.messages.length - 1];
           const messageContent = getMessageContent(lastMessage);
           if (messageContent) {
-            console.log(messageContent);
+            output(messageContent);
           } else {
-            console.log(JSON.stringify(lastMessage, null, 2));
+            output(JSON.stringify(lastMessage, null, 2));
           }
         }
       } else {
-        console.log('[No response content]');
+        output('[No response content]');
       }
 
-      console.log('---');
+      output('---');
       
       if (verbose && response.usage) {
-        console.log(`Tokens used: ${response.usage.total_tokens || 'unknown'}`);
-        console.log(`Stop reason: ${response.stop_reason || 'unknown'}`);
+        output(`Tokens used: ${response.usage.total_tokens || 'unknown'}`);
+        output(`Stop reason: ${response.stop_reason || 'unknown'}`);
       }
     }
 
-  } catch (error: any) {
-    console.error(`Failed to send message to agent ${agentName}:`, error.message);
-    throw error;
+  } catch (err: any) {
+    error(`Failed to send message to agent ${agentName}:`, err.message);
+    throw err;
   }
 }
 
@@ -249,21 +250,21 @@ export async function resetMessagesCommand(
     const { agent } = await resolver.findAgentByName(agentName);
     
     if (verbose) {
-      console.log(`Resetting messages for agent: ${agent.name} (${agent.id})`);
-      console.log(`Add default messages: ${options.addDefault || false}`);
+      output(`Resetting messages for agent: ${agent.name} (${agent.id})`);
+      output(`Add default messages: ${options.addDefault || false}`);
     }
 
     const response = await client.resetMessages(agent.id, options.addDefault);
     
-    console.log(`Messages reset for agent ${agent.name}`);
+    output(`Messages reset for agent ${agent.name}`);
     
     if (verbose && response) {
-      console.log('Agent state after reset:', JSON.stringify(response, null, 2));
+      output('Agent state after reset:', JSON.stringify(response, null, 2));
     }
 
-  } catch (error: any) {
-    console.error(`Failed to reset messages for agent ${agentName}:`, error.message);
-    throw error;
+  } catch (err: any) {
+    error(`Failed to reset messages for agent ${agentName}:`, err.message);
+    throw err;
   }
 }
 
@@ -282,16 +283,16 @@ export async function compactMessagesCommand(
     const { agent } = await resolver.findAgentByName(agentName);
     
     if (verbose) {
-      console.log(`Compacting messages for agent: ${agent.name} (${agent.id})`);
+      output(`Compacting messages for agent: ${agent.name} (${agent.id})`);
     }
 
     await client.compactMessages(agent.id);
     
-    console.log(`Messages compacted for agent ${agent.name}`);
+    output(`Messages compacted for agent ${agent.name}`);
 
-  } catch (error: any) {
-    console.error(`Failed to compact messages for agent ${agentName}:`, error.message);
-    throw error;
+  } catch (err: any) {
+    error(`Failed to compact messages for agent ${agentName}:`, err.message);
+    throw err;
   }
 }
 
@@ -312,23 +313,23 @@ export async function cancelMessagesCommand(
     const { agent } = await resolver.findAgentByName(agentName);
     
     if (verbose) {
-      console.log(`Canceling messages for agent: ${agent.name} (${agent.id})`);
+      output(`Canceling messages for agent: ${agent.name} (${agent.id})`);
       if (options.runIds) {
-        console.log(`Specific run IDs: ${options.runIds}`);
+        output(`Specific run IDs: ${options.runIds}`);
       }
     }
 
     const runIds = options.runIds ? options.runIds.split(',').map(id => id.trim()) : undefined;
     const response = await client.cancelMessages(agent.id, runIds);
     
-    console.log(`Messages canceled for agent ${agent.name}`);
+    output(`Messages canceled for agent ${agent.name}`);
     
     if (verbose) {
-      console.log('Cancel response:', JSON.stringify(response, null, 2));
+      output('Cancel response:', JSON.stringify(response, null, 2));
     }
 
-  } catch (error: any) {
-    console.error(`Failed to cancel messages for agent ${agentName}:`, error.message);
-    throw error;
+  } catch (err: any) {
+    error(`Failed to cancel messages for agent ${agentName}:`, err.message);
+    throw err;
   }
 }
