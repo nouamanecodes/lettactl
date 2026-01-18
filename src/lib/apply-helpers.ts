@@ -204,10 +204,11 @@ export async function updateExistingAgent(
     sharedBlockIds: Map<string, string>;
     spinnerEnabled: boolean;
     verbose: boolean;
+    force: boolean;
     previousFolderFileHashes?: Record<string, Record<string, string>>;
   }
 ): Promise<void> {
-  const { client, diffEngine, agentManager, toolNameToId, updatedTools, builtinTools, createdFolders, sharedBlockIds, spinnerEnabled, verbose, previousFolderFileHashes } = context;
+  const { client, diffEngine, agentManager, toolNameToId, updatedTools, builtinTools, createdFolders, sharedBlockIds, spinnerEnabled, verbose, force, previousFolderFileHashes } = context;
 
   log(`Updating agent ${agent.name}:`);
 
@@ -231,7 +232,7 @@ export async function updateExistingAgent(
 
     const updateSpinner = createSpinner(`Applying updates to ${agent.name}...`, spinnerEnabled).start();
 
-    await diffEngine.applyUpdateOperations(existingAgent.id, updateOperations, verbose);
+    await diffEngine.applyUpdateOperations(existingAgent.id, updateOperations, verbose, force);
 
     // Store folder file hashes in agent metadata for next apply
     const newFolderFileHashes: Record<string, Record<string, string>> = {};

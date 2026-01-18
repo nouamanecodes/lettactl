@@ -161,9 +161,10 @@ export class DiffEngine {
   async applyUpdateOperations(
     agentId: string,
     operations: AgentUpdateOperations,
-    verbose: boolean = false
+    verbose: boolean = false,
+    force: boolean = false
   ): Promise<void> {
     const applier = new DiffApplier(this.client, this.basePath);
-    return applier.applyUpdateOperations(agentId, operations, verbose);
+    return applier.applyUpdateOperations(agentId, operations, verbose, force);
   }
 }

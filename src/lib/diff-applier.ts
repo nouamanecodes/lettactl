@@ -21,11 +21,13 @@ export class DiffApplier {
 
   /**
    * Applies the update operations to the agent
+   * @param force - When true, also removes resources not in config (strict reconciliation)
    */
   async applyUpdateOperations(
     agentId: string,
     operations: AgentUpdateOperations,
-    verbose: boolean = false
+    verbose: boolean = false,
+    force: boolean = false
   ): Promise<void> {
     if (operations.operationCount === 0) {
       if (verbose) log('  No changes needed');
@@ -75,9 +77,12 @@ export class DiffApplier {
         await this.client.attachToolToAgent(agentId, tool.newId);
       }
 
-      for (const tool of operations.tools.toRemove) {
-        if (verbose) log(`  Detaching tool: ${tool.name}${getBuiltinTag(tool.name)}`);
-        await this.client.detachToolFromAgent(agentId, tool.id);
+      // Only remove tools when --force is specified
+      if (force) {
+        for (const tool of operations.tools.toRemove) {
+          if (verbose) log(`  Detaching tool: ${tool.name}${getBuiltinTag(tool.name)}`);
+          await this.client.detachToolFromAgent(agentId, tool.id);
+        }
       }
     }
 
@@ -88,9 +93,12 @@ export class DiffApplier {
         await this.client.attachBlockToAgent(agentId, block.id);
       }
 
-      for (const block of operations.blocks.toRemove) {
-        if (verbose) log(`  Detaching block: ${block.name}`);
-        await this.client.detachBlockFromAgent(agentId, block.id);
+      // Only remove blocks when --force is specified
+      if (force) {
+        for (const block of operations.blocks.toRemove) {
+          if (verbose) log(`  Detaching block: ${block.name}`);
+          await this.client.detachBlockFromAgent(agentId, block.id);
+        }
       }
 
       for (const block of operations.blocks.toUpdate) {
@@ -113,9 +121,12 @@ export class DiffApplier {
         await this.client.attachFolderToAgent(agentId, folder.id);
       }
 
-      for (const folder of operations.folders.toDetach) {
-        if (verbose) log(`  Detaching folder: ${folder.name}`);
-        await this.client.detachFolderFromAgent(agentId, folder.id);
+      // Only detach folders when --force is specified
+      if (force) {
+        for (const folder of operations.folders.toDetach) {
+          if (verbose) log(`  Detaching folder: ${folder.name}`);
+          await this.client.detachFolderFromAgent(agentId, folder.id);
+        }
       }
 
       for (const folder of operations.folders.toUpdate) {

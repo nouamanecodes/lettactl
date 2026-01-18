@@ -13,7 +13,7 @@ import { computeDryRunDiffs, displayDryRunResults } from '../lib/dry-run';
 import { log, warn, output, isQuietMode } from '../lib/logger';
 import { FILE_SEARCH_TOOLS } from '../lib/builtin-tools';
 
-export async function applyCommand(options: { file: string; agent?: string; match?: string; dryRun?: boolean; root?: string }, command: any) {
+export async function applyCommand(options: { file: string; agent?: string; match?: string; dryRun?: boolean; force?: boolean; root?: string }, command: any) {
   // Quiet mode overrides verbose
   const verbose = isQuietMode() ? false : (command.parent?.opts().verbose || false);
   const spinnerEnabled = getSpinnerEnabled(command);
@@ -256,6 +256,7 @@ export async function applyCommand(options: { file: string; agent?: string; matc
             sharedBlockIds,
             spinnerEnabled,
             verbose,
+            force: options.force || false,
             previousFolderFileHashes
           });
           succeeded.push(agent.name);

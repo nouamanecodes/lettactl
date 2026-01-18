@@ -102,6 +102,7 @@ program
   .option('--agent <pattern>', 'deploy only agents matching pattern')
   .option('--match <pattern>', 'apply template config to all existing agents matching glob pattern')
   .option('--dry-run', 'show what would be created without making changes')
+  .option('--force', 'remove resources not in config (strict reconciliation)')
   .option('--root <path>', 'root directory for resolving file paths')
   .action(applyCommand);
 
