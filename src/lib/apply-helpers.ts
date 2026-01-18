@@ -255,7 +255,7 @@ export async function updateExistingAgent(
     updateSpinner.succeed(`Agent ${agent.name} updated successfully (conversation history preserved)`);
   } catch (err) {
     spinner.fail(`Failed to update agent ${agent.name}`);
-    throw error;
+    throw err;
   }
 }
 
@@ -391,6 +391,6 @@ export async function createNewAgent(
     creationSpinner.succeed(`Agent ${agentName} created (${blockCount} blocks, ${toolCount} tools, ${folderCount} folders)`);
   } catch (err) {
     creationSpinner.fail(`Failed to create agent ${agentName}`);
-    throw error;
+    throw err;
   }
 }

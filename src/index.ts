@@ -337,11 +337,11 @@ program
   .action(completionCommand);
 
 // Global error handler to prevent stack traces from leaking
-process.on('unhandledRejection', (error: any) => {
+process.on('unhandledRejection', (err: any) => {
   if (verboseMode) {
-    error(error);
+    error(err);
   } else {
-    error(error?.message || error);
+    error(err?.message || err);
   }
   process.exit(1);
 });
