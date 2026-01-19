@@ -105,7 +105,7 @@ export async function analyzeBlockChanges(
     if (!currentBlockNames.has(blockConfig.name)) {
       let blockId = blockConfig.isShared
         ? blockManager.getSharedBlockId(blockConfig.name)
-        : blockManager.getAgentBlockId(blockConfig.name);
+        : blockManager.getAgentBlockId(blockConfig.name, agentName);
 
       // If block doesn't exist yet, create it (unless dry-run)
       if (!blockId && !blockConfig.isShared && blockConfig.description && agentName) {

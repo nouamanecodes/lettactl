@@ -50,9 +50,11 @@ export class BlockManager {
 
   /**
    * Gets the registry key for a block
+   * Agent-specific blocks include agent name to prevent cross-agent collisions
    */
-  private getBlockKey(label: string, isShared: boolean): string {
-    return isShared ? `shared:${label}` : label;
+  private getBlockKey(label: string, isShared: boolean, agentName?: string): string {
+    if (isShared) return `shared:${label}`;
+    return agentName ? `${agentName}:${label}` : label;
   }
 
   /**
@@ -117,8 +119,8 @@ export class BlockManager {
   /**
    * Gets or creates an agent-specific block, updating in-place if content changed
    */
-  async getOrCreateAgentBlock(blockConfig: any, _agentName: string): Promise<string> {
-    const blockKey = this.getBlockKey(blockConfig.name, false);
+  async getOrCreateAgentBlock(blockConfig: any, agentName: string): Promise<string> {
+    const blockKey = this.getBlockKey(blockConfig.name, false, agentName);
     const contentHash = generateContentHash(blockConfig.value);
     const existing = this.blockRegistry.get(blockKey);
 
@@ -182,8 +184,9 @@ export class BlockManager {
   /**
    * Gets agent block ID by name if it exists
    */
-  getAgentBlockId(blockName: string): string | null {
-    const existing = this.blockRegistry.get(this.getBlockKey(blockName, false));
+  getAgentBlockId(blockName: string, agentName?: string): string | null {
+    const key = this.getBlockKey(blockName, false, agentName);
+    const existing = this.blockRegistry.get(key);
     return existing ? existing.id : null;
   }
 

@@ -286,6 +286,8 @@ AGENTS=(
     "e2e-28-special-chars"
     "e2e-29-unicode-content"
     "e2e-30-cleanup-test"
+    "e2e-33-block-isolation-a"
+    "e2e-33-block-isolation-b"
 )
 
 for agent in "${AGENTS[@]}"; do

@@ -584,3 +584,47 @@ agents:
       - name: e2e-cleanup-folder
         files:
           - folder-files/doc1.txt
+
+  # ============================================================================
+  # BLOCK ISOLATION - Cross-Agent Contamination Prevention (#128)
+  # ============================================================================
+
+  # 33a: First agent with brand_identity block
+  - name: e2e-33-block-isolation-a
+    description: Agent A for block isolation test
+    embedding: openai/text-embedding-3-small
+    system_prompt:
+      value: You are Agent A for Alpha Corp.
+    llm_config:
+      model: google_ai/gemini-2.5-pro
+      context_window: 32000
+    memory_blocks:
+      - name: brand_identity
+        description: Brand identity for this agent
+        limit: 2000
+        mutable: false
+        value: |
+          # Brand Identity: Alpha Corp
+          Company: Alpha Corp
+          Industry: Technology
+          Target: Enterprise customers
+
+  # 33b: Second agent with SAME block name but DIFFERENT value
+  - name: e2e-33-block-isolation-b
+    description: Agent B for block isolation test
+    embedding: openai/text-embedding-3-small
+    system_prompt:
+      value: You are Agent B for Beta Inc.
+    llm_config:
+      model: google_ai/gemini-2.5-pro
+      context_window: 32000
+    memory_blocks:
+      - name: brand_identity
+        description: Brand identity for this agent
+        limit: 2000
+        mutable: false
+        value: |
+          # Brand Identity: Beta Inc
+          Company: Beta Inc
+          Industry: Healthcare
+          Target: Small businesses
