@@ -4,6 +4,7 @@ import { normalizeResponse } from './response-normalizer';
 import { ToolDiff, BlockDiff, FolderDiff } from './diff-engine';
 import { FolderFileConfig } from '../types/fleet-config';
 import { warn } from './logger';
+import { PROTECTED_MEMORY_TOOLS } from './builtin-tools';
 
 // Helper to extract file name from FolderFileConfig (string or from_bucket object)
 function getFileName(fileConfig: FolderFileConfig): string {
@@ -77,7 +78,13 @@ export async function analyzeToolChanges(
         unchanged.push({ name: tool.name, id: tool.id });
       }
     } else {
-      toRemove.push({ name: tool.name, id: tool.id });
+      // Never remove protected memory tools - they're critical for agent operation
+      // See: https://github.com/nouamanecodes/lettactl/issues/130
+      if (PROTECTED_MEMORY_TOOLS.has(tool.name)) {
+        unchanged.push({ name: tool.name, id: tool.id });
+      } else {
+        toRemove.push({ name: tool.name, id: tool.id });
+      }
     }
   }
 

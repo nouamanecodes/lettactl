@@ -726,6 +726,98 @@ fi
 $CLI delete agent e2e-force-test --force > /dev/null 2>&1 || true
 
 # ============================================================================
+# Test: Protected Memory Tools (#130)
+# ============================================================================
+
+section "Protected Memory Tools (#130)"
+
+# Cleanup any existing test agent
+$CLI delete agent e2e-memory-tools-test --force > /dev/null 2>&1 || true
+
+# Create agent with all memory tools
+info "Creating agent with memory tools..."
+if $CLI apply -f "$FIXTURES/fleet-memory-tools-test.yml" > $OUT 2>&1; then
+    pass "Created memory tools test agent"
+else
+    fail "Failed to create memory tools test agent"
+    cat $OUT
+fi
+
+# Verify all memory tools are attached
+$CLI get tools --agent e2e-memory-tools-test > $OUT 2>&1
+if output_contains "memory_insert"; then
+    pass "memory_insert attached"
+else
+    fail "memory_insert not attached"
+fi
+if output_contains "memory_replace"; then
+    pass "memory_replace attached"
+else
+    fail "memory_replace not attached"
+fi
+if output_contains "memory_rethink"; then
+    pass "memory_rethink attached"
+else
+    fail "memory_rethink not attached"
+fi
+
+# Apply reduced config that doesn't list memory tools (no --force)
+info "Applying config WITHOUT memory tools listed (no --force)..."
+$CLI apply -f "$FIXTURES/fleet-memory-tools-reduced.yml" > $OUT 2>&1
+
+# All protected tools should remain
+$CLI get tools --agent e2e-memory-tools-test > $OUT 2>&1
+if output_contains "memory_insert"; then
+    pass "memory_insert preserved"
+else
+    fail "memory_insert incorrectly removed"
+fi
+if output_contains "memory_replace"; then
+    pass "memory_replace preserved"
+else
+    fail "memory_replace incorrectly removed"
+fi
+if output_contains "memory_rethink"; then
+    pass "memory_rethink preserved"
+else
+    fail "memory_rethink incorrectly removed"
+fi
+if output_contains "conversation_search"; then
+    pass "conversation_search preserved"
+else
+    fail "conversation_search incorrectly removed"
+fi
+
+# With --force: ALL protected tools should STILL stay
+info "Applying config with --force..."
+$CLI apply -f "$FIXTURES/fleet-memory-tools-reduced.yml" --force > $OUT 2>&1
+
+$CLI get tools --agent e2e-memory-tools-test > $OUT 2>&1
+if output_contains "memory_insert"; then
+    pass "memory_insert preserved with --force"
+else
+    fail "memory_insert removed despite being protected"
+fi
+if output_contains "memory_replace"; then
+    pass "memory_replace preserved with --force"
+else
+    fail "memory_replace removed despite being protected"
+fi
+if output_contains "memory_rethink"; then
+    pass "memory_rethink preserved with --force"
+else
+    fail "memory_rethink removed despite being protected"
+fi
+if output_contains "conversation_search"; then
+    pass "conversation_search preserved with --force"
+else
+    fail "conversation_search removed despite being protected"
+fi
+
+# Cleanup
+$CLI delete agent e2e-memory-tools-test --force > /dev/null 2>&1 || true
+
+# ============================================================================
 # Cleanup
 # ============================================================================
 
