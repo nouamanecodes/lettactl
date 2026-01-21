@@ -275,7 +275,9 @@ export async function analyzeFolderChanges(
               filesToAdd.push(getFileId(fileName));
             } else {
               // Exact match exists - check for content changes
-              if (currentHash && currentHash !== previousHash) {
+              // Only mark as updated if we have both hashes to compare
+              // See: https://github.com/nouamanecodes/lettactl/issues/127
+              if (currentHash && previousHash && currentHash !== previousHash) {
                 filesToUpdate.push(getFileId(fileName));
               }
               // Also clean up any _(N) variants if exact match exists

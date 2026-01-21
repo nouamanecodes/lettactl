@@ -818,6 +818,68 @@ fi
 $CLI delete agent e2e-memory-tools-test --force > /dev/null 2>&1 || true
 
 # ============================================================================
+# Test: Folder File Change Detection (#127)
+# ============================================================================
+
+section "Folder File Change Detection (#127)"
+
+# Cleanup any existing test agent
+$CLI delete agent e2e-folder-files-test --force > /dev/null 2>&1 || true
+
+# Create agent with 2 files
+info "Creating agent with doc1.txt and doc2.txt..."
+if $CLI apply -f "$FIXTURES/fleet-folder-files-test.yml" --root "$FIXTURES" > $OUT 2>&1; then
+    pass "Created folder files test agent"
+else
+    fail "Failed to create folder files test agent"
+    cat $OUT
+fi
+
+# Re-apply same config - should show no file changes
+info "Re-applying same config (should be idempotent)..."
+if $CLI apply -f "$FIXTURES/fleet-folder-files-test.yml" --root "$FIXTURES" --dry-run > $OUT 2>&1; then
+    if output_contains "Updated file" || output_contains "Added file"; then
+        fail "Idempotent re-apply incorrectly shows file changes"
+        cat $OUT
+    else
+        pass "Idempotent re-apply shows no file changes"
+    fi
+fi
+
+# Apply config with added file - only new file should show as added
+info "Applying config with additional file (data.json)..."
+$CLI apply -f "$FIXTURES/fleet-folder-files-added.yml" --root "$FIXTURES" --dry-run > $OUT 2>&1
+
+# Dry-run shows "+1 files" format
+if output_contains "+1 files"; then
+    pass "New file detected in dry-run"
+else
+    fail "New file not detected in dry-run"
+    cat $OUT
+fi
+
+# Should NOT show any files as updated
+if output_contains "Updated file" || grep -q "~[0-9]* files" $OUT; then
+    fail "Existing files incorrectly marked as updated"
+    cat $OUT
+else
+    pass "Existing files not marked as updated"
+fi
+
+# Actually apply and verify idempotence
+$CLI apply -f "$FIXTURES/fleet-folder-files-added.yml" --root "$FIXTURES" > $OUT 2>&1
+$CLI apply -f "$FIXTURES/fleet-folder-files-added.yml" --root "$FIXTURES" --dry-run > $OUT 2>&1
+if output_contains "Updated file" || output_contains "Added file" || output_contains "+1 files"; then
+    fail "Post-change re-apply incorrectly shows file changes"
+    cat $OUT
+else
+    pass "Post-change re-apply shows no file changes"
+fi
+
+# Cleanup
+$CLI delete agent e2e-folder-files-test --force > /dev/null 2>&1 || true
+
+# ============================================================================
 # Cleanup
 # ============================================================================
 
