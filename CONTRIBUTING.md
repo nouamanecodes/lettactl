@@ -100,8 +100,6 @@ Commits trigger:
 2. Build
 3. Full E2E test suite (requires `LETTA_BASE_URL`)
 
-To bypass for version bumps: `git commit --no-verify`
-
 ## Commit Message Format
 
 ```
