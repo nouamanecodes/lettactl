@@ -38,6 +38,7 @@ export interface AgentConfig {
   memory_blocks?: MemoryBlock[];
   folders?: FolderConfig[];
   embedding?: string;
+  first_message?: string; // Message sent to agent on first creation for auto-calibration
 }
 
 export interface ToolConfig {

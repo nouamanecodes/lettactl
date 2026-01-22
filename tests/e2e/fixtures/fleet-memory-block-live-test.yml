@@ -1,0 +1,12 @@
+# Test fixture for memory block live access test
+# Initial agent without the test memory block
+
+agents:
+  - name: e2e-memory-live-test
+    description: Agent for testing live memory block access
+    embedding: openai/text-embedding-3-small
+    system_prompt:
+      value: You are a helpful assistant. When asked about your memory blocks, read them and respond with their contents.
+    llm_config:
+      model: google_ai/gemini-2.0-flash-lite
+      context_window: 32000

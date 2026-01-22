@@ -390,6 +390,42 @@ export async function createNewAgent(
     const folderCount = agent.folders?.length || 0;
 
     creationSpinner.succeed(`Agent ${agentName} created (${blockCount} blocks, ${toolCount} tools, ${folderCount} folders)`);
+
+    // Send first_message if configured (for agent auto-calibration)
+    if (agent.first_message) {
+      const firstMsgSpinner = spinnerEnabled ? createSpinner(`Sending first message to ${agentName}...`).start() : null;
+      try {
+        // Send async message
+        const run = await client.createAsyncMessage(createdAgent.id, {
+          messages: [{ role: 'user', content: agent.first_message }]
+        });
+        const runId = run.id;
+
+        // Poll for completion
+        const maxWaitMs = 60000; // 60 second timeout
+        const pollIntervalMs = 1000;
+        const startTime = Date.now();
+
+        while (Date.now() - startTime < maxWaitMs) {
+          const runStatus = await client.getRun(runId);
+          if (runStatus.status === 'completed') {
+            if (firstMsgSpinner) firstMsgSpinner.succeed(`First message completed for ${agentName}`);
+            if (verbose) log(`  Run ${runId} completed`);
+            break;
+          } else if (runStatus.status === 'failed' || runStatus.status === 'cancelled') {
+            if (firstMsgSpinner) firstMsgSpinner.fail(`First message ${runStatus.status} for ${agentName}`);
+            break;
+          }
+          await new Promise(resolve => setTimeout(resolve, pollIntervalMs));
+        }
+
+        if (Date.now() - startTime >= maxWaitMs) {
+          if (firstMsgSpinner) firstMsgSpinner.fail(`First message timed out for ${agentName} (run: ${runId})`);
+        }
+      } catch (err: any) {
+        if (firstMsgSpinner) firstMsgSpinner.fail(`First message failed: ${err.message}`);
+      }
+    }
   } catch (err) {
     creationSpinner.fail(`Failed to create agent ${agentName}`);
     throw err;

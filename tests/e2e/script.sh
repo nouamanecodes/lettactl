@@ -880,6 +880,93 @@ fi
 $CLI delete agent e2e-folder-files-test --force > /dev/null 2>&1 || true
 
 # ============================================================================
+# Test: Memory Block Live Access
+# ============================================================================
+
+section "Memory Block Live Access"
+
+# Cleanup any existing test agent
+$CLI delete agent e2e-memory-live-test --force > /dev/null 2>&1 || true
+
+# Create agent without memory block
+info "Creating agent without memory block..."
+if $CLI apply -f "$FIXTURES/fleet-memory-block-live-test.yml" > $OUT 2>&1; then
+    pass "Created agent without memory block"
+else
+    fail "Failed to create agent"
+    cat $OUT
+fi
+
+# Verify no secret_code block initially
+$CLI get blocks --agent e2e-memory-live-test > $OUT 2>&1
+if output_contains "secret_code"; then
+    fail "secret_code block should not exist yet"
+else
+    pass "No secret_code block initially"
+fi
+
+# Add memory block via apply
+info "Adding memory block via apply..."
+$CLI apply -f "$FIXTURES/fleet-memory-block-live-updated.yml" > $OUT 2>&1
+
+# Verify memory block is attached
+$CLI get blocks --agent e2e-memory-live-test > $OUT 2>&1
+if output_contains "secret_code"; then
+    pass "secret_code block attached"
+else
+    fail "secret_code block not attached"
+fi
+
+# Verify agent can access the block content
+info "Sending message to verify block access..."
+$CLI send e2e-memory-live-test "What is in your secret_code memory block? Tell me the exact value." > $OUT 2>&1
+if output_contains "PHOENIX-42"; then
+    pass "Agent can access memory block content"
+else
+    fail "Agent cannot access memory block content"
+    cat $OUT
+fi
+
+# Cleanup
+$CLI delete agent e2e-memory-live-test --force > /dev/null 2>&1 || true
+
+# ============================================================================
+# Test: First Message on Creation (#134)
+# ============================================================================
+
+section "First Message on Creation (#134)"
+
+# Cleanup any existing test agent
+$CLI delete agent e2e-first-message-test --force > /dev/null 2>&1 || true
+
+# Create agent with first_message
+info "Creating agent with first_message..."
+if $CLI apply -f "$FIXTURES/fleet-first-message-test.yml" > $OUT 2>&1; then
+    if output_contains "First message completed"; then
+        pass "First message sent and completed"
+    else
+        fail "First message not sent"
+        cat $OUT
+    fi
+else
+    fail "Failed to create agent with first_message"
+    cat $OUT
+fi
+
+# Verify agent remembers first message content
+info "Verifying agent remembers first message content..."
+$CLI send e2e-first-message-test "What secret code were you told to remember? Tell me the exact code." > $OUT 2>&1
+if output_contains "CALIBRATION-99"; then
+    pass "Agent remembers content from first_message"
+else
+    fail "Agent does not remember first_message content"
+    cat $OUT
+fi
+
+# Cleanup
+$CLI delete agent e2e-first-message-test --force > /dev/null 2>&1 || true
+
+# ============================================================================
 # Cleanup
 # ============================================================================
 
