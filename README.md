@@ -576,6 +576,28 @@ system_prompt:
 
 By default, lettactl prepends base Letta system instructions (memory management, tool usage patterns, etc.) to your custom prompt. Set `disable_base_prompt: true` to use only your prompt content - useful when you want complete control over the system prompt or are experimenting with custom agent behaviors.
 
+### First Message (Auto-Calibration)
+
+Send a message to the agent immediately after creation to prime or calibrate it:
+
+```yaml
+agents:
+  - name: sales-bot
+    system_prompt:
+      value: You are a sales assistant.
+    llm_config:
+      model: openai/gpt-4o
+      context_window: 128000
+    first_message: |
+      Review your memory blocks and confirm you understand your role.
+      Summarize your capabilities in one sentence.
+```
+
+The `first_message` only runs on initial agent creation, not on updates. Useful for:
+- Priming agents with initial context
+- Having agents confirm their configuration
+- Running setup tasks before user interaction
+
 ### Memory Blocks
 
 Give your agents persistent memory with two content options:

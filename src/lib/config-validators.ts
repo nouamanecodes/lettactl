@@ -151,8 +151,9 @@ export class AgentValidator {
   
   private static validateUnknownFields(agent: any): void {
     const allowedFields = [
-      'name', 'description', 'system_prompt', 'llm_config', 
-      'tools', 'memory_blocks', 'folders', 'embedding', 'shared_blocks'
+      'name', 'description', 'system_prompt', 'llm_config',
+      'tools', 'memory_blocks', 'folders', 'embedding', 'shared_blocks',
+      'first_message'
     ];
     
     const unknownFields = Object.keys(agent).filter(field => !allowedFields.includes(field));

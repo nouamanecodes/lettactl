@@ -1,0 +1,15 @@
+# Test fixture for first_message feature (#134)
+# Agent should receive calibration message on creation
+
+agents:
+  - name: e2e-first-message-test
+    description: Agent for testing first_message feature
+    embedding: openai/text-embedding-3-small
+    system_prompt:
+      value: You are a helpful assistant. Remember any secret codes you are told.
+    llm_config:
+      model: google_ai/gemini-2.0-flash-lite
+      context_window: 32000
+    first_message: |
+      Remember this secret code: CALIBRATION-99.
+      This is important for testing. Confirm you have stored it.
