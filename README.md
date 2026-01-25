@@ -199,14 +199,17 @@ lettactl import my-agent-backup.json \
 # List agent conversation history
 lettactl messages my-agent --limit 10
 
-# Send a message to an agent
+# Send a message to an agent (async by default, polls until complete)
 lettactl send my-agent "Hello, how are you?"
 
 # Send with streaming response
 lettactl send my-agent "Tell me about Tokyo" --stream
 
-# Send asynchronous message
-lettactl send my-agent "Plan a 7-day itinerary" --async
+# Send and return immediately (fire-and-forget, prints run ID)
+lettactl send my-agent "Plan a 7-day itinerary" --no-wait
+
+# Send synchronously (old behavior, may timeout on long responses)
+lettactl send my-agent "Quick question" --sync
 
 # Reset agent's conversation history
 lettactl reset-messages my-agent --add-default

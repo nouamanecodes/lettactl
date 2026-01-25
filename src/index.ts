@@ -241,14 +241,16 @@ program
   .description('Send a message to an agent (or multiple agents with --all)')
   .argument('[agent]', 'agent name (not required when using --all)')
   .argument('[message]', 'message to send')
-  .option('--stream', 'stream the response')
-  .option('--async', 'send message asynchronously')
+  .option('--stream', 'stream the response in real-time')
+  .option('--sync', 'use synchronous mode (blocks until response, may timeout)')
+  .option('--no-wait', 'send async and return immediately (prints run ID)')
   .option('--max-steps <number>', 'maximum processing steps', parseInt)
   .option('--enable-thinking', 'enable agent reasoning')
-  .option('--all <pattern>', 'send to all agents matching glob pattern (async mode)')
+  .option('--all <pattern>', 'send to all agents matching glob pattern')
   .option('-f, --file <path>', 'target agents from fleet config file')
   .option('--confirm', 'skip confirmation prompt for bulk operations')
   .option('--timeout <seconds>', 'timeout per agent in seconds for bulk operations', parseInt)
+  .option('-o, --output <format>', 'output format (table|json)', 'table')
   .action(sendMessageCommand);
 
 // Reset agent messages
