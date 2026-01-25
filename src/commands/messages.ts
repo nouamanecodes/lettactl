@@ -251,7 +251,9 @@ export async function sendMessageCommand(
     spinner.text = `Processing message... (run: ${runId.slice(0, 8)}...)`;
 
     const pollInterval = 3000; // 3 seconds
+    const progressInterval = 15; // Log progress every 15 seconds
     let lastStatus = '';
+    let lastProgressLog = 0;
     const startTime = Date.now();
 
     while (true) {
@@ -269,6 +271,12 @@ export async function sendMessageCommand(
       const elapsedSeconds = Math.floor((Date.now() - startTime) / 1000);
       const timeStr = formatElapsedTime(elapsedSeconds);
       spinner.text = `${agent.name} is thinking... ${timeStr} (${run.status})`;
+
+      // Log progress message every 15 seconds
+      if (elapsedSeconds > 0 && elapsedSeconds % progressInterval === 0 && elapsedSeconds !== lastProgressLog) {
+        lastProgressLog = elapsedSeconds;
+        log(`Still waiting for ${agent.name}... ${timeStr} elapsed`);
+      }
 
       if (run.status === 'completed') {
         spinner.succeed(`Response from ${agent.name} (${timeStr}):`);
@@ -305,9 +313,30 @@ function formatElapsedTime(seconds: number): string {
   if (seconds < 60) {
     return `${seconds}s`;
   }
-  const mins = Math.floor(seconds / 60);
+
+  const weeks = Math.floor(seconds / 604800);
+  const days = Math.floor((seconds % 604800) / 86400);
+  const hours = Math.floor((seconds % 86400) / 3600);
+  const mins = Math.floor((seconds % 3600) / 60);
   const secs = seconds % 60;
-  return `${mins}m ${secs}s`;
+
+  // Under 1 hour: Xm Ys
+  if (seconds < 3600) {
+    return `${mins}m ${secs}s`;
+  }
+
+  // Under 1 day: Xh Ym
+  if (seconds < 86400) {
+    return `${hours}h ${mins}m`;
+  }
+
+  // Under 1 week: Xd Yh
+  if (seconds < 604800) {
+    return `${days}d ${hours}h`;
+  }
+
+  // 1 week or more: just show weeks
+  return `${weeks}w`;
 }
 
 /**
