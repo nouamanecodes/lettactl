@@ -13,6 +13,7 @@ description: Use when releasing features - covers issues, branches, tests, commi
 6. **Commit** - Conventional commit format
 7. **PR** - Create, merge, delete branch
 8. **Version** - Bump package.json, tag, release
+9. **Roadmap** - Update issue #2 with completed feature
 
 ## E2E Tests
 
@@ -117,6 +118,20 @@ git push && git push --tags
 gh release create v0.9.2 --generate-notes
 ```
 
+## Roadmap Update
+
+After release, add completed feature to issue #2:
+
+```bash
+# View current roadmap
+gh issue view 2
+
+# Edit to add new completed item at top of Completed section
+gh issue edit 2 --body "..."
+```
+
+Format: `- [x] Feature description (#issue-number)`
+
 ## Quick Reference
 
 | Step | Command |
@@ -125,6 +140,7 @@ gh release create v0.9.2 --generate-notes
 | Run single test | `./tests/e2e/run-single.sh tests/XX-name.sh` |
 | Run all tests | `./tests/e2e/script.sh` |
 | Create PR | `gh pr create --fill` |
-| Merge PR | `gh pr merge --squash --delete-branch` |
+| Merge PR | `gh pr merge --squash --delete-branch --admin` |
 | Tag release | `git tag vX.X.X && git push --tags` |
 | Publish release | `gh release create vX.X.X --generate-notes` |
+| Update roadmap | `gh issue edit 2 --body "..."` |
