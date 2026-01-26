@@ -100,6 +100,19 @@ gh pr create --fill
 gh pr merge --squash --delete-branch --admin
 ```
 
+## Git Safety
+
+NEVER use destructive git commands:
+- `git reset --hard`
+- `git clean -f`
+- `git push --force`
+- `git checkout .`
+
+Use safe alternatives:
+- `git pull` to sync with remote
+- `git stash` to save uncommitted changes
+- `gh pr merge` handles local sync automatically
+
 ## Version & Release
 
 ```bash
