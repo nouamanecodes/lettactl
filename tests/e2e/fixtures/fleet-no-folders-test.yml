@@ -1,0 +1,72 @@
+# Test: Apply with tools and memory blocks but NO folders
+# Regression test for issue #146 - folders hang on processing
+
+agents:
+  # Test Agent 1
+  - name: e2e-39-agent-one
+    description: "Test agent one for no-folders regression test"
+
+    llm_config:
+      model: "openai/gpt-4o-mini"
+      context_window: 32000
+
+    embedding: "openai/text-embedding-3-small"
+
+    system_prompt:
+      from_file: "system-prompt.txt"
+
+    # Auto-discover tools from tools/ directory
+    tools:
+      - tools/*
+
+    memory_blocks:
+      - name: persona
+        description: "Who I am - my personality, background, daily routine, goals"
+        limit: 3000
+        from_file: "block-content.txt"
+
+      - name: relationships
+        description: "People I know and my feelings about them"
+        limit: 2000
+        value: "I don't know anyone yet. Looking forward to making friends!"
+
+      - name: recent-events
+        description: "What happened recently that I should remember"
+        limit: 2000
+        value: "Just started my day. Time to see what happens!"
+
+  # Test Agent 2
+  - name: e2e-39-agent-two
+    description: "Test agent two for no-folders regression test"
+
+    llm_config:
+      model: "openai/gpt-4o-mini"
+      context_window: 32000
+
+    embedding: "openai/text-embedding-3-small"
+
+    system_prompt:
+      from_file: "system-prompt.txt"
+
+    # Auto-discover tools from tools/ directory
+    tools:
+      - tools/*
+
+    memory_blocks:
+      - name: persona
+        description: "Who I am - my personality, background, daily routine, goals"
+        limit: 3000
+        value: |
+          I'm a test agent for e2e testing purposes.
+          I help verify that lettactl works correctly.
+          I enjoy running tests and finding bugs.
+
+      - name: relationships
+        description: "People I know and my feelings about them"
+        limit: 2000
+        value: "I don't know anyone yet. Looking forward to meeting new people!"
+
+      - name: recent-events
+        description: "What happened recently that I should remember"
+        limit: 2000
+        value: "Just started running tests. Let's see how it goes!"

@@ -84,7 +84,7 @@ git commit -m "build: bump v0.9.2" --no-verify
 
 Rules:
 - 5-7 words max
-- No author attribution
+- NO Co-Authored-By or any author attribution
 - No emojis
 - Lowercase start
 - Run `pnpm test` before committing
