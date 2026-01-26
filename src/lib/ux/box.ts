@@ -177,15 +177,14 @@ export function displayAgents(agents: AgentData[], wide: boolean = false): strin
 
   const rows: string[] = [];
 
-  // Calculate max name length to fit all names
-  // Cap at 31 (non-wide) or 27 (wide) to ensure row fits in box
-  const maxNameLen = Math.min(wide ? 27 : 31, Math.max(...agents.map(a => a.name.length)));
-  const nameW = Math.max(maxNameLen + 1, 16);
+  // Calculate max name length - no cap, always show full names
+  const maxNameLen = Math.max(...agents.map(a => a.name.length), 4);
+  const nameW = maxNameLen + 1;
   const modelW = wide ? 20 : 24;
 
   for (const agent of agents) {
     const status = STATUS.ok;
-    const name = truncate(agent.name, nameW - 1);
+    const name = agent.name;  // Full name, no truncation
     const model = truncate(agent.model || '-', modelW - 1);
     const blocks = agent.blockCount.toString().padStart(6);
     const tools = agent.toolCount.toString().padStart(5);
@@ -221,8 +220,9 @@ export function displayAgents(agents: AgentData[], wide: boolean = false): strin
 
   header += '  ' + chalk.dim('CREATED');
 
-  // Add extra padding on right side for visual comfort
-  const width = wide ? 116 : 91;
+  // Calculate width based on content
+  const baseWidth = wide ? 85 : 60;  // Width without name column
+  const width = baseWidth + nameW;
   const boxLines = createBoxWithRows(`Agents (${agents.length})`, [header, ...rows], width);
   return boxLines.join('\n');
 }
@@ -230,8 +230,9 @@ export function displayAgents(agents: AgentData[], wide: boolean = false): strin
 function displayAgentsPlain(agents: AgentData[], wide: boolean = false): string {
   const lines: string[] = [];
 
-  const maxNameLen = Math.min(wide ? 28 : 32, Math.max(...agents.map(a => a.name.length)));
-  const nameW = Math.max(maxNameLen + 1, 16);
+  // No cap on name length - always show full names
+  const maxNameLen = Math.max(...agents.map(a => a.name.length), 4);
+  const nameW = maxNameLen + 1;
   const modelW = wide ? 20 : 24;
 
   let header = 'NAME'.padEnd(nameW) + ' MODEL'.padEnd(modelW + 1) + ' BLOCKS TOOLS';
@@ -244,7 +245,7 @@ function displayAgentsPlain(agents: AgentData[], wide: boolean = false): string 
   lines.push('-'.repeat(header.length));
 
   for (const agent of agents) {
-    const name = truncate(agent.name, nameW - 1).padEnd(nameW);
+    const name = agent.name.padEnd(nameW);  // Full name, no truncation
     const model = truncate(agent.model || '-', modelW - 1).padEnd(modelW);
     const blocks = agent.blockCount.toString().padStart(6);
     const tools = agent.toolCount.toString().padStart(5);
@@ -286,15 +287,16 @@ export function displayBlocks(blocks: BlockData[]): string {
     return displayBlocksPlain(blocks);
   }
 
-  const width = 88;
   const rows: string[] = [];
 
-  // Calculate max name length
-  const maxNameLen = Math.min(30, Math.max(...blocks.map(b => b.name.length)));
-  const nameW = Math.max(maxNameLen + 1, 16);
+  // No cap on name length - always show full names
+  const maxNameLen = Math.max(...blocks.map(b => b.name.length), 4);
+  const nameW = maxNameLen + 1;
+  const baseWidth = 58;  // Width without name column
+  const width = baseWidth + nameW;
 
   for (const block of blocks) {
-    const name = truncate(block.name, nameW - 1);
+    const name = block.name;  // Full name, no truncation
     const id = truncate(block.id, 26);
     const limit = (block.limit?.toString() || '-').padStart(6);
     const size = (block.size?.toString() || '-').padStart(6);
@@ -324,15 +326,16 @@ export function displayBlocks(blocks: BlockData[]): string {
 function displayBlocksPlain(blocks: BlockData[]): string {
   const lines: string[] = [];
 
-  const maxNameLen = Math.min(30, Math.max(...blocks.map(b => b.name.length)));
-  const nameW = Math.max(maxNameLen + 1, 16);
+  // No cap on name length - always show full names
+  const maxNameLen = Math.max(...blocks.map(b => b.name.length), 4);
+  const nameW = maxNameLen + 1;
 
   const header = 'NAME'.padEnd(nameW) + '  ID'.padEnd(30) + '   LIMIT    SIZE  AGENTS';
   lines.push(header);
   lines.push('-'.repeat(header.length));
 
   for (const block of blocks) {
-    const name = truncate(block.name, nameW - 1).padEnd(nameW);
+    const name = block.name.padEnd(nameW);  // Full name, no truncation
     const id = truncate(block.id, 26).padEnd(28);
     const limit = (block.limit?.toString() || '-').padStart(6);
     const size = (block.size?.toString() || '-').padStart(6);
@@ -362,15 +365,16 @@ export function displayTools(tools: ToolData[]): string {
     return displayToolsPlain(tools);
   }
 
-  const width = 90;
   const rows: string[] = [];
 
-  // Calculate max name length
-  const maxNameLen = Math.min(32, Math.max(...tools.map(t => t.name.length)));
-  const nameW = Math.max(maxNameLen + 1, 20);
+  // No cap on name length - always show full names
+  const maxNameLen = Math.max(...tools.map(t => t.name.length), 4);
+  const nameW = maxNameLen + 1;
+  const baseWidth = 58;  // Width without name column
+  const width = baseWidth + nameW;
 
   for (const tool of tools) {
-    const name = truncate(tool.name, nameW - 1);
+    const name = tool.name;  // Full name, no truncation
     const id = truncate(tool.id, 38);
     const agents = tool.agentCount !== undefined ? tool.agentCount.toString().padStart(6) : '     -';
 
@@ -394,15 +398,16 @@ export function displayTools(tools: ToolData[]): string {
 function displayToolsPlain(tools: ToolData[]): string {
   const lines: string[] = [];
 
-  const maxNameLen = Math.min(32, Math.max(...tools.map(t => t.name.length)));
-  const nameW = Math.max(maxNameLen + 1, 20);
+  // No cap on name length - always show full names
+  const maxNameLen = Math.max(...tools.map(t => t.name.length), 4);
+  const nameW = maxNameLen + 1;
 
   const header = 'NAME'.padEnd(nameW) + '  ID'.padEnd(42) + '  AGENTS';
   lines.push(header);
   lines.push('-'.repeat(header.length));
 
   for (const tool of tools) {
-    const name = truncate(tool.name, nameW - 1).padEnd(nameW);
+    const name = tool.name.padEnd(nameW);  // Full name, no truncation
     const id = truncate(tool.id, 38).padEnd(40);
     const agents = tool.agentCount !== undefined ? tool.agentCount.toString().padStart(6) : '     -';
 
@@ -431,15 +436,16 @@ export function displayFolders(folders: FolderData[]): string {
     return displayFoldersPlain(folders);
   }
 
-  const width = 98;
   const rows: string[] = [];
 
-  // Calculate max name length
-  const maxNameLen = Math.min(32, Math.max(...folders.map(f => f.name.length)));
-  const nameW = Math.max(maxNameLen + 1, 20);
+  // No cap on name length - always show full names
+  const maxNameLen = Math.max(...folders.map(f => f.name.length), 4);
+  const nameW = maxNameLen + 1;
+  const baseWidth = 66;  // Width without name column
+  const width = baseWidth + nameW;
 
   for (const folder of folders) {
-    const name = truncate(folder.name, nameW - 1);
+    const name = folder.name;  // Full name, no truncation
     const id = truncate(folder.id, 38);
     const files = folder.fileCount !== undefined ? folder.fileCount.toString().padStart(5) : '    -';
     const agents = folder.agentCount !== undefined ? folder.agentCount.toString().padStart(6) : '     -';
@@ -466,15 +472,16 @@ export function displayFolders(folders: FolderData[]): string {
 function displayFoldersPlain(folders: FolderData[]): string {
   const lines: string[] = [];
 
-  const maxNameLen = Math.min(32, Math.max(...folders.map(f => f.name.length)));
-  const nameW = Math.max(maxNameLen + 1, 20);
+  // No cap on name length - always show full names
+  const maxNameLen = Math.max(...folders.map(f => f.name.length), 4);
+  const nameW = maxNameLen + 1;
 
   const header = 'NAME'.padEnd(nameW) + '  ID'.padEnd(42) + '  FILES  AGENTS';
   lines.push(header);
   lines.push('-'.repeat(header.length));
 
   for (const folder of folders) {
-    const name = truncate(folder.name, nameW - 1).padEnd(nameW);
+    const name = folder.name.padEnd(nameW);  // Full name, no truncation
     const id = truncate(folder.id, 38).padEnd(40);
     const files = folder.fileCount !== undefined ? folder.fileCount.toString().padStart(5) : '    -';
     const agents = folder.agentCount !== undefined ? folder.agentCount.toString().padStart(6) : '     -';
@@ -504,15 +511,16 @@ export function displayMcpServers(servers: McpServerData[]): string {
     return displayMcpServersPlain(servers);
   }
 
-  const width = 92;
   const rows: string[] = [];
 
-  // Calculate max name length
-  const maxNameLen = Math.min(24, Math.max(...servers.map(s => s.name.length)));
-  const nameW = Math.max(maxNameLen + 1, 16);
+  // No cap on name length - always show full names
+  const maxNameLen = Math.max(...servers.map(s => s.name.length), 4);
+  const nameW = maxNameLen + 1;
+  const baseWidth = 76;  // Width without name column
+  const width = baseWidth + nameW;
 
   for (const server of servers) {
-    const name = truncate(server.name, nameW - 1);
+    const name = server.name;  // Full name, no truncation
     const id = truncate(server.id, 28);
     const type = (server.type || '-').padEnd(10);
     const url = truncate(server.url || '-', 24);
@@ -539,15 +547,16 @@ export function displayMcpServers(servers: McpServerData[]): string {
 function displayMcpServersPlain(servers: McpServerData[]): string {
   const lines: string[] = [];
 
-  const maxNameLen = Math.min(24, Math.max(...servers.map(s => s.name.length)));
-  const nameW = Math.max(maxNameLen + 1, 16);
+  // No cap on name length - always show full names
+  const maxNameLen = Math.max(...servers.map(s => s.name.length), 4);
+  const nameW = maxNameLen + 1;
 
   const header = 'NAME'.padEnd(nameW) + '  ID'.padEnd(32) + '  TYPE'.padEnd(12) + '  URL/COMMAND';
   lines.push(header);
   lines.push('-'.repeat(header.length));
 
   for (const server of servers) {
-    const name = truncate(server.name, nameW - 1).padEnd(nameW);
+    const name = server.name.padEnd(nameW);  // Full name, no truncation
     const id = truncate(server.id, 28).padEnd(30);
     const type = (server.type || '-').padEnd(10);
     const url = truncate(server.url || '-', 24);
@@ -611,13 +620,14 @@ export function displayFiles(files: FileData[], wide: boolean = false): string {
   const deduped = deduplicateFiles(files);
   const rows: string[] = [];
 
-  const maxNameLen = Math.min(30, Math.max(...files.map(f => f.name.length), 8));
-  const nameW = Math.max(maxNameLen + 1, 16);
+  // No cap on name length - always show full names
+  const maxNameLen = Math.max(...files.map(f => f.name.length), 4);
+  const nameW = maxNameLen + 1;
   const folderSummaryW = 32;
   const width = nameW + folderSummaryW + 30;
 
   for (const [, { file, allFolders }] of deduped) {
-    const name = truncate(file.name, nameW - 1);
+    const name = file.name;  // Full name, no truncation
     const folderCount = allFolders.length;
     let folderSummary: string;
     if (folderCount === 1) {
@@ -696,8 +706,9 @@ function displayFilesPlain(files: FileData[], wide: boolean = false): string {
   const deduped = deduplicateFiles(files);
   const lines: string[] = [];
 
-  const maxNameLen = Math.min(30, Math.max(...files.map(f => f.name.length), 8));
-  const nameW = Math.max(maxNameLen + 1, 16);
+  // No cap on name length - always show full names
+  const maxNameLen = Math.max(...files.map(f => f.name.length), 4);
+  const nameW = maxNameLen + 1;
   const folderSummaryW = 32;
 
   const header = 'NAME'.padEnd(nameW) + ' FOLDERS'.padEnd(folderSummaryW) + ' COUNT  AGENTS';
@@ -705,7 +716,7 @@ function displayFilesPlain(files: FileData[], wide: boolean = false): string {
   lines.push('-'.repeat(header.length));
 
   for (const [, { file, allFolders }] of deduped) {
-    const name = truncate(file.name, nameW - 1).padEnd(nameW);
+    const name = file.name.padEnd(nameW);  // Full name, no truncation
     const folderCount = allFolders.length;
     let folderSummary: string;
     if (folderCount === 1) {
