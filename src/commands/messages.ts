@@ -7,6 +7,7 @@ import { sendMessageToAgent } from '../lib/message-sender';
 import { bulkSendMessage } from '../lib/bulk-messenger';
 import { log, output, error } from '../lib/logger';
 import { Run } from '../types/run';
+import { displayMessages, MessageDisplayData } from '../lib/ux/box';
 
 /**
  * Safely extracts content from different message types
@@ -32,6 +33,8 @@ export async function listMessagesCommand(
   agentName: string,
   options: {
     limit?: number;
+    all?: boolean;
+    system?: boolean;
     order?: string;
     before?: string;
     after?: string;
@@ -40,32 +43,41 @@ export async function listMessagesCommand(
   command: any
 ) {
   const verbose = command.parent?.opts().verbose || false;
-  
+
   try {
     const client = new LettaClientWrapper();
     const resolver = new AgentResolver(client);
 
     // Find the agent
     const { agent } = await resolver.findAgentByName(agentName);
-    
+
     if (verbose) {
       output(`Listing messages for agent: ${agent.name} (${agent.id})`);
     }
 
+    // Default to 10 messages unless --all or explicit --limit
+    const effectiveLimit = options.all ? undefined : (options.limit || 10);
+
     // Prepare query options
     const queryOptions: any = {};
-    if (options.limit) queryOptions.limit = options.limit;
+    if (effectiveLimit) queryOptions.limit = effectiveLimit;
     if (options.order) queryOptions.order = options.order;
     if (options.before) queryOptions.before = options.before;
     if (options.after) queryOptions.after = options.after;
 
     // Get messages
     const response = await client.listMessages(agent.id, queryOptions);
-    const messages = normalizeResponse(response);
+    let messages = normalizeResponse(response);
 
     if (options.output === 'json') {
       output(JSON.stringify(messages, null, 2));
       return;
+    }
+
+    // Filter out system messages unless --system flag
+    const totalCount = messages.length;
+    if (!options.system) {
+      messages = messages.filter((m: any) => (m.message_type || m.role) !== 'system_message');
     }
 
     if (messages.length === 0) {
@@ -73,30 +85,26 @@ export async function listMessagesCommand(
       return;
     }
 
-    // Format as table
-    output(`Messages for ${agent.name}:`);
-    output(`Found ${messages.length} message(s)\n`);
-    
-    for (const message of messages) {
-      const timestamp = message.created_at 
-        ? new Date(message.created_at).toLocaleString() 
-        : 'Unknown time';
-      
-      output(`${timestamp}`);
-      output(`  Role: ${message.role || 'unknown'}`);
-      
-      // Handle different message content types
-      const content = getMessageContent(message);
-      if (content) {
-        const preview = content.length > 100 
-          ? content.substring(0, 100) + '...' 
-          : content;
-        output(`  Content: ${preview}`);
-      } else {
-        output(`  Preview: [${message.message_type || message.role || 'Unknown type'}]`);
-      }
-      output('');
+    // Format messages
+    const systemCount = totalCount - messages.length;
+    let limitNote = effectiveLimit && totalCount >= effectiveLimit
+      ? `(showing last ${effectiveLimit}, use --all to see full history)`
+      : '';
+    if (systemCount > 0) {
+      const systemNote = `(${systemCount} system message${systemCount > 1 ? 's' : ''} hidden, use --system to show)`;
+      limitNote = limitNote ? `${limitNote} ${systemNote}` : systemNote;
     }
+
+    // Map to display data
+    const displayData: MessageDisplayData[] = messages.map(message => ({
+      timestamp: message.date || message.created_at
+        ? new Date(message.date || message.created_at).toLocaleString()
+        : 'Unknown time',
+      role: message.message_type || message.role || 'unknown',
+      content: getMessageContent(message),
+    }));
+
+    output(displayMessages(agent.name, displayData, limitNote));
 
   } catch (err: any) {
     error(`Failed to list messages for agent ${agentName}:`, err.message);

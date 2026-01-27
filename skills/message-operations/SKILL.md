@@ -17,8 +17,8 @@ lettactl send <agent> <message> [--async] [--stream] [-o text|json]
 # Bulk send
 lettactl send --all <message> [--pattern <regex>] [--timeout <ms>]
 
-# View history
-lettactl messages <agent> [--limit <n>] [-o table|json|yaml]
+# View history (default: last 10 messages)
+lettactl messages <agent> [-l <n>] [--all] [-o table|json|yaml]
 
 # Manage state
 lettactl reset-messages <agent> [-y]
@@ -56,8 +56,14 @@ lettactl send --all "System update"
 # Message agents matching pattern
 lettactl send --pattern "^prod-" "Health check"
 
+# View last 10 messages (default)
+lettactl messages my-agent
+
 # View last 50 messages
-lettactl messages my-agent --limit 50
+lettactl messages my-agent -l 50
+
+# View all messages
+lettactl messages my-agent --all
 
 # Clear conversation
 lettactl reset-messages my-agent -y

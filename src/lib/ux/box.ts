@@ -192,7 +192,7 @@ export function displayAgents(agents: AgentData[], wide: boolean = false): strin
 
     let row = status + '  ' +
       chalk.white(name.padEnd(nameW)) + ' ' +
-      chalk.cyan(model.padEnd(modelW)) + ' ' +
+      purple(model.padEnd(modelW)) + ' ' +
       chalk.white(blocks) + ' ' +
       chalk.white(tools);
 
@@ -305,7 +305,7 @@ export function displayBlocks(blocks: BlockData[]): string {
     const row = STATUS.ok + '  ' +
       chalk.white(name.padEnd(nameW)) + '  ' +
       chalk.dim(id.padEnd(28)) + '  ' +
-      chalk.cyan(limit) + '   ' +
+      purple(limit) + '   ' +
       chalk.white(size) + '   ' +
       chalk.white(agents);
 
@@ -528,7 +528,7 @@ export function displayMcpServers(servers: McpServerData[]): string {
     const row = STATUS.ok + '  ' +
       chalk.white(name.padEnd(nameW)) + '  ' +
       chalk.dim(id.padEnd(30)) + '  ' +
-      chalk.cyan(type) + '  ' +
+      purple(type) + '  ' +
       chalk.dim(url);
 
     rows.push(row);
@@ -642,7 +642,7 @@ export function displayFiles(files: FileData[], wide: boolean = false): string {
 
     const row = STATUS.ok + ' ' +
       chalk.white(name.padEnd(nameW)) + ' ' +
-      chalk.cyan(folderSummary.padEnd(folderSummaryW)) + ' ' +
+      purple(folderSummary.padEnd(folderSummaryW)) + ' ' +
       chalk.white(count) + ' ' +
       chalk.white(agents);
 
@@ -680,7 +680,7 @@ function displayFilesWide(files: FileData[]): string {
 
     const row = STATUS.ok + ' ' +
       chalk.white(name.padEnd(nameW)) + ' ' +
-      chalk.cyan(folder.padEnd(folderW)) + ' ' +
+      purple(folder.padEnd(folderW)) + ' ' +
       chalk.dim(id.padEnd(26)) + ' ' +
       chalk.white(agents);
 
@@ -930,7 +930,10 @@ export function displayAgentDetails(data: AgentDetailsData, verbose: boolean = f
     lines.push(purple(BOX.horizontal.repeat(3)) + ' ' + purple(title) + ' ' + purple(BOX.horizontal.repeat(width - title.length - 6)));
 
     for (const msg of data.messages.slice(-3)) {
-      lines.push(chalk.dim(msg.createdAt || 'Unknown time') + chalk.cyan(` [${msg.role}]`));
+      const roleColor = msg.role === 'user_message' ? chalk.green
+        : msg.role === 'assistant_message' ? purple
+        : chalk.dim;
+      lines.push(chalk.dim(msg.createdAt || 'Unknown time') + roleColor(` [${msg.role}]`));
       if (msg.preview) {
         lines.push('  ' + chalk.white(truncate(msg.preview, width - 4)));
       }
@@ -1283,7 +1286,7 @@ export function displayFileDetails(data: FileDetailsData): string {
   if (data.folders && data.folders.length > 0) {
     const folderRows = data.folders.map(f =>
       chalk.white(f.name) + chalk.dim(` (${f.id})`) +
-      (f.agentCount !== undefined ? chalk.cyan(` → ${f.agentCount} agents`) : '')
+      (f.agentCount !== undefined ? purple(` → ${f.agentCount} agents`) : '')
     );
     lines.push(...createBoxWithRows(`In Folders (${data.folders.length})`, folderRows, width));
   } else {
@@ -1402,6 +1405,74 @@ function displayMcpServerDetailsPlain(data: McpServerDetailsData): string {
     }
   } else {
     lines.push('  (no tools registered)');
+  }
+
+  return lines.join('\n');
+}
+
+// ============================================================================
+// Message History Display (borderless)
+// ============================================================================
+
+export interface MessageDisplayData {
+  content: string | null;
+  role: string;
+  timestamp: string;
+}
+
+/**
+ * Display conversation messages - borderless, full content, styled
+ */
+export function displayMessages(
+  agentName: string,
+  messages: MessageDisplayData[],
+  limitNote: string
+): string {
+  if (!shouldUseFancyUx()) {
+    return displayMessagesPlain(agentName, messages, limitNote);
+  }
+
+  const lines: string[] = [];
+  const width = 80;
+
+  // Styled header line (no box borders)
+  const title = `Messages for ${agentName} (${messages.length})`;
+  lines.push(purple(BOX.horizontal.repeat(3)) + ' ' + purple(title) + ' ' + purple(BOX.horizontal.repeat(Math.max(0, width - title.length - 6))));
+
+  if (limitNote) {
+    lines.push(chalk.dim(limitNote));
+  }
+  lines.push('');
+
+  for (const msg of messages) {
+    const roleColor = msg.role === 'user_message' ? chalk.green
+      : msg.role === 'assistant_message' ? purple
+      : chalk.dim;
+
+    lines.push(chalk.dim(msg.timestamp) + roleColor(` [${msg.role}]`));
+    lines.push('  ' + chalk.white(msg.content || `[${msg.role}]`));
+    lines.push('');
+  }
+
+  return lines.join('\n');
+}
+
+function displayMessagesPlain(
+  agentName: string,
+  messages: MessageDisplayData[],
+  limitNote: string
+): string {
+  const lines: string[] = [];
+
+  lines.push(`Messages for ${agentName}:`);
+  lines.push(`Found ${messages.length} message(s)${limitNote ? ' ' + limitNote : ''}`);
+  lines.push('');
+
+  for (const msg of messages) {
+    lines.push(msg.timestamp);
+    lines.push(`  Role: ${msg.role}`);
+    lines.push(`  Content: ${msg.content || `[${msg.role}]`}`);
+    lines.push('');
   }
 
   return lines.join('\n');

@@ -196,8 +196,10 @@ lettactl import my-agent-backup.json \
 
 ### Message Operations
 ```bash
-# List agent conversation history
-lettactl messages my-agent --limit 10
+# View conversation history (last 10 messages by default)
+lettactl messages my-agent
+lettactl messages my-agent -l 50    # Last 50 messages
+lettactl messages my-agent --all    # Full history
 
 # Send a message to an agent (async by default, polls until complete)
 lettactl send my-agent "Hello, how are you?"
@@ -321,8 +323,9 @@ lettactl describe mcp-servers my-mcp   # MCP server details + tools
 lettactl get agents -o json
 lettactl describe tool my-tool -o json
 
-# Conversation history
-lettactl messages my-agent             # View conversation history
+# Conversation history (last 10 by default)
+lettactl messages my-agent             # Last 10 messages
+lettactl messages my-agent --all       # Full history
 ```
 
 ### Async Runs
