@@ -18,7 +18,7 @@ import {
   FolderDetailsData,
   FileDetailsData,
   McpServerDetailsData,
-} from '../lib/ux/box';
+} from '../lib/ux/display';
 import { output } from '../lib/logger';
 
 const SUPPORTED_RESOURCES = ['agent', 'agents', 'block', 'blocks', 'tool', 'tools', 'folder', 'folders', 'file', 'files', 'mcp-servers'];

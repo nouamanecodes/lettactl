@@ -4,7 +4,7 @@ import { withErrorHandling } from '../lib/error-handler';
 import { createSpinner, getSpinnerEnabled } from '../lib/ux/spinner';
 import { normalizeToArray, computeAgentCounts } from '../lib/resource-usage';
 import { log, warn, output } from '../lib/logger';
-import chalk from 'chalk';
+import { displayOrphanedResources, displayCleanupNote } from '../lib/ux/display';
 
 const SUPPORTED_RESOURCES = ['blocks', 'folders', 'all'];
 
@@ -32,7 +32,8 @@ async function cleanupCommandImpl(
   const isDryRun = !options.force || Boolean(options.dryRun);
 
   if (isDryRun) {
-    output(chalk.yellow('Dry-run mode: showing what would be deleted. Use --force to actually delete.\n'));
+    output(displayCleanupNote(0, true).replace(/\d+ orphaned/, '...'));
+    output('');
   }
 
   let totalDeleted = 0;
@@ -47,11 +48,8 @@ async function cleanupCommandImpl(
     totalDeleted += deleted;
   }
 
-  if (isDryRun) {
-    output(chalk.yellow(`\nWould delete ${totalDeleted} orphaned resource(s). Use --force to actually delete.`));
-  } else {
-    output(chalk.green(`\nDeleted ${totalDeleted} orphaned resource(s).`));
-  }
+  output('');
+  output(displayCleanupNote(totalDeleted, isDryRun));
 }
 
 async function cleanupOrphanedBlocks(
@@ -65,7 +63,6 @@ async function cleanupOrphanedBlocks(
   const spinner = createSpinner('Finding orphaned blocks...', useSpinner).start();
 
   try {
-    // Use the API's built-in filter for blocks with 0 connected agents
     const orphanedBlocks = await client.listBlocks({ connectedAgentsCountEq: [0] });
 
     if (orphanedBlocks.length === 0) {
@@ -74,13 +71,12 @@ async function cleanupOrphanedBlocks(
     }
 
     spinner.stop();
-    output(`\n${chalk.cyan('Orphaned Blocks')} (${orphanedBlocks.length}):`);
 
-    for (const block of orphanedBlocks) {
-      const label = block.label || block.name || block.id;
-      const size = block.value?.length || 0;
-      output(`  - ${label} (${size} chars)`);
-    }
+    const items = orphanedBlocks.map((block: any) => ({
+      name: block.label || block.name || block.id,
+      detail: `${block.value?.length || 0} chars`,
+    }));
+    output(displayOrphanedResources('Blocks', items));
 
     if (!isDryRun) {
       const deleteSpinner = createSpinner(`Deleting ${orphanedBlocks.length} orphaned blocks...`, useSpinner).start();
@@ -122,10 +118,7 @@ async function cleanupOrphanedFolders(
     const allFolders = await client.listFolders();
     const folderIds = allFolders.map((f: any) => f.id);
 
-    // Compute agent counts for each folder
     const agentCounts = await computeAgentCounts(client, resolver, 'folders', folderIds);
-
-    // Find folders with 0 agents
     const orphanedFolders = allFolders.filter((f: any) => agentCounts.get(f.id) === 0);
 
     if (orphanedFolders.length === 0) {
@@ -133,7 +126,6 @@ async function cleanupOrphanedFolders(
       return 0;
     }
 
-    // Get file counts for each orphaned folder
     spinner.text = 'Counting files in orphaned folders...';
     const folderFileCounts: Map<string, number> = new Map();
     let totalFiles = 0;
@@ -149,12 +141,12 @@ async function cleanupOrphanedFolders(
     }
 
     spinner.stop();
-    output(`\n${chalk.cyan('Orphaned Folders')} (${orphanedFolders.length}, containing ${totalFiles} files):`);
 
-    for (const folder of orphanedFolders) {
-      const fileCount = folderFileCounts.get(folder.id) || 0;
-      output(`  - ${folder.name || folder.id} (${fileCount} files)`);
-    }
+    const items = orphanedFolders.map((folder: any) => ({
+      name: folder.name || folder.id,
+      detail: `${folderFileCounts.get(folder.id) || 0} files`,
+    }));
+    output(displayOrphanedResources('Folders', items, `containing ${totalFiles} files`));
 
     if (!isDryRun) {
       const deleteSpinner = createSpinner(`Deleting ${orphanedFolders.length} orphaned folders...`, useSpinner).start();

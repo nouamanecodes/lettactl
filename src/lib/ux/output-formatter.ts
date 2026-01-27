@@ -15,7 +15,7 @@ import {
   FolderData,
   McpServerData,
   FileData,
-} from './box';
+} from './display';
 import { AgentDisplayData } from '../agent-data-fetcher';
 
 /**

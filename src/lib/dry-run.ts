@@ -1,3 +1,4 @@
+import chalk from 'chalk';
 import { LettaClientWrapper } from './letta-client';
 import { BlockManager } from './block-manager';
 import { AgentManager } from './agent-manager';
@@ -5,6 +6,9 @@ import { DiffEngine, AgentUpdateOperations } from './diff-engine';
 import { FileContentTracker } from './file-content-tracker';
 import { FleetParser } from './fleet-parser';
 import { output } from './logger';
+import { displayDryRunSeparator, displayDryRunSummary, displayDryRunAction } from './ux/display';
+import { shouldUseFancyUx, truncate } from './ux/box';
+import { purple } from './ux/constants';
 
 export interface DryRunResult {
   name: string;
@@ -179,8 +183,10 @@ async function computeAgentDiff(
  * Display dry-run results
  */
 export function displayDryRunResults(results: DryRunResult[], verbose: boolean): void {
+  const fancy = shouldUseFancyUx();
+
   output('');
-  output('='.repeat(50));
+  output(displayDryRunSeparator());
 
   let created = 0, updated = 0, unchanged = 0;
   let totalChanges = 0;
@@ -189,132 +195,120 @@ export function displayDryRunResults(results: DryRunResult[], verbose: boolean):
     if (result.action === 'create') {
       created++;
       totalChanges++;
-      displayCreateResult(result);
+      output(displayDryRunAction(result.name, 'create'));
+      formatCreateDetails(result, fancy);
     } else if (result.action === 'update' && result.operations) {
       updated++;
       totalChanges += result.operations.operationCount;
-      displayUpdateResult(result, verbose);
+      output(displayDryRunAction(result.name, 'update', `${result.operations.operationCount} changes`));
+      formatUpdateDetails(result.operations, verbose, fancy);
     } else if (verbose) {
       unchanged++;
-      output(`[=] ${result.name} (no changes)`);
+      output(displayDryRunAction(result.name, 'unchanged'));
     } else {
       unchanged++;
     }
   }
 
-  // Summary
   output('');
-  output('='.repeat(50));
-  output('Summary:');
-  if (created > 0) output(`  [+] ${created} agent(s) to create`);
-  if (updated > 0) output(`  [~] ${updated} agent(s) to update`);
-  if (unchanged > 0) output(`  [=] ${unchanged} agent(s) unchanged`);
-  output(`  Total changes: ${totalChanges}`);
+  output(displayDryRunSummary({ created, updated, unchanged, totalChanges }));
+}
 
-  if (totalChanges === 0) {
-    output('\nNo changes to apply.');
-  } else {
-    output('\nRun "lettactl apply" to apply these changes.');
+function formatCreateDetails(result: DryRunResult, fancy: boolean): void {
+  if (!result.config) return;
+  const dim = fancy ? chalk.dim : (s: string) => s;
+  const indent = '    ';
+  output(`${indent}${dim('Model:')} ${result.config.model || 'default'}`);
+  output(`${indent}${dim('Embedding:')} ${result.config.embedding || 'default'}`);
+  if (result.config.tools?.length) {
+    output(`${indent}${dim('Tools:')} ${result.config.tools.length}`);
+  }
+  if (result.config.memoryBlocks?.length) {
+    output(`${indent}${dim('Memory blocks:')} ${result.config.memoryBlocks.length}`);
+  }
+  if (result.config.folders?.length) {
+    const fileCount = result.config.folders.reduce((sum: number, f: any) => sum + f.files.length, 0);
+    output(`${indent}${dim('Folders:')} ${result.config.folders.length} (${fileCount} files)`);
   }
 }
 
-function displayCreateResult(result: DryRunResult): void {
-  output(`[+] ${result.name} (CREATE)`);
-  if (result.config) {
-    output(`    Model: ${result.config.model || 'default'}`);
-    output(`    Embedding: ${result.config.embedding || 'default'}`);
-    if (result.config.tools?.length) {
-      output(`    Tools: ${result.config.tools.length}`);
-    }
-    if (result.config.memoryBlocks?.length) {
-      output(`    Memory blocks: ${result.config.memoryBlocks.length}`);
-    }
-    if (result.config.folders?.length) {
-      const fileCount = result.config.folders.reduce((sum: number, f: any) => sum + f.files.length, 0);
-      output(`    Folders: ${result.config.folders.length} (${fileCount} files)`);
-    }
-  }
+function collapseTruncate(text: string, maxLen: number): string {
+  return truncate(text.replace(/\n/g, '\\n').replace(/\r/g, ''), maxLen);
 }
 
-/**
- * Truncate text for display, showing first N chars with ellipsis
- */
-function truncate(text: string, maxLen: number = 60): string {
-  const singleLine = text.replace(/\n/g, '\\n').replace(/\r/g, '');
-  if (singleLine.length <= maxLen) return singleLine;
-  return singleLine.substring(0, maxLen - 3) + '...';
+function formatTextDiff(label: string, from: string, to: string, fancy: boolean): void {
+  const indent = '    ';
+  const dim = fancy ? chalk.dim : (s: string) => s;
+  const red = fancy ? chalk.red : (s: string) => s;
+  const green = fancy ? chalk.green : (s: string) => s;
+  output(`${indent}${dim(label + ':')}`);
+  output(`${indent}  ${red('- ' + collapseTruncate(from, 70))}`);
+  output(`${indent}  ${green('+ ' + collapseTruncate(to, 70))}`);
 }
 
-/**
- * Display a text diff with - and + lines
- */
-function displayTextDiff(label: string, from: string, to: string, indent: string = '    '): void {
-  output(`${indent}${label}:`);
-  output(`${indent}  - ${truncate(from, 70)}`);
-  output(`${indent}  + ${truncate(to, 70)}`);
-}
-
-function displayUpdateResult(result: DryRunResult, verbose: boolean): void {
-  const ops = result.operations!;
-  output(`[~] ${result.name} (UPDATE - ${ops.operationCount} changes)`);
+function formatUpdateDetails(ops: AgentUpdateOperations, verbose: boolean, fancy: boolean): void {
+  const dim = fancy ? chalk.dim : (s: string) => s;
+  const green = fancy ? chalk.green : (s: string) => s;
+  const red = fancy ? chalk.red : (s: string) => s;
+  const colorPurple = fancy ? purple : (s: string) => s;
 
   // Field changes
   if (ops.updateFields) {
     if (ops.updateFields.system) {
-      displayTextDiff('system_prompt', ops.updateFields.system.from, ops.updateFields.system.to);
+      formatTextDiff('system_prompt', ops.updateFields.system.from, ops.updateFields.system.to, fancy);
     }
     if (ops.updateFields.description) {
-      displayTextDiff('description', ops.updateFields.description.from, ops.updateFields.description.to);
+      formatTextDiff('description', ops.updateFields.description.from, ops.updateFields.description.to, fancy);
     }
     if (ops.updateFields.model) {
-      output(`    model: ${ops.updateFields.model.from} -> ${ops.updateFields.model.to}`);
+      output(`    ${dim('model:')} ${ops.updateFields.model.from} ${dim('->')} ${ops.updateFields.model.to}`);
     }
     if (ops.updateFields.embedding) {
-      output(`    embedding: ${ops.updateFields.embedding.from} -> ${ops.updateFields.embedding.to}`);
+      output(`    ${dim('embedding:')} ${ops.updateFields.embedding.from} ${dim('->')} ${ops.updateFields.embedding.to}`);
     }
     if (ops.updateFields.contextWindow) {
-      output(`    context_window: ${ops.updateFields.contextWindow.from} -> ${ops.updateFields.contextWindow.to}`);
+      output(`    ${dim('context_window:')} ${ops.updateFields.contextWindow.from} ${dim('->')} ${ops.updateFields.contextWindow.to}`);
     }
   }
 
   // Tool changes
   if (ops.tools) {
-    for (const t of ops.tools.toAdd) output(`    Tool [+]: ${t.name}`);
-    for (const t of ops.tools.toRemove) output(`    Tool [-]: ${t.name} (requires --force)`);
-    for (const t of ops.tools.toUpdate) output(`    Tool [~]: ${t.name} (${t.reason})`);
+    for (const t of ops.tools.toAdd) output(`    ${green('Tool [+]:')} ${t.name}`);
+    for (const t of ops.tools.toRemove) output(`    ${red('Tool [-]:')} ${t.name} ${dim('(requires --force)')}`);
+    for (const t of ops.tools.toUpdate) output(`    ${colorPurple('Tool [~]:')} ${t.name} ${dim(`(${t.reason})`)}`);
     if (verbose && ops.tools.unchanged.length > 0) {
-      output(`    Tools unchanged: ${ops.tools.unchanged.length}`);
+      output(`    ${dim(`Tools unchanged: ${ops.tools.unchanged.length}`)}`);
     }
   }
 
   // Block changes
   if (ops.blocks) {
-    for (const b of ops.blocks.toAdd) output(`    Block [+]: ${b.name}`);
-    for (const b of ops.blocks.toRemove) output(`    Block [-]: ${b.name} (requires --force)`);
-    for (const b of ops.blocks.toUpdate) output(`    Block [~]: ${b.name}`);
+    for (const b of ops.blocks.toAdd) output(`    ${green('Block [+]:')} ${b.name}`);
+    for (const b of ops.blocks.toRemove) output(`    ${red('Block [-]:')} ${b.name} ${dim('(requires --force)')}`);
+    for (const b of ops.blocks.toUpdate) output(`    ${colorPurple('Block [~]:')} ${b.name}`);
     for (const b of ops.blocks.toUpdateValue) {
-      output(`    Block [~]: ${b.name} (value sync)`);
-      output(`      - ${truncate(b.oldValue, 60)}`);
-      output(`      + ${truncate(b.newValue, 60)}`);
+      output(`    ${colorPurple('Block [~]:')} ${b.name} ${dim('(value sync)')}`);
+      output(`      ${red('- ' + collapseTruncate(b.oldValue, 60))}`);
+      output(`      ${green('+ ' + collapseTruncate(b.newValue, 60))}`);
     }
     if (verbose && ops.blocks.unchanged.length > 0) {
-      output(`    Blocks unchanged: ${ops.blocks.unchanged.length}`);
+      output(`    ${dim(`Blocks unchanged: ${ops.blocks.unchanged.length}`)}`);
     }
   }
 
   // Folder changes
   if (ops.folders) {
-    for (const f of ops.folders.toAttach) output(`    Folder [+]: ${f.name}`);
-    for (const f of ops.folders.toDetach) output(`    Folder [-]: ${f.name} (requires --force)`);
+    for (const f of ops.folders.toAttach) output(`    ${green('Folder [+]:')} ${f.name}`);
+    for (const f of ops.folders.toDetach) output(`    ${red('Folder [-]:')} ${f.name} ${dim('(requires --force)')}`);
     for (const f of ops.folders.toUpdate) {
       const changes = [];
       if (f.filesToAdd.length) changes.push(`+${f.filesToAdd.length} files`);
       if (f.filesToRemove.length) changes.push(`-${f.filesToRemove.length} files`);
       if (f.filesToUpdate.length) changes.push(`~${f.filesToUpdate.length} files`);
-      output(`    Folder [~]: ${f.name} (${changes.join(', ')})`);
+      output(`    ${colorPurple('Folder [~]:')} ${f.name} ${dim(`(${changes.join(', ')})`)}`);
     }
     if (verbose && ops.folders.unchanged.length > 0) {
-      output(`    Folders unchanged: ${ops.folders.unchanged.length}`);
+      output(`    ${dim(`Folders unchanged: ${ops.folders.unchanged.length}`)}`);
     }
   }
 }

@@ -7,7 +7,7 @@ import { sendMessageToAgent } from '../lib/message-sender';
 import { bulkSendMessage } from '../lib/bulk-messenger';
 import { log, output, error } from '../lib/logger';
 import { Run } from '../types/run';
-import { displayMessages, MessageDisplayData } from '../lib/ux/box';
+import { displayMessages, MessageDisplayData } from '../lib/ux/display';
 
 /**
  * Safely extracts content from different message types
