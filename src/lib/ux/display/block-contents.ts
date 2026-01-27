@@ -1,4 +1,5 @@
 import chalk from 'chalk';
+import { blockTypeTag } from '../constants';
 import { createBoxWithRows, stripAnsi, shouldUseFancyUx } from '../box';
 
 export interface BlockContentData {
@@ -6,6 +7,7 @@ export interface BlockContentData {
   description?: string;
   limit?: number;
   value: string;
+  agentCount?: number;
 }
 
 export function displayBlockContents(agentName: string, blocks: BlockContentData[], short: boolean): string {
@@ -16,9 +18,11 @@ export function displayBlockContents(agentName: string, blocks: BlockContentData
   const lines: string[] = [];
 
   for (const block of blocks) {
-    const meta = block.description
-      ? `${block.description} | limit: ${block.limit || 'none'}`
-      : `limit: ${block.limit || 'none'}`;
+    const parts = [block.description, `limit: ${block.limit || 'none'}`].filter(Boolean);
+    if (block.agentCount !== undefined) {
+      parts.push(blockTypeTag(block.agentCount));
+    }
+    const meta = parts.join(' | ');
 
     let value = block.value || '(empty)';
     if (short && value.length > 300) {
@@ -49,7 +53,8 @@ function displayBlockContentsPlain(agentName: string, blocks: BlockContentData[]
   lines.push('');
 
   for (const block of blocks) {
-    lines.push(`--- ${block.label} ---`);
+    const type = block.agentCount !== undefined ? ` [${blockTypeTag(block.agentCount, false)}]` : '';
+    lines.push(`--- ${block.label}${type} ---`);
     if (block.description) lines.push(`Description: ${block.description}`);
     lines.push(`Limit: ${block.limit || 'none'}`);
     lines.push('');

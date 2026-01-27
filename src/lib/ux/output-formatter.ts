@@ -95,12 +95,13 @@ export class OutputFormatter {
     return displayBlocks(data);
   }
 
-  static createBlockContentView(blocks: any[], agentName: string, short: boolean): string {
+  static createBlockContentView(blocks: any[], agentName: string, short: boolean, agentCounts?: Map<string, number>): string {
     const data: BlockContentData[] = blocks.map(block => ({
       label: block.label || block.name || 'Unknown',
       description: block.description,
       limit: block.limit,
       value: block.value || '',
+      agentCount: agentCounts?.get(block.id),
     }));
 
     return displayBlockContents(agentName, data, short);

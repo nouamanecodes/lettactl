@@ -1,5 +1,5 @@
 import chalk from 'chalk';
-import { purple, STATUS } from '../constants';
+import { purple, STATUS, blockTypeTag } from '../constants';
 import { BOX, createBoxWithRows, stripAnsi, truncate, formatDate, shouldUseFancyUx } from '../box';
 
 // ============================================================================
@@ -130,12 +130,14 @@ export function displayBlocks(blocks: BlockData[]): string {
   }
 
   const rows: string[] = [];
+  const hasAgentCounts = blocks.some(b => b.agentCount !== undefined);
 
   const maxNameLen = Math.max(...blocks.map(b => b.name.length), 4);
   const nameW = maxNameLen + 1;
   const maxIdLen = Math.max(...blocks.map(b => b.id.length), 2);
   const idW = maxIdLen + 1;
-  const baseWidth = 32;
+  const typeW = 9; // "orphaned" = 8 + padding
+  const baseWidth = hasAgentCounts ? 32 + typeW : 32;
   const width = baseWidth + nameW + idW;
 
   for (const block of blocks) {
@@ -144,23 +146,32 @@ export function displayBlocks(blocks: BlockData[]): string {
     const limit = (block.limit?.toString() || '-').padStart(6);
     const size = (block.size?.toString() || '-').padStart(6);
     const agents = block.agentCount !== undefined ? block.agentCount.toString().padStart(4) : '   -';
+    const type = blockTypeTag(block.agentCount);
 
-    const row = STATUS.ok + '  ' +
+    let row = STATUS.ok + '  ' +
       chalk.white(name.padEnd(nameW)) + '  ' +
       chalk.dim(id.padEnd(idW)) + '  ' +
       purple(limit) + '   ' +
       chalk.white(size) + '   ' +
       chalk.white(agents);
 
+    if (hasAgentCounts) {
+      row += '  ' + type;
+    }
+
     rows.push(row);
   }
 
-  const header = '   ' +
+  let header = '   ' +
     chalk.dim('NAME'.padEnd(nameW)) + '  ' +
     chalk.dim('ID'.padEnd(idW)) + '  ' +
     chalk.dim('LIMIT'.padStart(6)) + '   ' +
     chalk.dim('SIZE'.padStart(6)) + '   ' +
     chalk.dim('AGENTS');
+
+  if (hasAgentCounts) {
+    header += '  ' + chalk.dim('TYPE');
+  }
 
   const boxLines = createBoxWithRows(`Memory Blocks (${blocks.length})`, [header, ...rows], width);
   return boxLines.join('\n');
@@ -168,13 +179,15 @@ export function displayBlocks(blocks: BlockData[]): string {
 
 function displayBlocksPlain(blocks: BlockData[]): string {
   const lines: string[] = [];
+  const hasAgentCounts = blocks.some(b => b.agentCount !== undefined);
 
   const maxNameLen = Math.max(...blocks.map(b => b.name.length), 4);
   const nameW = maxNameLen + 1;
   const maxIdLen = Math.max(...blocks.map(b => b.id.length), 2);
   const idW = maxIdLen + 1;
 
-  const header = 'NAME'.padEnd(nameW) + '  ' + 'ID'.padEnd(idW) + '   LIMIT    SIZE  AGENTS';
+  let header = 'NAME'.padEnd(nameW) + '  ' + 'ID'.padEnd(idW) + '   LIMIT    SIZE  AGENTS';
+  if (hasAgentCounts) header += '  TYPE';
   lines.push(header);
   lines.push('-'.repeat(header.length));
 
@@ -184,8 +197,11 @@ function displayBlocksPlain(blocks: BlockData[]): string {
     const limit = (block.limit?.toString() || '-').padStart(6);
     const size = (block.size?.toString() || '-').padStart(6);
     const agents = block.agentCount !== undefined ? block.agentCount.toString().padStart(6) : '     -';
+    const type = blockTypeTag(block.agentCount, false);
 
-    lines.push(`${name}  ${id}   ${limit}   ${size}  ${agents}`);
+    let line = `${name}  ${id}   ${limit}   ${size}  ${agents}`;
+    if (hasAgentCounts) line += `  ${type}`;
+    lines.push(line);
   }
 
   return lines.join('\n');

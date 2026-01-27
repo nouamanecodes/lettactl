@@ -190,6 +190,7 @@ async function describeBlock(
       created: block.created_at,
       attachedAgents: attachedAgents.map((a: any) => ({ name: a.name, id: a.id })),
       valuePreview: block.value?.length > 500 ? block.value.substring(0, 500) + '...' : block.value,
+      agentCount: attachedAgents.length,
     };
 
     output(displayBlockDetails(displayData));

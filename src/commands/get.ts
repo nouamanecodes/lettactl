@@ -167,11 +167,9 @@ async function getBlocks(
       blockList = await client.listBlocks();
     }
 
-    // Always compute agent counts for block listing (unless agent-specific)
-    if (!agentId) {
-      spinner.text = 'Computing block usage...';
-      agentCounts = await computeAgentCounts(client, resolver, 'blocks', blockList.map((b: any) => b.id));
-    }
+    // Always compute agent counts for block type tagging
+    spinner.text = 'Computing block usage...';
+    agentCounts = await computeAgentCounts(client, resolver, 'blocks', blockList.map((b: any) => b.id));
 
     spinner.stop();
 
@@ -189,7 +187,7 @@ async function getBlocks(
 
     // Full content view when agent specified
     if (agentId && agentName) {
-      output(OutputFormatter.createBlockContentView(blockList, agentName, options?.short || false));
+      output(OutputFormatter.createBlockContentView(blockList, agentName, options?.short || false, agentCounts));
       return;
     }
 

@@ -1,5 +1,5 @@
 import chalk from 'chalk';
-import { purple, STATUS } from '../constants';
+import { purple, STATUS, getBlockType } from '../constants';
 import { BOX, BoxRow, createBox, createBoxWithRows, truncate, formatDate, shouldUseFancyUx } from '../box';
 
 // ============================================================================
@@ -31,6 +31,7 @@ export interface BlockDetailsData {
   created?: string;
   attachedAgents?: { name: string; id: string }[];
   valuePreview?: string;
+  agentCount?: number;
 }
 
 export interface ToolDetailsData {
@@ -261,6 +262,7 @@ export function displayBlockDetails(data: BlockDetailsData): string {
   const headerRows: BoxRow[] = [
     { key: 'ID', value: data.id },
     { key: 'Label', value: data.label },
+    { key: 'Type', value: data.agentCount !== undefined ? getBlockType(data.agentCount) : '-' },
     { key: 'Description', value: data.description || '-' },
     { key: 'Limit', value: `${data.limit || 'No limit'} characters` },
     { key: 'Current Size', value: `${data.currentSize || 0} characters` },
@@ -296,6 +298,7 @@ function displayBlockDetailsPlain(data: BlockDetailsData): string {
   lines.push('='.repeat(50));
   lines.push(`ID:            ${data.id}`);
   lines.push(`Label:         ${data.label || '-'}`);
+  lines.push(`Type:          ${data.agentCount !== undefined ? getBlockType(data.agentCount) : '-'}`);
   lines.push(`Description:   ${data.description || '-'}`);
   lines.push(`Limit:         ${data.limit || 'No limit'} characters`);
   lines.push(`Current Size:  ${data.currentSize || 0} characters`);

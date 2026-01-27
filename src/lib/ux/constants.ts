@@ -17,3 +17,21 @@ export const STATUS = {
   warn: chalk.yellow('●'),
   info: chalk.dim('○'),
 };
+
+// Block type classification based on agent count
+export type BlockType = 'shared' | 'unique' | 'orphaned';
+
+export function getBlockType(agentCount: number): BlockType {
+  if (agentCount === 0) return 'orphaned';
+  if (agentCount === 1) return 'unique';
+  return 'shared';
+}
+
+export function blockTypeTag(agentCount?: number, fancy: boolean = true): string {
+  if (agentCount === undefined) return '';
+  const type = getBlockType(agentCount);
+  if (!fancy) return type;
+  if (type === 'shared') return purple(type);
+  if (type === 'orphaned') return chalk.yellow(type);
+  return chalk.dim(type);
+}
