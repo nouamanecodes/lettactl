@@ -8,6 +8,9 @@ export {
   displayFiles, FileData,
 } from './resources';
 
+// Block content display (full values)
+export { displayBlockContents, BlockContentData } from './block-contents';
+
 // Detail/describe displays
 export {
   displayAgentDetails, AgentDetailsData,

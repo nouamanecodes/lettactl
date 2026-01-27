@@ -5,12 +5,14 @@ import { log, output } from '../logger';
 import {
   displayAgents,
   displayBlocks,
+  displayBlockContents,
   displayTools,
   displayFolders,
   displayMcpServers,
   displayFiles,
   AgentData,
   BlockData,
+  BlockContentData,
   ToolData,
   FolderData,
   McpServerData,
@@ -91,6 +93,17 @@ export class OutputFormatter {
     }));
 
     return displayBlocks(data);
+  }
+
+  static createBlockContentView(blocks: any[], agentName: string, short: boolean): string {
+    const data: BlockContentData[] = blocks.map(block => ({
+      label: block.label || block.name || 'Unknown',
+      description: block.description,
+      limit: block.limit,
+      value: block.value || '',
+    }));
+
+    return displayBlockContents(agentName, data, short);
   }
 
   /**

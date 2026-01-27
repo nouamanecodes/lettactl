@@ -116,6 +116,7 @@ program
   .option('-a, --agent <name>', 'filter by agent name (for blocks, tools, folders)')
   .option('--shared', 'show only resources attached to 2+ agents')
   .option('--orphaned', 'show only resources attached to 0 agents')
+  .option('--short', 'truncate block values to 300 characters (use with: get blocks <agent>)')
   .action(getCommand);
 
 // Describe command - detailed agent info

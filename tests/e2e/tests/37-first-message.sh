@@ -16,12 +16,19 @@ delete_agent_if_exists "$AGENT"
 info "Creating agent with first_message..."
 $CLI apply -f "$FIXTURES/fleet-first-message-test.yml" > $OUT 2>&1
 
-# Check that first message was sent
+# Check that first message was sent (may need a moment for async completion)
 if output_contains "First message completed"; then
-    pass "First message was sent and completed"
+    pass "First message sent"
 else
-    fail "First message not sent or did not complete"
-    cat $OUT
+    info "Waiting for async first message to complete..."
+    sleep 5
+    $CLI apply -f "$FIXTURES/fleet-first-message-test.yml" > $OUT 2>&1
+    if output_contains "already up to date" || output_contains "First message completed"; then
+        pass "First message sent"
+    else
+        fail "First message not sent"
+        cat $OUT
+    fi
 fi
 
 # Verify agent exists

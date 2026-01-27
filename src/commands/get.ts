@@ -15,9 +15,10 @@ interface GetOptions {
   agent?: string;
   shared?: boolean;
   orphaned?: boolean;
+  short?: boolean;
 }
 
-async function getCommandImpl(resource: string, _name?: string, options?: GetOptions, command?: any) {
+async function getCommandImpl(resource: string, name?: string, options?: GetOptions, command?: any) {
   validateResourceType(resource, SUPPORTED_RESOURCES);
 
   const client = new LettaClientWrapper();
@@ -37,6 +38,7 @@ async function getCommandImpl(resource: string, _name?: string, options?: GetOpt
 
   // If --agent flag is provided, resolve agent name to ID
   let agentId: string | undefined;
+  let agentName: string | undefined;
   if (options?.agent) {
     if (resource === 'agents') {
       log('Note: --agent flag is ignored for "get agents"');
@@ -45,11 +47,26 @@ async function getCommandImpl(resource: string, _name?: string, options?: GetOpt
       try {
         const { agent } = await resolver.findAgentByName(options.agent);
         agentId = agent.id;
+        agentName = agent.name;
         spinner.stop();
       } catch (error) {
         spinner.fail(`Agent "${options.agent}" not found`);
         throw error;
       }
+    }
+  }
+
+  // For `get blocks <agent>`, resolve the positional name as an agent
+  if (resource === 'blocks' && name && !agentId) {
+    const spinner = createSpinner(`Resolving agent ${name}...`, spinnerEnabled).start();
+    try {
+      const { agent } = await resolver.findAgentByName(name);
+      agentId = agent.id;
+      agentName = agent.name;
+      spinner.stop();
+    } catch (error) {
+      spinner.fail(`Agent "${name}" not found`);
+      throw error;
     }
   }
 
@@ -59,7 +76,7 @@ async function getCommandImpl(resource: string, _name?: string, options?: GetOpt
       await getAgents(resolver, client, options, spinnerEnabled);
       break;
     case 'blocks':
-      await getBlocks(client, resolver, options, spinnerEnabled, agentId);
+      await getBlocks(client, resolver, options, spinnerEnabled, agentId, agentName);
       break;
     case 'tools':
       await getTools(client, resolver, options, spinnerEnabled, agentId);
@@ -124,7 +141,8 @@ async function getBlocks(
   resolver: AgentResolver,
   options?: GetOptions,
   spinnerEnabled?: boolean,
-  agentId?: string
+  agentId?: string,
+  agentName?: string
 ) {
   const isWide = options?.output === 'wide';
   let label = 'Loading blocks...';
@@ -166,6 +184,12 @@ async function getBlocks(
       else if (options?.shared) output('No shared blocks found (attached to 2+ agents)');
       else if (options?.orphaned) output('No orphaned blocks found (attached to 0 agents)');
       else output('No blocks found');
+      return;
+    }
+
+    // Full content view when agent specified
+    if (agentId && agentName) {
+      output(OutputFormatter.createBlockContentView(blockList, agentName, options?.short || false));
       return;
     }
 

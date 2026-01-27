@@ -1,0 +1,89 @@
+agents:
+  - name: e2e-41-block-contents
+    description: "Test agent for full block content display"
+    embedding: openai/text-embedding-3-small
+    llm_config:
+      model: openai/gpt-4o-mini
+      context_window: 16384
+    system_prompt:
+      value: "You are a helpful assistant."
+    memory_blocks:
+      - name: long_knowledge
+        description: "A large knowledge base block"
+        limit: 10000
+        value: |
+          MARKER_START_BLOCK_CONTENT
+
+          CHAPTER 1: FOUNDATIONS OF DISTRIBUTED AGENT SYSTEMS
+
+          The architecture of modern distributed agent systems relies on several foundational principles that govern how autonomous agents communicate, coordinate, and collaborate within a shared environment. At its core, a distributed agent system consists of multiple independent software agents, each capable of making decisions and taking actions based on their local state, their memory, and messages received from other agents or from external systems.
+
+          Memory management is a critical component of any agent system. Each agent maintains a set of memory blocks that store persistent information across conversations. These blocks serve different purposes: some hold the agent's core knowledge and personality, others track conversation context, and still others maintain structured data that the agent can reference when processing new inputs.
+
+          The concept of shared blocks allows multiple agents to access the same piece of information. When one agent updates a shared block, all other agents that reference that block will see the updated content in their next interaction. This creates a powerful mechanism for inter-agent communication and knowledge sharing without requiring direct message passing between agents.
+
+          CHAPTER 2: MEMORY BLOCK ARCHITECTURE
+
+          Memory blocks in the Letta platform are characterized by several key properties. Each block has a unique label that serves as its identifier within an agent's memory space. The label must be unique per agent, though different agents can have blocks with the same label that contain different content.
+
+          Each block also has a character limit that defines the maximum amount of text it can store. This limit exists because the block content is injected into the agent's context window during each interaction, and context windows have finite capacity. Setting appropriate limits ensures that the agent's context is not overwhelmed by a single large block.
+
+          The block value contains the actual text content. This can be any UTF-8 encoded string, including multi-line text, structured data like JSON or YAML, code snippets, or natural language prose. The system preserves all formatting, whitespace, and special characters exactly as they are stored.
+
+          Block descriptions provide metadata about the block's purpose. While the description is not included in the agent's context window, it serves as documentation for system administrators and helps tools like lettactl display meaningful information about each block.
+
+          The mutable flag indicates whether an agent is allowed to modify the block's content during a conversation. Immutable blocks are useful for storing reference information that should remain constant, such as API documentation, company policies, or factual knowledge bases.
+
+          CHAPTER 3: CONTENT MANAGEMENT STRATEGIES
+
+          Effective content management in agent memory blocks requires careful consideration of several factors. First, the content should be structured in a way that is easy for the language model to parse and reference. Using clear section headers, bullet points, and consistent formatting helps the agent locate specific information quickly.
+
+          Second, the content should be kept up to date. Stale information in memory blocks can lead to incorrect agent responses. Tools like lettactl provide mechanisms for detecting content changes through file hashes and automatically updating blocks when the source content changes.
+
+          Third, the total size of all memory blocks attached to an agent should be considered in relation to the agent's context window size. If the combined block content exceeds a significant portion of the context window, there may not be enough room for the conversation history and the agent's reasoning process.
+
+          CHAPTER 4: DISPLAY AND INSPECTION TOOLS
+
+          The lettactl CLI provides several commands for inspecting memory block contents. The basic get blocks command shows a tabular overview of all blocks in the system, including their labels, character limits, current sizes, and the number of agents they are attached to.
+
+          For more detailed inspection, the get blocks <agent> command shows the full content of every block attached to a specific agent. This is particularly useful for debugging agent behavior, as it reveals exactly what information the agent has access to in its memory.
+
+          The --short flag provides a truncated view that shows only the first 300 characters of each block value. This is useful for getting a quick overview without scrolling through potentially thousands of characters of content.
+
+          CHAPTER 5: INTEGRATION PATTERNS
+
+          Memory blocks integrate with several other components of the Letta platform. Folders provide file-based knowledge that complements the structured information in memory blocks. Tools give agents the ability to take actions and retrieve information from external systems. And the system prompt defines the agent's core behavior and personality.
+
+          When designing an agent's configuration, it is important to consider how these components work together. For example, an agent that needs to reference a large body of documentation might use a folder for the full documents and a memory block for a summary or index of the most important points.
+
+          CHAPTER 6: TESTING AND VALIDATION
+
+          Testing memory block functionality requires verifying several aspects of the system. Content integrity ensures that the stored text matches what was configured. Display correctness ensures that inspection tools show the content accurately. Update detection ensures that changes to block content are properly detected and applied.
+
+          This particular block is designed as a test fixture for the block content display feature. It contains well over 5000 characters of text spread across multiple chapters, with marker strings placed at strategic locations to verify that the full content is being displayed correctly by the get blocks command.
+
+          MARKER_MIDDLE_OF_CONTENT
+
+          CHAPTER 7: OPERATIONAL BEST PRACTICES
+
+          When operating a fleet of agents with memory blocks, several best practices should be followed. Monitor block usage to ensure that blocks are not approaching their character limits unexpectedly. Use the cleanup command to identify and remove orphaned blocks that are no longer attached to any agent. Regularly review block contents to ensure they remain accurate and relevant.
+
+          Version control for block content is also important. By storing block values in files and referencing them from the fleet configuration, changes can be tracked through the normal source control workflow. The lettactl tool supports file-based block values through the from_file directive, which reads the content from a specified file path.
+
+          CHAPTER 8: ADVANCED TOPICS
+
+          Advanced use cases for memory blocks include dynamic content injection, where the block value is updated programmatically based on external events or data sources. This can be accomplished through the Letta API or through lettactl's apply command with updated configuration files.
+
+          Another advanced pattern is block templating, where a base block value is defined with placeholder variables that are filled in at deployment time. This allows the same fleet configuration to be used across different environments with environment-specific values.
+
+          Cross-agent block sharing enables sophisticated multi-agent workflows where agents can communicate indirectly through shared memory. For example, a research agent might update a shared block with new findings, which are then automatically available to a reporting agent in its next conversation.
+
+          CHAPTER 9: CONCLUSION AND VERIFICATION
+
+          This knowledge base block has been designed to exceed 5000 characters of content across nine chapters. The markers placed throughout the text serve as checkpoints for automated testing. The MARKER_START_BLOCK_CONTENT at the beginning, MARKER_MIDDLE_OF_CONTENT in chapter six, and this final marker MARKER_END_BLOCK_CONTENT at the end allow the test suite to verify that the complete block content is being displayed without truncation.
+
+          MARKER_END_BLOCK_CONTENT
+      - name: short_note
+        description: "A small note block"
+        limit: 500
+        value: "This is a short note for contrast."
