@@ -289,22 +289,24 @@ export function displayBlocks(blocks: BlockData[]): string {
 
   const rows: string[] = [];
 
-  // No cap on name length - always show full names
+  // No cap - always show full names and IDs
   const maxNameLen = Math.max(...blocks.map(b => b.name.length), 4);
   const nameW = maxNameLen + 1;
-  const baseWidth = 58;  // Width without name column
-  const width = baseWidth + nameW;
+  const maxIdLen = Math.max(...blocks.map(b => b.id.length), 2);
+  const idW = maxIdLen + 1;
+  const baseWidth = 32;  // Width without name/id columns
+  const width = baseWidth + nameW + idW;
 
   for (const block of blocks) {
-    const name = block.name;  // Full name, no truncation
-    const id = truncate(block.id, 26);
+    const name = block.name;
+    const id = block.id;
     const limit = (block.limit?.toString() || '-').padStart(6);
     const size = (block.size?.toString() || '-').padStart(6);
     const agents = block.agentCount !== undefined ? block.agentCount.toString().padStart(4) : '   -';
 
     const row = STATUS.ok + '  ' +
       chalk.white(name.padEnd(nameW)) + '  ' +
-      chalk.dim(id.padEnd(28)) + '  ' +
+      chalk.dim(id.padEnd(idW)) + '  ' +
       purple(limit) + '   ' +
       chalk.white(size) + '   ' +
       chalk.white(agents);
@@ -314,7 +316,7 @@ export function displayBlocks(blocks: BlockData[]): string {
 
   const header = '   ' +
     chalk.dim('NAME'.padEnd(nameW)) + '  ' +
-    chalk.dim('ID'.padEnd(28)) + '  ' +
+    chalk.dim('ID'.padEnd(idW)) + '  ' +
     chalk.dim('LIMIT'.padStart(6)) + '   ' +
     chalk.dim('SIZE'.padStart(6)) + '   ' +
     chalk.dim('AGENTS');
@@ -326,22 +328,23 @@ export function displayBlocks(blocks: BlockData[]): string {
 function displayBlocksPlain(blocks: BlockData[]): string {
   const lines: string[] = [];
 
-  // No cap on name length - always show full names
   const maxNameLen = Math.max(...blocks.map(b => b.name.length), 4);
   const nameW = maxNameLen + 1;
+  const maxIdLen = Math.max(...blocks.map(b => b.id.length), 2);
+  const idW = maxIdLen + 1;
 
-  const header = 'NAME'.padEnd(nameW) + '  ID'.padEnd(30) + '   LIMIT    SIZE  AGENTS';
+  const header = 'NAME'.padEnd(nameW) + '  ' + 'ID'.padEnd(idW) + '   LIMIT    SIZE  AGENTS';
   lines.push(header);
   lines.push('-'.repeat(header.length));
 
   for (const block of blocks) {
-    const name = block.name.padEnd(nameW);  // Full name, no truncation
-    const id = truncate(block.id, 26).padEnd(28);
+    const name = block.name.padEnd(nameW);
+    const id = block.id.padEnd(idW);
     const limit = (block.limit?.toString() || '-').padStart(6);
     const size = (block.size?.toString() || '-').padStart(6);
     const agents = block.agentCount !== undefined ? block.agentCount.toString().padStart(6) : '     -';
 
-    lines.push(`${name}  ${id}  ${limit}   ${size}  ${agents}`);
+    lines.push(`${name}  ${id}   ${limit}   ${size}  ${agents}`);
   }
 
   return lines.join('\n');
@@ -367,20 +370,22 @@ export function displayTools(tools: ToolData[]): string {
 
   const rows: string[] = [];
 
-  // No cap on name length - always show full names
+  // No cap - always show full names and IDs
   const maxNameLen = Math.max(...tools.map(t => t.name.length), 4);
   const nameW = maxNameLen + 1;
-  const baseWidth = 58;  // Width without name column
-  const width = baseWidth + nameW;
+  const maxIdLen = Math.max(...tools.map(t => t.id.length), 2);
+  const idW = maxIdLen + 1;
+  const baseWidth = 18;  // Width without name/id columns
+  const width = baseWidth + nameW + idW;
 
   for (const tool of tools) {
-    const name = tool.name;  // Full name, no truncation
-    const id = truncate(tool.id, 38);
+    const name = tool.name;
+    const id = tool.id;
     const agents = tool.agentCount !== undefined ? tool.agentCount.toString().padStart(6) : '     -';
 
     const row = STATUS.ok + '  ' +
       chalk.white(name.padEnd(nameW)) + '  ' +
-      chalk.dim(id.padEnd(40)) + '  ' +
+      chalk.dim(id.padEnd(idW)) + '  ' +
       chalk.white(agents);
 
     rows.push(row);
@@ -388,7 +393,7 @@ export function displayTools(tools: ToolData[]): string {
 
   const header = '   ' +
     chalk.dim('NAME'.padEnd(nameW)) + '  ' +
-    chalk.dim('ID'.padEnd(40)) + '  ' +
+    chalk.dim('ID'.padEnd(idW)) + '  ' +
     chalk.dim('AGENTS');
 
   const boxLines = createBoxWithRows(`Tools (${tools.length})`, [header, ...rows], width);
@@ -398,17 +403,18 @@ export function displayTools(tools: ToolData[]): string {
 function displayToolsPlain(tools: ToolData[]): string {
   const lines: string[] = [];
 
-  // No cap on name length - always show full names
   const maxNameLen = Math.max(...tools.map(t => t.name.length), 4);
   const nameW = maxNameLen + 1;
+  const maxIdLen = Math.max(...tools.map(t => t.id.length), 2);
+  const idW = maxIdLen + 1;
 
-  const header = 'NAME'.padEnd(nameW) + '  ID'.padEnd(42) + '  AGENTS';
+  const header = 'NAME'.padEnd(nameW) + '  ' + 'ID'.padEnd(idW) + '  AGENTS';
   lines.push(header);
   lines.push('-'.repeat(header.length));
 
   for (const tool of tools) {
-    const name = tool.name.padEnd(nameW);  // Full name, no truncation
-    const id = truncate(tool.id, 38).padEnd(40);
+    const name = tool.name.padEnd(nameW);
+    const id = tool.id.padEnd(idW);
     const agents = tool.agentCount !== undefined ? tool.agentCount.toString().padStart(6) : '     -';
 
     lines.push(`${name}  ${id}  ${agents}`);
@@ -438,21 +444,23 @@ export function displayFolders(folders: FolderData[]): string {
 
   const rows: string[] = [];
 
-  // No cap on name length - always show full names
+  // No cap - always show full names and IDs
   const maxNameLen = Math.max(...folders.map(f => f.name.length), 4);
   const nameW = maxNameLen + 1;
-  const baseWidth = 66;  // Width without name column
-  const width = baseWidth + nameW;
+  const maxIdLen = Math.max(...folders.map(f => f.id.length), 2);
+  const idW = maxIdLen + 1;
+  const baseWidth = 26;  // Width without name/id columns
+  const width = baseWidth + nameW + idW;
 
   for (const folder of folders) {
-    const name = folder.name;  // Full name, no truncation
-    const id = truncate(folder.id, 38);
+    const name = folder.name;
+    const id = folder.id;
     const files = folder.fileCount !== undefined ? folder.fileCount.toString().padStart(5) : '    -';
     const agents = folder.agentCount !== undefined ? folder.agentCount.toString().padStart(6) : '     -';
 
     const row = STATUS.ok + '  ' +
       chalk.white(name.padEnd(nameW)) + '  ' +
-      chalk.dim(id.padEnd(40)) + '  ' +
+      chalk.dim(id.padEnd(idW)) + '  ' +
       chalk.white(files) + '  ' +
       chalk.white(agents);
 
@@ -461,7 +469,7 @@ export function displayFolders(folders: FolderData[]): string {
 
   const header = '   ' +
     chalk.dim('NAME'.padEnd(nameW)) + '  ' +
-    chalk.dim('ID'.padEnd(40)) + '  ' +
+    chalk.dim('ID'.padEnd(idW)) + '  ' +
     chalk.dim('FILES') + '  ' +
     chalk.dim('AGENTS');
 
@@ -472,17 +480,18 @@ export function displayFolders(folders: FolderData[]): string {
 function displayFoldersPlain(folders: FolderData[]): string {
   const lines: string[] = [];
 
-  // No cap on name length - always show full names
   const maxNameLen = Math.max(...folders.map(f => f.name.length), 4);
   const nameW = maxNameLen + 1;
+  const maxIdLen = Math.max(...folders.map(f => f.id.length), 2);
+  const idW = maxIdLen + 1;
 
-  const header = 'NAME'.padEnd(nameW) + '  ID'.padEnd(42) + '  FILES  AGENTS';
+  const header = 'NAME'.padEnd(nameW) + '  ' + 'ID'.padEnd(idW) + '  FILES  AGENTS';
   lines.push(header);
   lines.push('-'.repeat(header.length));
 
   for (const folder of folders) {
-    const name = folder.name.padEnd(nameW);  // Full name, no truncation
-    const id = truncate(folder.id, 38).padEnd(40);
+    const name = folder.name.padEnd(nameW);
+    const id = folder.id.padEnd(idW);
     const files = folder.fileCount !== undefined ? folder.fileCount.toString().padStart(5) : '    -';
     const agents = folder.agentCount !== undefined ? folder.agentCount.toString().padStart(6) : '     -';
 
@@ -513,21 +522,23 @@ export function displayMcpServers(servers: McpServerData[]): string {
 
   const rows: string[] = [];
 
-  // No cap on name length - always show full names
+  // No cap - always show full names and IDs
   const maxNameLen = Math.max(...servers.map(s => s.name.length), 4);
   const nameW = maxNameLen + 1;
-  const baseWidth = 76;  // Width without name column
-  const width = baseWidth + nameW;
+  const maxIdLen = Math.max(...servers.map(s => s.id.length), 2);
+  const idW = maxIdLen + 1;
+  const baseWidth = 30;  // Width without name/id columns
+  const width = baseWidth + nameW + idW;
 
   for (const server of servers) {
-    const name = server.name;  // Full name, no truncation
-    const id = truncate(server.id, 28);
+    const name = server.name;
+    const id = server.id;
     const type = (server.type || '-').padEnd(10);
-    const url = truncate(server.url || '-', 24);
+    const url = server.url || '-';
 
     const row = STATUS.ok + '  ' +
       chalk.white(name.padEnd(nameW)) + '  ' +
-      chalk.dim(id.padEnd(30)) + '  ' +
+      chalk.dim(id.padEnd(idW)) + '  ' +
       purple(type) + '  ' +
       chalk.dim(url);
 
@@ -536,7 +547,7 @@ export function displayMcpServers(servers: McpServerData[]): string {
 
   const header = '   ' +
     chalk.dim('NAME'.padEnd(nameW)) + '  ' +
-    chalk.dim('ID'.padEnd(30)) + '  ' +
+    chalk.dim('ID'.padEnd(idW)) + '  ' +
     chalk.dim('TYPE'.padEnd(10)) + '  ' +
     chalk.dim('URL/COMMAND');
 
@@ -547,19 +558,20 @@ export function displayMcpServers(servers: McpServerData[]): string {
 function displayMcpServersPlain(servers: McpServerData[]): string {
   const lines: string[] = [];
 
-  // No cap on name length - always show full names
   const maxNameLen = Math.max(...servers.map(s => s.name.length), 4);
   const nameW = maxNameLen + 1;
+  const maxIdLen = Math.max(...servers.map(s => s.id.length), 2);
+  const idW = maxIdLen + 1;
 
-  const header = 'NAME'.padEnd(nameW) + '  ID'.padEnd(32) + '  TYPE'.padEnd(12) + '  URL/COMMAND';
+  const header = 'NAME'.padEnd(nameW) + '  ' + 'ID'.padEnd(idW) + '  ' + 'TYPE'.padEnd(10) + '  URL/COMMAND';
   lines.push(header);
   lines.push('-'.repeat(header.length));
 
   for (const server of servers) {
-    const name = server.name.padEnd(nameW);  // Full name, no truncation
-    const id = truncate(server.id, 28).padEnd(30);
+    const name = server.name.padEnd(nameW);
+    const id = server.id.padEnd(idW);
     const type = (server.type || '-').padEnd(10);
-    const url = truncate(server.url || '-', 24);
+    const url = server.url || '-';
 
     lines.push(`${name}  ${id}  ${type}  ${url}`);
   }
@@ -620,24 +632,30 @@ export function displayFiles(files: FileData[], wide: boolean = false): string {
   const deduped = deduplicateFiles(files);
   const rows: string[] = [];
 
-  // No cap on name length - always show full names
+  // No cap - always show full names and folder names
   const maxNameLen = Math.max(...files.map(f => f.name.length), 4);
   const nameW = maxNameLen + 1;
-  const folderSummaryW = 32;
-  const width = nameW + folderSummaryW + 30;
 
+  // Build folder summaries first to calculate max width
+  const folderSummaries: string[] = [];
   for (const [, { file, allFolders }] of deduped) {
-    const name = file.name;  // Full name, no truncation
     const folderCount = allFolders.length;
-    let folderSummary: string;
     if (folderCount === 1) {
-      folderSummary = truncate(file.folderName, folderSummaryW - 1);
+      folderSummaries.push(file.folderName);
     } else {
       const extra = folderCount - 1;
-      const maxFirstLen = folderSummaryW - `, +${extra} more`.length - 1;
-      folderSummary = truncate(file.folderName, maxFirstLen) + `, +${extra} more`;
+      folderSummaries.push(`${file.folderName}, +${extra} more`);
     }
-    const count = folderCount.toString().padStart(5);
+  }
+  const maxFolderSummaryLen = Math.max(...folderSummaries.map(s => s.length), 7);
+  const folderSummaryW = maxFolderSummaryLen + 1;
+  const width = nameW + folderSummaryW + 22;
+
+  let idx = 0;
+  for (const [, { file, allFolders }] of deduped) {
+    const name = file.name;
+    const folderSummary = folderSummaries[idx++];
+    const count = allFolders.length.toString().padStart(5);
     const agents = file.agentCount !== undefined ? file.agentCount.toString().padStart(6) : '     -';
 
     const row = STATUS.ok + ' ' +
@@ -666,22 +684,25 @@ export function displayFiles(files: FileData[], wide: boolean = false): string {
 function displayFilesWide(files: FileData[]): string {
   const rows: string[] = [];
 
-  // Full filename in wide view - no cap
+  // No cap - always show full names, folders, and IDs
   const maxNameLen = Math.max(...files.map(f => f.name.length), 8);
   const nameW = maxNameLen + 1;
-  const folderW = 24;
-  const width = nameW + folderW + 44;
+  const maxFolderLen = Math.max(...files.map(f => f.folderName.length), 6);
+  const folderW = maxFolderLen + 1;
+  const maxIdLen = Math.max(...files.map(f => f.id.length), 2);
+  const idW = maxIdLen + 1;
+  const width = nameW + folderW + idW + 16;
 
   for (const file of files) {
-    const name = file.name;  // Full name, no truncation
-    const folder = truncate(file.folderName, folderW - 1);
-    const id = truncate(file.id, 24);
+    const name = file.name;
+    const folder = file.folderName;
+    const id = file.id;
     const agents = file.agentCount !== undefined ? file.agentCount.toString().padStart(6) : '     -';
 
     const row = STATUS.ok + ' ' +
       chalk.white(name.padEnd(nameW)) + ' ' +
       purple(folder.padEnd(folderW)) + ' ' +
-      chalk.dim(id.padEnd(26)) + ' ' +
+      chalk.dim(id.padEnd(idW)) + ' ' +
       chalk.white(agents);
 
     rows.push(row);
@@ -690,7 +711,7 @@ function displayFilesWide(files: FileData[]): string {
   const header = '  ' +
     chalk.dim('NAME'.padEnd(nameW)) + ' ' +
     chalk.dim('FOLDER'.padEnd(folderW)) + ' ' +
-    chalk.dim('ID'.padEnd(26)) + ' ' +
+    chalk.dim('ID'.padEnd(idW)) + ' ' +
     chalk.dim('AGENTS');
 
   const boxLines = createBoxWithRows(`Files (${files.length})`, [header, ...rows], width);
@@ -706,27 +727,32 @@ function displayFilesPlain(files: FileData[], wide: boolean = false): string {
   const deduped = deduplicateFiles(files);
   const lines: string[] = [];
 
-  // No cap on name length - always show full names
   const maxNameLen = Math.max(...files.map(f => f.name.length), 4);
   const nameW = maxNameLen + 1;
-  const folderSummaryW = 32;
 
-  const header = 'NAME'.padEnd(nameW) + ' FOLDERS'.padEnd(folderSummaryW) + ' COUNT  AGENTS';
+  // Build folder summaries first to calculate max width
+  const folderSummaries: string[] = [];
+  for (const [, { file, allFolders }] of deduped) {
+    const folderCount = allFolders.length;
+    if (folderCount === 1) {
+      folderSummaries.push(file.folderName);
+    } else {
+      const extra = folderCount - 1;
+      folderSummaries.push(`${file.folderName}, +${extra} more`);
+    }
+  }
+  const maxFolderSummaryLen = Math.max(...folderSummaries.map(s => s.length), 7);
+  const folderSummaryW = maxFolderSummaryLen + 1;
+
+  const header = 'NAME'.padEnd(nameW) + ' ' + 'FOLDERS'.padEnd(folderSummaryW) + ' COUNT  AGENTS';
   lines.push(header);
   lines.push('-'.repeat(header.length));
 
+  let idx = 0;
   for (const [, { file, allFolders }] of deduped) {
-    const name = file.name.padEnd(nameW);  // Full name, no truncation
-    const folderCount = allFolders.length;
-    let folderSummary: string;
-    if (folderCount === 1) {
-      folderSummary = truncate(file.folderName, folderSummaryW - 1);
-    } else {
-      const extra = folderCount - 1;
-      const maxFirstLen = folderSummaryW - `, +${extra} more`.length - 1;
-      folderSummary = truncate(file.folderName, maxFirstLen) + `, +${extra} more`;
-    }
-    const count = folderCount.toString().padStart(5);
+    const name = file.name.padEnd(nameW);
+    const folderSummary = folderSummaries[idx++];
+    const count = allFolders.length.toString().padStart(5);
     const agents = file.agentCount !== undefined ? file.agentCount.toString().padStart(6) : '     -';
 
     lines.push(`${name} ${folderSummary.padEnd(folderSummaryW)} ${count}  ${agents}`);
@@ -738,19 +764,21 @@ function displayFilesPlain(files: FileData[], wide: boolean = false): string {
 function displayFilesPlainWide(files: FileData[]): string {
   const lines: string[] = [];
 
-  // Full filename in wide view - no cap
   const maxNameLen = Math.max(...files.map(f => f.name.length), 8);
   const nameW = maxNameLen + 1;
-  const folderW = 24;
+  const maxFolderLen = Math.max(...files.map(f => f.folderName.length), 6);
+  const folderW = maxFolderLen + 1;
+  const maxIdLen = Math.max(...files.map(f => f.id.length), 2);
+  const idW = maxIdLen + 1;
 
-  const header = 'NAME'.padEnd(nameW) + ' FOLDER'.padEnd(folderW) + ' ID'.padEnd(28) + ' AGENTS';
+  const header = 'NAME'.padEnd(nameW) + ' ' + 'FOLDER'.padEnd(folderW) + ' ' + 'ID'.padEnd(idW) + ' AGENTS';
   lines.push(header);
   lines.push('-'.repeat(header.length));
 
   for (const file of files) {
-    const name = file.name.padEnd(nameW);  // Full name, no truncation
-    const folder = truncate(file.folderName, folderW - 1).padEnd(folderW);
-    const id = truncate(file.id, 24).padEnd(26);
+    const name = file.name.padEnd(nameW);
+    const folder = file.folderName.padEnd(folderW);
+    const id = file.id.padEnd(idW);
     const agents = file.agentCount !== undefined ? file.agentCount.toString().padStart(6) : '     -';
 
     lines.push(`${name} ${folder} ${id} ${agents}`);
