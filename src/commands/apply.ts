@@ -12,6 +12,7 @@ import { formatLettaError } from '../lib/error-handler';
 import { computeDryRunDiffs, displayDryRunResults } from '../lib/dry-run';
 import { log, warn, output, isQuietMode } from '../lib/logger';
 import { FILE_SEARCH_TOOLS } from '../lib/builtin-tools';
+import { displayApplySummary } from '../lib/ux/display';
 
 export async function applyCommand(options: { file: string; agent?: string; match?: string; dryRun?: boolean; force?: boolean; root?: string }, command: any) {
   // Quiet mode overrides verbose
@@ -284,24 +285,14 @@ export async function applyCommand(options: { file: string; agent?: string; matc
       }
     }
 
-    // Display summary (use output() so it shows even in quiet mode)
-    const total = succeeded.length + failed.length + skipped.length;
+    // Display summary
+    const summaryData = { succeeded, failed, unchanged: skipped };
     if (failed.length > 0) {
       output('');
-      output(`Apply completed with errors:`);
-      output(`  Succeeded: ${succeeded.length}/${total} agents`);
-      output(`  Failed: ${failed.length}/${total} agents`);
-      if (skipped.length > 0) output(`  Unchanged: ${skipped.length}/${total} agents`);
-      output('');
-      output('Failures:');
-      for (const f of failed) {
-        output(`  - ${f.name}: ${f.err}`);
-      }
+      output(displayApplySummary(summaryData));
       throw new Error(`${failed.length} agent(s) failed to apply`);
-    } else if (succeeded.length > 0) {
-      log(`Apply completed: ${succeeded.length} succeeded, ${skipped.length} unchanged`);
     } else {
-      log(`Apply completed: all ${skipped.length} agents already up to date`);
+      log(displayApplySummary(summaryData));
     }
 
   } catch (err: any) {
