@@ -419,5 +419,6 @@ async function deleteMcpServer(name: string, options?: { force?: boolean }, comm
   }
 }
 
+export { deleteAgentWithCleanup };
 export default withErrorHandling('Delete command', deleteCommandImpl);
 export const deleteAllCommand = withErrorHandling('Delete all command', deleteAllCommandImpl);
