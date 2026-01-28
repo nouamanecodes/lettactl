@@ -7,10 +7,10 @@ import getCommand from './commands/get';
 import deleteCommand, { deleteAllCommand } from './commands/delete';
 import { cleanupCommand } from './commands/cleanup';
 import describeCommand from './commands/describe';
-import updateCommand from './commands/update';
-import exportCommand from './commands/export';
-import importCommand from './commands/import';
-import createCommand from './commands/create';
+import { updateCommand } from './commands/update';
+import { exportCommand } from './commands/export';
+import { importCommand } from './commands/import';
+import { createCommand } from './commands/create';
 import { 
   listMessagesCommand, 
   sendMessageCommand, 

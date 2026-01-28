@@ -1,0 +1,1 @@
+export { filesCommand } from './files';

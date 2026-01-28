@@ -1,0 +1,1 @@
+export { completionCommand } from './completion';
