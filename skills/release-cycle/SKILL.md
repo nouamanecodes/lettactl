@@ -17,35 +17,65 @@ description: Use when releasing features - covers issues, branches, tests, commi
 
 ## E2E Tests
 
-Location: `tests/e2e/tests/XX-name.sh`
+Two types: **CLI tests** (bash) and **SDK tests** (Node.js). Both live in `tests/e2e/tests/`.
 
 ```bash
-# Run single test
-./tests/e2e/run-single.sh tests/XX-name.sh
+# Run single test (auto-detects .sh or .js)
+./tests/e2e/run-single.sh XX-test-name
 
-# Run all tests
+# Run all CLI tests
 ./tests/e2e/script.sh
 ```
 
-Test structure (before/after pattern):
+### CLI Tests (`.sh`)
+
+Location: `tests/e2e/tests/XX-name.sh`
+
 ```bash
 #!/bin/bash
 set -e
 source "$(dirname "$0")/../lib/common.sh"
+AGENT="e2e-XX-name"
+section "Test: Feature Name"
+preflight_check
+mkdir -p "$LOG_DIR"
 
-# Setup - create agent WITHOUT feature
-lettactl apply -f fixtures/before.yaml
-# Verify before state
-lettactl describe agent test-agent -o json | jq '.feature' | grep -q "null"
+delete_agent_if_exists "$AGENT"
+$CLI apply -f "$FIXTURES/fleet.yml" --root "$FIXTURES" --agent "$AGENT" > $OUT 2>&1
+agent_exists "$AGENT" && pass "Agent created" || fail "Agent not created"
 
-# Apply - create agent WITH feature
-lettactl apply -f fixtures/after.yaml
-# Verify after state
-lettactl describe agent test-agent -o json | jq '.feature' | grep -q "expected"
-
-# Cleanup
-lettactl delete agent test-agent -y
+delete_agent_if_exists "$AGENT"
+print_summary
 ```
+
+### SDK Tests (`.js`)
+
+Location: `tests/e2e/tests/XX-sdk-name.js`
+
+Helpers: `tests/e2e/lib/common.js` (pass, fail, info, section, printSummary, preflightCheck)
+
+```javascript
+#!/usr/bin/env node
+const path = require('path');
+const { pass, fail, info, section, printSummary, preflightCheck } = require('../lib/common');
+const { LettaCtl } = require(path.join(__dirname, '..', '..', '..', 'dist', 'sdk'));
+
+async function run() {
+  section('Test: SDK Feature Name');
+  preflightCheck();
+
+  const ctl = new LettaCtl({ root: tmpDir });
+  await ctl.deployFleet(config);
+  // assert server state + file state
+  pass('Feature works');
+
+  printSummary();
+}
+run().catch(err => { console.error('FATAL:', err); process.exit(1); });
+```
+
+Use SDK tests for features that modify the programmatic API (`src/sdk.ts`).
+Use CLI tests for features that modify commands or UX.
 
 ## README Updates
 
@@ -65,7 +95,7 @@ Skip README update for:
 # Run unit tests before committing
 pnpm test
 
-# Run single e2e test if applicable
+# Run single e2e test if applicable (works for both .sh and .js tests)
 LETTA_BASE_URL=http://localhost:8283 ./tests/e2e/run-single.sh XX-test-name
 ```
 
@@ -150,8 +180,8 @@ Format: `- [x] Feature description (#issue-number)`
 | Step | Command |
 |------|---------|
 | New branch | `git checkout -b feat/issue-name` |
-| Run single test | `./tests/e2e/run-single.sh tests/XX-name.sh` |
-| Run all tests | `./tests/e2e/script.sh` |
+| Run single test | `./tests/e2e/run-single.sh XX-test-name` |
+| Run all CLI tests | `./tests/e2e/script.sh` |
 | Create PR | `gh pr create --fill` |
 | Merge PR | `gh pr merge --squash --delete-branch --admin` |
 | Tag release | `git tag vX.X.X && git push --tags` |

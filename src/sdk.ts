@@ -3,6 +3,9 @@ import { SupabaseStorageBackend } from './lib/storage-backend';
 import { FleetConfig, AgentConfig } from './types/fleet-config';
 import { FleetConfigValidator } from './lib/config-validators';
 import { applyCommand } from './commands/apply';
+import { deleteAgentWithCleanup } from './commands/delete';
+import { LettaClientWrapper } from './lib/letta-client';
+import { AgentResolver } from './lib/agent-resolver';
 import * as yaml from 'js-yaml';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -14,10 +17,12 @@ export interface LettaCtlOptions {
   supabaseUrl?: string;
   supabaseAnonKey?: string;
   supabaseServiceRoleKey?: string;
+  root?: string;
 }
 
 export class LettaCtl {
   private supabaseBackend?: SupabaseStorageBackend;
+  private root: string;
 
   constructor(options: LettaCtlOptions = {}) {
     if (options.lettaBaseUrl) process.env.LETTA_BASE_URL = options.lettaBaseUrl;
@@ -26,10 +31,33 @@ export class LettaCtl {
     if (options.supabaseAnonKey) process.env.SUPABASE_ANON_KEY = options.supabaseAnonKey;
     if (options.supabaseServiceRoleKey) process.env.SUPABASE_SERVICE_ROLE_KEY = options.supabaseServiceRoleKey;
 
+    this.root = options.root || process.cwd();
+
     const hasSupabaseCredentials = options.supabaseUrl &&
       (options.supabaseAnonKey || options.supabaseServiceRoleKey);
     if (hasSupabaseCredentials) {
       this.supabaseBackend = new SupabaseStorageBackend();
+    }
+  }
+
+  private get fleetFilePath(): string {
+    return path.join(this.root, '.lettactl', 'fleet.yaml');
+  }
+
+  private writeFleetFile(config: FleetConfig): void {
+    const dir = path.dirname(this.fleetFilePath);
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(this.fleetFilePath, yaml.dump(config, { lineWidth: -1, noRefs: true }));
+  }
+
+  private removeAgentFromFleetFile(agentName: string): void {
+    if (!fs.existsSync(this.fleetFilePath)) return;
+    const config = yaml.load(fs.readFileSync(this.fleetFilePath, 'utf8')) as FleetConfig;
+    config.agents = config.agents.filter(a => a.name !== agentName);
+    if (config.agents.length === 0) {
+      fs.unlinkSync(this.fleetFilePath);
+    } else {
+      this.writeFleetFile(config);
     }
   }
 
@@ -50,14 +78,18 @@ export class LettaCtl {
           agent: options?.agentPattern,
           match: options?.match,
           dryRun: options?.dryRun || false,
-          root: process.cwd()
+          root: this.root
         },
-        { 
+        {
           parent: {
             opts: () => ({ verbose: false })
           }
         }
       );
+
+      if (!options?.dryRun) {
+        this.writeFleetFile(config);
+      }
     } finally {
       if (fs.existsSync(tempFile)) {
         fs.unlinkSync(tempFile);
@@ -66,6 +98,14 @@ export class LettaCtl {
         fs.rmdirSync(tempDir);
       }
     }
+  }
+
+  async deleteAgent(agentName: string): Promise<void> {
+    const client = new LettaClientWrapper();
+    const resolver = new AgentResolver(client);
+    const { agent, allAgents } = await resolver.findAgentByName(agentName);
+    await deleteAgentWithCleanup(client, resolver, agent, allAgents, false);
+    this.removeAgentFromFleetFile(agentName);
   }
 
   async deployFromYaml(yamlPath: string, options?: { dryRun?: boolean; agentPattern?: string; match?: string; rootPath?: string }): Promise<void> {
