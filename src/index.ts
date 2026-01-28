@@ -109,14 +109,16 @@ program
 // Get command - list resources
 program
   .command('get')
-  .description('Display resources (agents, blocks, tools, folders, files, mcp-servers)')
-  .argument('<resource>', 'resource type (agents|blocks|tools|folders|files|mcp-servers)')
+  .description('Display resources (agents, blocks, tools, folders, files, mcp-servers, archival)')
+  .argument('<resource>', 'resource type (agents|blocks|tools|folders|files|mcp-servers|archival)')
   .argument('[name]', 'specific resource name (optional)')
   .option('-o, --output <format>', 'output format (table|json|yaml)', 'table')
   .option('-a, --agent <name>', 'filter by agent name (for blocks, tools, folders)')
   .option('--shared', 'show only resources attached to 2+ agents')
   .option('--orphaned', 'show only resources attached to 0 agents')
   .option('--short', 'truncate block values to 300 characters (use with: get blocks <agent>)')
+  .option('--full', 'show full archival entry text (use with: get archival <agent>)')
+  .option('--query <text>', 'search archival memory by semantic similarity')
   .action(getCommand);
 
 // Describe command - detailed agent info

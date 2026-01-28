@@ -8,7 +8,7 @@ import { normalizeToArray, computeAgentCounts } from '../lib/resource-usage';
 import { log, output } from '../lib/logger';
 import { AgentDataFetcher, DetailLevel } from '../lib/agent-data-fetcher';
 
-const SUPPORTED_RESOURCES = ['agents', 'blocks', 'tools', 'folders', 'files', 'mcp-servers'];
+const SUPPORTED_RESOURCES = ['agents', 'blocks', 'tools', 'folders', 'files', 'mcp-servers', 'archival'];
 
 interface GetOptions {
   output?: string;
@@ -16,6 +16,8 @@ interface GetOptions {
   shared?: boolean;
   orphaned?: boolean;
   short?: boolean;
+  full?: boolean;
+  query?: string;
 }
 
 async function getCommandImpl(resource: string, name?: string, options?: GetOptions, command?: any) {
@@ -56,8 +58,8 @@ async function getCommandImpl(resource: string, name?: string, options?: GetOpti
     }
   }
 
-  // For `get blocks <agent>`, resolve the positional name as an agent
-  if (resource === 'blocks' && name && !agentId) {
+  // For `get blocks <agent>` or `get archival <agent>`, resolve the positional name as an agent
+  if ((resource === 'blocks' || resource === 'archival') && name && !agentId) {
     const spinner = createSpinner(`Resolving agent ${name}...`, spinnerEnabled).start();
     try {
       const { agent } = await resolver.findAgentByName(name);
@@ -89,6 +91,9 @@ async function getCommandImpl(resource: string, name?: string, options?: GetOpti
       break;
     case 'mcp-servers':
       await getMcpServers(client, options, spinnerEnabled);
+      break;
+    case 'archival':
+      await getArchival(client, resolver, options, spinnerEnabled, agentId, agentName);
       break;
   }
 }
@@ -458,6 +463,62 @@ async function getFiles(
     output(OutputFormatter.createFileTable(fileList, agentCounts, isWide));
   } catch (error) {
     spinner.fail('Failed to load files');
+    throw error;
+  }
+}
+
+async function getArchival(
+  client: LettaClientWrapper,
+  resolver: AgentResolver,
+  options?: GetOptions,
+  spinnerEnabled?: boolean,
+  agentId?: string,
+  agentName?: string
+) {
+  if (!agentId || !agentName) {
+    throw new Error('Agent name is required for archival memory. Usage: lettactl get archival <agent>');
+  }
+
+  const isSearch = !!options?.query;
+  const label = isSearch ? `Searching archival memory for "${options!.query}"...` : 'Loading archival memory...';
+  const spinner = createSpinner(label, spinnerEnabled).start();
+
+  try {
+    let entries: any[];
+
+    if (isSearch) {
+      const result = await client.searchAgentArchival(agentId, options!.query!);
+      // Search returns { count, results: [{ id, content, timestamp, tags }] }
+      entries = (result as any).results?.map((r: any) => ({
+        ...r,
+        text: r.content || r.text,
+        created_at: r.timestamp || r.created_at,
+        score: r.score,
+      })) || [];
+    } else {
+      const result = await client.listAgentArchival(agentId);
+      entries = Array.isArray(result) ? result : [];
+    }
+
+    spinner.stop();
+
+    if (OutputFormatter.handleJsonOutput(entries, options?.output)) {
+      return;
+    }
+
+    if (entries.length === 0) {
+      if (isSearch) output(`No archival entries matching "${options!.query}" for ${agentName}`);
+      else output(`No archival memory entries for ${agentName}`);
+      return;
+    }
+
+    if (options?.full) {
+      output(OutputFormatter.createArchivalContentView(entries, agentName));
+    } else {
+      output(OutputFormatter.createArchivalTable(entries, agentName));
+    }
+  } catch (error) {
+    spinner.fail('Failed to load archival memory');
     throw error;
   }
 }

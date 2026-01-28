@@ -114,6 +114,17 @@ async function describeAgent(
       // Messages unavailable
     }
 
+    // Get archival memory count
+    let archivalCount = 0;
+    try {
+      spinner.text = 'Checking archival memory...';
+      const archival = await client.listAgentArchival(agentDetails.id, 100);
+      const archivalList = Array.isArray(archival) ? archival : [];
+      archivalCount = archivalList.length;
+    } catch {
+      // Archival unavailable
+    }
+
     spinner.stop();
 
     if (OutputFormatter.handleJsonOutput(agentDetails, options?.output)) {
@@ -143,6 +154,7 @@ async function describeAgent(
       })),
       folders: folderData,
       messages,
+      archivalCount,
     };
 
     output(displayAgentDetails(displayData, verbose));
