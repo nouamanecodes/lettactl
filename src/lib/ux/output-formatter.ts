@@ -6,6 +6,8 @@ import {
   displayAgents,
   displayBlocks,
   displayBlockContents,
+  displayArchival,
+  displayArchivalContents,
   displayTools,
   displayFolders,
   displayMcpServers,
@@ -13,6 +15,7 @@ import {
   AgentData,
   BlockData,
   BlockContentData,
+  ArchivalEntryData,
   ToolData,
   FolderData,
   McpServerData,
@@ -167,6 +170,31 @@ export class OutputFormatter {
     }));
 
     return displayFiles(data, wide);
+  }
+
+  static createArchivalTable(passages: any[], agentName: string): string {
+    const data: ArchivalEntryData[] = passages.map(p => ({
+      id: p.id || '',
+      text: p.text || p.content || '',
+      created: p.created_at || p.timestamp,
+      tags: p.tags,
+      source: p.file_name,
+    }));
+
+    return displayArchival(agentName, data);
+  }
+
+  static createArchivalContentView(passages: any[], agentName: string): string {
+    const data: ArchivalEntryData[] = passages.map(p => ({
+      id: p.id || '',
+      text: p.text || p.content || '',
+      created: p.created_at || p.timestamp,
+      tags: p.tags,
+      source: p.file_name,
+      score: p.score,
+    }));
+
+    return displayArchivalContents(agentName, data);
   }
 
   /**

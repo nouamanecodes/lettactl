@@ -397,4 +397,12 @@ export class LettaClientWrapper {
   async listMcpServerTools(mcpServerId: string) {
     return await this.client.mcpServers.tools.list(mcpServerId);
   }
+
+  async listAgentArchival(agentId: string, limit?: number) {
+    return await this.client.agents.passages.list(agentId, { limit: limit || 100, ascending: false });
+  }
+
+  async searchAgentArchival(agentId: string, query: string, limit?: number) {
+    return await this.client.agents.passages.search(agentId, { query, top_k: limit || 50 });
+  }
 }

@@ -1,5 +1,5 @@
 import chalk from 'chalk';
-import { purple, STATUS, getBlockType } from '../constants';
+import { purple, getBlockType } from '../constants';
 import { BOX, BoxRow, createBox, createBoxWithRows, truncate, formatDate, shouldUseFancyUx } from '../box';
 
 // ============================================================================
@@ -20,6 +20,7 @@ export interface AgentDetailsData {
   tools?: { name: string; description?: string }[];
   folders?: { name: string; id: string; fileCount?: number; files?: string[] }[];
   messages?: { createdAt?: string; role?: string; preview?: string }[];
+  archivalCount?: number;
 }
 
 export interface BlockDetailsData {
@@ -144,6 +145,14 @@ export function displayAgentDetails(data: AgentDetailsData, verbose: boolean = f
     lines.push(...createBoxWithRows(`Folders (${data.folders.length})`, folderRows, width));
   }
 
+  if (data.archivalCount !== undefined && data.archivalCount > 0) {
+    lines.push('');
+    const archivalLabel = data.archivalCount >= 100 ? '100+ entries' : `${data.archivalCount} entries`;
+    lines.push(...createBoxWithRows('Archival Memory', [
+      chalk.white(archivalLabel) + chalk.dim('  (use: lettactl get archival <agent>)'),
+    ], width));
+  }
+
   if (data.messages && data.messages.length > 0) {
     lines.push('');
     const title = 'Recent Messages';
@@ -231,6 +240,13 @@ function displayAgentDetailsPlain(data: AgentDetailsData, _verbose: boolean = fa
   } else {
     lines.push('');
     lines.push('Attached Folders: None');
+  }
+
+  if (data.archivalCount !== undefined && data.archivalCount > 0) {
+    lines.push('');
+    const archivalLabel = data.archivalCount >= 100 ? '100+' : String(data.archivalCount);
+    lines.push(`Archival Memory: ${archivalLabel} entries`);
+    lines.push(`  (use: lettactl get archival <agent>)`);
   }
 
   if (data.messages && data.messages.length > 0) {

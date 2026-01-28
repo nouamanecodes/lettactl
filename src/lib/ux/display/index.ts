@@ -11,6 +11,9 @@ export {
 // Block content display (full values)
 export { displayBlockContents, BlockContentData } from './block-contents';
 
+// Archival memory display
+export { displayArchival, displayArchivalContents, ArchivalEntryData } from './archival';
+
 // Detail/describe displays
 export {
   displayAgentDetails, AgentDetailsData,
@@ -20,6 +23,9 @@ export {
   displayFileDetails, FileDetailsData,
   displayMcpServerDetails, McpServerDetailsData,
 } from './details';
+
+// Shared entry list display (used by messages, archival)
+export { displayEntryList, EntryListItem } from './entry-list';
 
 // Message history display
 export { displayMessages, MessageDisplayData } from './messages';
