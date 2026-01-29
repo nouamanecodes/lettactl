@@ -14,6 +14,7 @@ import { FolderFileConfig } from '../types/fleet-config';
 import { isBuiltinTool } from './builtin-tools';
 import { AgentResolver } from './agent-resolver';
 import { log, error } from './logger';
+import { DEFAULT_CONTEXT_WINDOW, DEFAULT_MODEL, DEFAULT_EMBEDDING, DEFAULT_REASONING } from './constants';
 
 export async function processSharedBlocks(
   config: any,
@@ -152,7 +153,7 @@ export async function processFolders(
           if (verbose) log(`Creating folder: ${folderConfig.name}`);
           folder = await client.createFolder({
             name: folderConfig.name,
-            embedding: agent.embedding || "letta/letta-free"
+            embedding: agent.embedding || DEFAULT_EMBEDDING
           });
           log(`Created folder: ${folderConfig.name}`);
           createdFolders.set(folderConfig.name, folder.id);
@@ -330,11 +331,12 @@ export async function createNewAgent(
     const createdAgent = await client.createAgent({
       name: agentName,
       description: agent.description || '',
-      model: agent.llm_config?.model || "google_ai/gemini-2.5-pro",
-      embedding: agent.embedding || "letta/letta-free",
+      model: agent.llm_config?.model || DEFAULT_MODEL,
+      embedding: agent.embedding || DEFAULT_EMBEDDING,
       system: agent.system_prompt.value || '',
       block_ids: blockIds,
-      context_window_limit: agent.llm_config?.context_window || 64000
+      context_window_limit: agent.llm_config?.context_window || DEFAULT_CONTEXT_WINDOW,
+      reasoning: agent.reasoning ?? DEFAULT_REASONING
     });
 
     // Attach tools

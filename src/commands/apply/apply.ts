@@ -210,6 +210,7 @@ export async function applyCommand(options: ApplyOptions, command: any) {
           model: agent.llm_config?.model,
           embedding: agent.embedding,
           contextWindow: agent.llm_config?.context_window,
+          reasoning: agent.reasoning,
           memoryBlocks: (agent.memory_blocks || []).map((block: any) => ({
             name: block.name,
             description: block.description,
