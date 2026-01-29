@@ -101,9 +101,92 @@ All SDK calls go through `src/lib/letta-client.ts`. Never call the SDK directly 
 - Consistent error surfaces
 - Single place to update when SDK changes
 
+## Command Directory Structure
+
+Each command lives in its own directory under `src/commands/<command>/`:
+
+```
+src/commands/
+├── get/
+│   ├── index.ts      # Re-exports, router logic
+│   ├── types.ts      # Interfaces, constants (SUPPORTED_RESOURCES, etc.)
+│   ├── agents.ts     # Handler for `get agents`
+│   ├── blocks.ts     # Handler for `get blocks`
+│   └── ...           # One file per resource type
+├── delete/
+│   ├── index.ts      # Router + re-exports (deleteAgentWithCleanup for SDK)
+│   ├── types.ts      # DELETE_SUPPORTED_RESOURCES, options interfaces
+│   ├── agent.ts      # Single agent deletion
+│   ├── mcp-server.ts # Single MCP server deletion
+│   ├── all-agents.ts # Bulk delete handlers
+│   └── ...
+└── messages/
+    ├── index.ts      # Re-exports all commands
+    ├── types.ts      # ListOptions, SendOptions, etc.
+    ├── list.ts       # listMessagesCommand
+    ├── send.ts       # sendMessageCommand
+    ├── utils.ts      # Shared helpers (getMessageContent, formatElapsedTime)
+    └── ...
+```
+
+### Directory Contents
+
+| File | Purpose |
+|------|---------|
+| `index.ts` | Re-exports public API, router logic if needed |
+| `types.ts` | Interfaces, option types, constants like `SUPPORTED_RESOURCES` |
+| `<handler>.ts` | One file per subcommand or resource type |
+| `utils.ts` | Shared helpers used by multiple handlers |
+
+### Router Pattern (index.ts)
+
+For commands with multiple subcommands (get, describe, delete), the index.ts acts as a router:
+
+```typescript
+// src/commands/get/index.ts
+import { getAgents } from './agents';
+import { getBlocks } from './blocks';
+import { SUPPORTED_RESOURCES } from './types';
+
+export default async function getCommand(resource: string, name: string, options: GetOptions, command: any) {
+  if (!SUPPORTED_RESOURCES.includes(resource)) {
+    throw new Error(`Unsupported resource: ${resource}`);
+  }
+
+  switch (resource) {
+    case 'agents': return getAgents(name, options, command);
+    case 'blocks': return getBlocks(name, options, command);
+    // ...
+  }
+}
+```
+
+### Simple Command Pattern
+
+For single-function commands (health, context, export), keep it simple:
+
+```typescript
+// src/commands/health/index.ts
+export { healthCommand } from './health';
+
+// src/commands/health/health.ts
+export async function healthCommand(options: HealthOptions, command: any) {
+  // implementation
+}
+```
+
+### Re-exporting for SDK
+
+When a function needs to be available to the SDK (like `deleteAgentWithCleanup`), re-export it from index.ts:
+
+```typescript
+// src/commands/delete/index.ts
+export { deleteAgentWithCleanup } from './agent';
+```
+
 ## File Organization Rules
 
-- **Commands** (`src/commands/`): orchestration only — parse args, call client, call display
+- **Commands** (`src/commands/<cmd>/`): one directory per command, router + handlers
 - **Display** (`src/lib/ux/display/`): all formatting, one file per domain
 - **Client** (`src/lib/letta-client.ts`): all SDK calls
 - **Resolver** (`src/lib/agent-resolver.ts`): agent name → ID resolution
