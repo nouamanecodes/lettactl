@@ -39,6 +39,7 @@ export interface AgentUpdateOperations {
     model?: FieldChange<string>;
     embedding?: FieldChange<string>;
     contextWindow?: FieldChange<number>;
+    reasoning?: FieldChange<boolean>;
   };
 
   // Resource management operations

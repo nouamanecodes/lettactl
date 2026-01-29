@@ -3,6 +3,7 @@ import { normalizeResponse } from './response-normalizer';
 import { generateContentHash, generateTimestampVersion } from '../utils/hash-utils';
 import type { AgentConfigHashes, AgentVersion } from '../types/agent';
 import { log } from './logger';
+import { DEFAULT_CONTEXT_WINDOW, DEFAULT_EMBEDDING } from './constants';
 
 // Re-export types for backwards compatibility
 export type { AgentConfigHashes, AgentVersion } from '../types/agent';
@@ -98,8 +99,8 @@ export class AgentManager {
     // Model configuration hash (model + embedding + context window)
     const modelConfig = {
       model: config.model || "google_ai/gemini-2.5-pro",
-      embedding: config.embedding || "letta/letta-free",
-      contextWindow: config.contextWindow || 64000
+      embedding: config.embedding || DEFAULT_EMBEDDING,
+      contextWindow: config.contextWindow || DEFAULT_CONTEXT_WINDOW
     };
     const modelHash = generateContentHash(JSON.stringify(modelConfig));
     

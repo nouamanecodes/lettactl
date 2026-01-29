@@ -39,6 +39,7 @@ export interface AgentConfig {
   folders?: FolderConfig[];
   embedding?: string;
   first_message?: string; // Message sent to agent on first creation for auto-calibration
+  reasoning?: boolean; // Enable reasoning for models that support it (default: true)
 }
 
 export interface ToolConfig {

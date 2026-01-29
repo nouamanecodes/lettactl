@@ -6,6 +6,7 @@ import { DiffApplier } from './diff-applier';
 import { analyzeToolChanges, analyzeBlockChanges, analyzeFolderChanges } from './diff-analyzers';
 import type { AgentUpdateOperations } from '../types/diff';
 import { log } from './logger';
+import { DEFAULT_CONTEXT_WINDOW, DEFAULT_REASONING, DEFAULT_EMBEDDING } from './constants';
 
 // Re-export types for backwards compatibility
 export type { ToolDiff, BlockDiff, FolderDiff, FieldChange, AgentUpdateOperations } from '../types/diff';
@@ -39,6 +40,7 @@ export class DiffEngine {
       model?: string;
       embedding?: string;
       contextWindow?: number;
+      reasoning?: boolean;
       memoryBlocks?: Array<{name: string; description: string; limit: number; value: string}>;
       memoryBlockFileHashes?: Record<string, string>;
       folders?: Array<{name: string; files: string[]; fileContentHashes?: Record<string, string>}>;
@@ -100,16 +102,23 @@ export class DiffEngine {
       operations.operationCount++;
     }
 
-    const desiredEmbedding = desiredConfig.embedding || "letta/letta-free";
+    const desiredEmbedding = desiredConfig.embedding || DEFAULT_EMBEDDING;
     if (currentAgent.embedding !== desiredEmbedding) {
       fieldUpdates.embedding = { from: currentAgent.embedding, to: desiredEmbedding };
       operations.operationCount++;
     }
 
-    const desiredContextWindow = desiredConfig.contextWindow || 64000;
-    const currentContextWindow = (currentAgent as any).llm_config?.context_window || 64000;
+    const desiredContextWindow = desiredConfig.contextWindow || DEFAULT_CONTEXT_WINDOW;
+    const currentContextWindow = (currentAgent as any).llm_config?.context_window || DEFAULT_CONTEXT_WINDOW;
     if (currentContextWindow !== desiredContextWindow) {
       fieldUpdates.contextWindow = { from: currentContextWindow, to: desiredContextWindow };
+      operations.operationCount++;
+    }
+
+    const desiredReasoning = desiredConfig.reasoning ?? DEFAULT_REASONING;
+    const currentReasoning = (currentAgent as any).reasoning ?? DEFAULT_REASONING;
+    if (currentReasoning !== desiredReasoning) {
+      fieldUpdates.reasoning = { from: currentReasoning, to: desiredReasoning };
       operations.operationCount++;
     }
 
