@@ -6,6 +6,9 @@
  *   1. sendMessage() returns a Run with an ID immediately
  *   2. waitForRun() polls until completion using robust stop_reason detection
  *   3. Completed run has terminal status or stop_reason
+ *   4. onComplete callback fires in background
+ *   5. getRun() returns current run status
+ *   6. isRunTerminal/getEffectiveRunStatus exports work
  */
 
 const path = require('path');
@@ -14,7 +17,7 @@ const os = require('os');
 const { pass, fail, info, section, printSummary, preflightCheck } = require('../lib/common');
 
 const distDir = path.join(__dirname, '..', '..', '..', 'dist');
-const { LettaCtl } = require(path.join(distDir, 'sdk'));
+const { LettaCtl, isRunTerminal, getEffectiveRunStatus } = require(path.join(distDir, 'sdk'));
 const { LettaClientWrapper } = require(path.join(distDir, 'lib', 'letta-client'));
 const { AgentResolver } = require(path.join(distDir, 'lib', 'agent-resolver'));
 
@@ -128,6 +131,76 @@ async function run() {
       pass('Run completed successfully');
     } else {
       info(`Run ended with: status=${completedRun.status}, stop_reason=${completedRun.stop_reason}`);
+    }
+
+    // Test 4: onComplete callback fires in background
+    info('Test 4: onComplete callback fires in background...');
+    let callbackFired = false;
+    let callbackRun = null;
+
+    const callbackStart = Date.now();
+    const run2 = await ctl.sendMessage(agentId, 'Say "callback test" and nothing else.', {
+      onComplete: (r) => {
+        callbackFired = true;
+        callbackRun = r;
+      },
+      timeout: 60
+    });
+    const callbackSendDuration = Date.now() - callbackStart;
+
+    if (run2 && run2.id) {
+      pass(`sendMessage with onComplete returned Run ID: ${run2.id}`);
+    } else {
+      fail('sendMessage with onComplete did not return Run ID');
+    }
+
+    if (callbackSendDuration < 5000) {
+      pass(`sendMessage with onComplete returned quickly (${callbackSendDuration}ms)`);
+    } else {
+      info(`sendMessage with onComplete took ${callbackSendDuration}ms`);
+    }
+
+    // Wait for callback to fire (give it time to complete)
+    info('Waiting for callback to fire...');
+    const maxWait = 60000;
+    const pollInterval = 1000;
+    const waitStart2 = Date.now();
+    while (!callbackFired && (Date.now() - waitStart2) < maxWait) {
+      await new Promise(r => setTimeout(r, pollInterval));
+    }
+
+    if (callbackFired) {
+      pass(`onComplete callback fired after ${Date.now() - waitStart2}ms`);
+      if (isRunTerminal(callbackRun)) {
+        pass('Callback received terminal run');
+      } else {
+        fail('Callback run not terminal');
+      }
+    } else {
+      fail('onComplete callback did not fire within timeout');
+    }
+
+    // Test 5: getRun() returns current status
+    info('Test 5: getRun() returns run status...');
+    const fetchedRun = await ctl.getRun(run.id);
+    if (fetchedRun && fetchedRun.id === run.id) {
+      pass('getRun() returned correct run');
+    } else {
+      fail('getRun() did not return correct run');
+    }
+
+    // Test 6: Exported utilities work
+    info('Test 6: isRunTerminal/getEffectiveRunStatus exports work...');
+    if (typeof isRunTerminal === 'function' && typeof getEffectiveRunStatus === 'function') {
+      pass('Utilities exported correctly');
+      const status = getEffectiveRunStatus(completedRun);
+      if (['completed', 'failed', 'cancelled', 'running'].includes(status)) {
+        pass(`getEffectiveRunStatus returned: ${status}`);
+      } else {
+        fail(`getEffectiveRunStatus returned unexpected: ${status}`);
+      }
+    } else {
+      fail('Utilities not exported as functions');
     }
 
   } finally {

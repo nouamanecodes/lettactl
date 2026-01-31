@@ -638,6 +638,8 @@ await lettactl.deleteAgent('orphaned-agent');
 Send messages to agents programmatically:
 
 ```typescript
+import { LettaCtl, isRunTerminal, getEffectiveRunStatus } from 'lettactl';
+
 // Send a message (async - returns immediately with run ID)
 const run = await lettactl.sendMessage(agentId, 'Hello, how are you?');
 console.log(run.id); // run-abc123...
@@ -648,11 +650,31 @@ console.log(completed.status); // 'completed'
 
 // With timeout (in seconds)
 const completed = await lettactl.waitForRun(run.id, { timeout: 120 });
+
+// Fire-and-forget with callback (for background processing)
+const run = await lettactl.sendMessage(agentId, 'Calibrate yourself', {
+  onComplete: (completedRun) => {
+    const status = getEffectiveRunStatus(completedRun);
+    db.update({ agentId, status: status === 'completed' ? 'deployed' : 'failed' });
+  },
+  onError: (err) => console.error('Calibration failed:', err),
+  timeout: 120
+});
+// Returns immediately, callback fires in background when done
+
+// Manual polling (if you need custom logic)
+const run = await lettactl.sendMessage(agentId, 'Hello');
+const status = await lettactl.getRun(run.id);
+if (isRunTerminal(status)) {
+  console.log(getEffectiveRunStatus(status)); // 'completed' | 'failed' | 'cancelled'
+}
 ```
 
-`sendMessage()` uses async messaging - it returns a `Run` object immediately with a job ID you can use to track progress. This prevents timeouts in applications with request limits.
+`sendMessage()` returns a `Run` immediately. Use `onComplete` for fire-and-forget with background notification.
 
-`waitForRun()` polls until the run reaches a terminal state, using robust detection that checks both `status` and `stop_reason` fields. This handles edge cases where the Letta server completes a run but doesn't update the status field.
+`waitForRun()` polls until terminal state using robust `status` + `stop_reason` detection.
+
+`isRunTerminal()` and `getEffectiveRunStatus()` are exported for custom polling.
 
 ---
 
