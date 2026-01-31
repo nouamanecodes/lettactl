@@ -5,6 +5,8 @@ import * as readline from 'readline';
 
 import { LettaClientWrapper } from './letta-client';
 import { AgentResolver } from './agent-resolver';
+import { isRunTerminal, getEffectiveRunStatus } from './run-utils';
+import { Run } from '../types/run';
 
 export interface BulkMessageOptions {
   pattern?: string;       // glob pattern for agent names
@@ -97,19 +99,24 @@ export async function bulkSendMessage(
       const timeoutMs = options.timeout ? options.timeout * 1000 : undefined;
 
       while (true) {
-        const runStatus = await client.getRun(run.id);
+        const runStatus = await client.getRun(run.id) as Run;
 
-        if (runStatus.status === 'completed') {
-          result.status = 'completed';
-          break;
-        } else if (runStatus.status === 'failed') {
-          result.status = 'failed';
-          result.error = 'Run failed';
-          break;
-        } else if (runStatus.status === 'cancelled') {
-          result.status = 'cancelled';
-          result.error = 'Run cancelled';
-          break;
+        // Check for terminal state using both status and stop_reason
+        if (isRunTerminal(runStatus)) {
+          const effectiveStatus = getEffectiveRunStatus(runStatus);
+
+          if (effectiveStatus === 'completed') {
+            result.status = 'completed';
+            break;
+          } else if (effectiveStatus === 'failed') {
+            result.status = 'failed';
+            result.error = runStatus.stop_reason ? `Run failed: ${runStatus.stop_reason}` : 'Run failed';
+            break;
+          } else if (effectiveStatus === 'cancelled') {
+            result.status = 'cancelled';
+            result.error = 'Run cancelled';
+            break;
+          }
         }
 
         // Check timeout if specified

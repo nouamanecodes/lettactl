@@ -16,6 +16,8 @@ import { isBuiltinTool } from './builtin-tools';
 import { AgentResolver } from './agent-resolver';
 import { log, error } from './logger';
 import { DEFAULT_CONTEXT_WINDOW, DEFAULT_MODEL, DEFAULT_EMBEDDING, DEFAULT_REASONING } from './constants';
+import { isRunTerminal, getEffectiveRunStatus } from './run-utils';
+import { Run } from '../types/run';
 
 export async function processSharedBlocks(
   config: any,
@@ -470,14 +472,18 @@ export async function createNewAgent(
         const startTime = Date.now();
 
         while (Date.now() - startTime < maxWaitMs) {
-          const runStatus = await client.getRun(runId);
-          if (runStatus.status === 'completed') {
-            if (firstMsgSpinner) firstMsgSpinner.succeed(`First message completed for ${agentName}`);
-            if (verbose) log(`  Run ${runId} completed`);
-            break;
-          } else if (runStatus.status === 'failed' || runStatus.status === 'cancelled') {
-            if (firstMsgSpinner) firstMsgSpinner.fail(`First message ${runStatus.status} for ${agentName}`);
-            break;
+          const runStatus = await client.getRun(runId) as Run;
+
+          if (isRunTerminal(runStatus)) {
+            const effectiveStatus = getEffectiveRunStatus(runStatus);
+            if (effectiveStatus === 'completed') {
+              if (firstMsgSpinner) firstMsgSpinner.succeed(`First message completed for ${agentName}`);
+              if (verbose) log(`  Run ${runId} completed`);
+              break;
+            } else {
+              if (firstMsgSpinner) firstMsgSpinner.fail(`First message ${effectiveStatus} for ${agentName}`);
+              break;
+            }
           }
           await new Promise(resolve => setTimeout(resolve, pollIntervalMs));
         }

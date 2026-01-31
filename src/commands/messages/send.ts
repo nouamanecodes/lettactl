@@ -8,6 +8,7 @@ import { log, output, error } from '../../lib/logger';
 import { Run } from '../../types/run';
 import { SendOptions } from './types';
 import { getMessageContent, formatElapsedTime } from './utils';
+import { isRunTerminal, getEffectiveRunStatus } from '../../lib/run-utils';
 
 export async function sendMessageCommand(
   agentNameOrMessage: string,
@@ -157,7 +158,7 @@ export async function sendMessageCommand(
       if (run.status !== lastStatus) {
         lastStatus = run.status;
         if (verbose) {
-          log(`Status changed to: ${run.status}`);
+          log(`Status changed to: ${run.status}${run.stop_reason ? ` (stop_reason: ${run.stop_reason})` : ''}`);
         }
       }
 
@@ -172,23 +173,28 @@ export async function sendMessageCommand(
         log(`Still waiting for ${agent.name}... ${timeStr} elapsed`);
       }
 
-      if (run.status === 'completed') {
-        spinner.succeed(`Response from ${agent.name} (${timeStr}):`);
-        await displayRunMessages(client, runId, verbose, options.output);
-        return;
-      }
+      // Check for terminal state using both status and stop_reason
+      if (isRunTerminal(run)) {
+        const effectiveStatus = getEffectiveRunStatus(run);
 
-      if (run.status === 'failed') {
-        spinner.fail(`Message failed after ${timeStr}`);
-        if (run.stop_reason) {
-          error(`Reason: ${run.stop_reason}`);
+        if (effectiveStatus === 'completed') {
+          spinner.succeed(`Response from ${agent.name} (${timeStr}):`);
+          await displayRunMessages(client, runId, verbose, options.output);
+          return;
         }
-        process.exit(1);
-      }
 
-      if (run.status === 'cancelled') {
-        spinner.fail(`Message was cancelled after ${timeStr}`);
-        process.exit(1);
+        if (effectiveStatus === 'failed') {
+          spinner.fail(`Message failed after ${timeStr}`);
+          if (run.stop_reason) {
+            error(`Reason: ${run.stop_reason}`);
+          }
+          process.exit(1);
+        }
+
+        if (effectiveStatus === 'cancelled') {
+          spinner.fail(`Message was cancelled after ${timeStr}`);
+          process.exit(1);
+        }
       }
 
       await sleep(pollInterval);

@@ -633,6 +633,27 @@ await lettactl.deleteAgent('orphaned-agent');
 - Deletes the agent from the Letta server
 - Updates `.lettactl/fleet.yaml` (removes the agent entry, or deletes the file if no agents remain)
 
+### Messaging
+
+Send messages to agents programmatically:
+
+```typescript
+// Send a message (async - returns immediately with run ID)
+const run = await lettactl.sendMessage(agentId, 'Hello, how are you?');
+console.log(run.id); // run-abc123...
+
+// Wait for completion (polls with robust stop_reason detection)
+const completed = await lettactl.waitForRun(run.id);
+console.log(completed.status); // 'completed'
+
+// With timeout (in seconds)
+const completed = await lettactl.waitForRun(run.id, { timeout: 120 });
+```
+
+`sendMessage()` uses async messaging - it returns a `Run` object immediately with a job ID you can use to track progress. This prevents timeouts in applications with request limits.
+
+`waitForRun()` polls until the run reaches a terminal state, using robust detection that checks both `status` and `stop_reason` fields. This handles edge cases where the Letta server completes a run but doesn't update the status field.
+
 ---
 
 # Configuration Reference

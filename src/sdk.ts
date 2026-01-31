@@ -6,6 +6,8 @@ import { applyCommand } from './commands/apply';
 import { deleteAgentWithCleanup } from './commands/delete';
 import { LettaClientWrapper } from './lib/letta-client';
 import { AgentResolver } from './lib/agent-resolver';
+import { isRunTerminal } from './lib/run-utils';
+import { Run } from './types/run';
 import * as yaml from 'js-yaml';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -141,6 +143,41 @@ export class LettaCtl {
 
   createFleetConfig(): FleetConfigBuilder {
     return new FleetConfigBuilder();
+  }
+
+  /**
+   * Send a message to an agent (async - returns immediately with run ID)
+   */
+  async sendMessage(agentId: string, message: string): Promise<Run> {
+    const client = new LettaClientWrapper();
+    const run = await client.createAsyncMessage(agentId, {
+      messages: [{ role: 'user', content: message }]
+    });
+    return run as Run;
+  }
+
+  /**
+   * Wait for a run to complete (uses robust stop_reason detection)
+   */
+  async waitForRun(runId: string, options?: { timeout?: number }): Promise<Run> {
+    const client = new LettaClientWrapper();
+    const pollInterval = 3000;
+    const startTime = Date.now();
+    const timeoutMs = options?.timeout ? options.timeout * 1000 : 5 * 60 * 1000;
+
+    while (true) {
+      const run = await client.getRun(runId) as Run;
+
+      if (isRunTerminal(run)) {
+        return run;
+      }
+
+      if (Date.now() - startTime > timeoutMs) {
+        throw new Error(`Timeout waiting for run ${runId}`);
+      }
+
+      await new Promise(resolve => setTimeout(resolve, pollInterval));
+    }
   }
 }
 

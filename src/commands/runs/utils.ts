@@ -4,6 +4,7 @@ import { OutputFormatter } from '../../lib/ux/output-formatter';
 import { getMessageContent } from '../messages';
 import { Run } from '../../types/run';
 import { output } from '../../lib/logger';
+import { isRunTerminal, getEffectiveRunStatus } from '../../lib/run-utils';
 
 export async function waitForRun(client: LettaClientWrapper, runId: string, verbose: boolean) {
   const pollInterval = 1000; // 1 second
@@ -16,19 +17,20 @@ export async function waitForRun(client: LettaClientWrapper, runId: string, verb
     const run = await client.getRun(runId) as Run;
 
     if (verbose) {
-      output(`  Status: ${run.status}`);
+      output(`  Status: ${run.status}${run.stop_reason ? ` (stop_reason: ${run.stop_reason})` : ''}`);
     }
 
-    if (run.status === 'completed' || run.status === 'failed' || run.status === 'cancelled') {
+    if (isRunTerminal(run)) {
+      const effectiveStatus = getEffectiveRunStatus(run);
       output('');
-      output(`Run ${run.status}.`);
+      output(`Run ${effectiveStatus}.`);
 
       if (run.stop_reason) {
         output(`Stop reason: ${run.stop_reason}`);
       }
 
       // Show messages if completed
-      if (run.status === 'completed') {
+      if (effectiveStatus === 'completed') {
         await showRunMessages(client, runId);
       }
 
@@ -49,8 +51,9 @@ export async function streamRun(client: LettaClientWrapper, runId: string) {
   // Check run status first
   const run = await client.getRun(runId) as Run;
 
-  if (run.status === 'completed' || run.status === 'failed' || run.status === 'cancelled') {
-    output(`Run ${run.status}.`);
+  if (isRunTerminal(run)) {
+    const effectiveStatus = getEffectiveRunStatus(run);
+    output(`Run ${effectiveStatus}.`);
     await showRunMessages(client, runId);
     return;
   }
