@@ -6,7 +6,7 @@ import { applyCommand } from './commands/apply';
 import { deleteAgentWithCleanup } from './commands/delete';
 import { LettaClientWrapper } from './lib/letta-client';
 import { AgentResolver } from './lib/agent-resolver';
-import { isRunTerminal } from './lib/run-utils';
+import { isRunTerminal, getEffectiveRunStatus } from './lib/run-utils';
 import { Run } from './types/run';
 import * as yaml from 'js-yaml';
 import * as fs from 'fs';
@@ -148,12 +148,31 @@ export class LettaCtl {
   /**
    * Send a message to an agent (async - returns immediately with run ID)
    */
-  async sendMessage(agentId: string, message: string): Promise<Run> {
+  async sendMessage(agentId: string, message: string, options?: {
+    onComplete?: (run: Run) => void;
+    onError?: (error: Error) => void;
+    timeout?: number;
+  }): Promise<Run> {
     const client = new LettaClientWrapper();
     const run = await client.createAsyncMessage(agentId, {
       messages: [{ role: 'user', content: message }]
     });
+
+    if (options?.onComplete) {
+      this.waitForRun(run.id, { timeout: options.timeout })
+        .then(options.onComplete)
+        .catch(options.onError || ((err) => console.error('Run failed:', err)));
+    }
+
     return run as Run;
+  }
+
+  /**
+   * Get current run status (use with isRunTerminal/getEffectiveRunStatus for polling)
+   */
+  async getRun(runId: string): Promise<Run> {
+    const client = new LettaClientWrapper();
+    return await client.getRun(runId) as Run;
   }
 
   /**
@@ -203,3 +222,5 @@ export class FleetConfigBuilder {
 }
 
 export { FleetConfig, AgentConfig } from './types/fleet-config';
+export { Run } from './types/run';
+export { isRunTerminal, getEffectiveRunStatus } from './lib/run-utils';
