@@ -19,6 +19,7 @@ export interface AgentDetailsData {
   blocks?: { label: string; description?: string; limit?: number; valueLength?: number }[];
   tools?: { name: string; description?: string }[];
   folders?: { name: string; id: string; fileCount?: number; files?: string[] }[];
+  archives?: { name: string; id: string; embedding?: string }[];
   messages?: { createdAt?: string; role?: string; preview?: string }[];
   archivalCount?: number;
 }
@@ -156,6 +157,15 @@ export function displayAgentDetails(data: AgentDetailsData, verbose: boolean = f
     lines.push(...createBoxWithRows(`Folders (${data.folders.length})`, folderRows, width));
   }
 
+  if (data.archives && data.archives.length > 0) {
+    lines.push('');
+    const archiveRows: string[] = [];
+    for (const archive of data.archives) {
+      archiveRows.push(chalk.white(archive.name) + chalk.dim(` (${archive.embedding || 'default embedding'})`));
+    }
+    lines.push(...createBoxWithRows(`Archives (${data.archives.length})`, archiveRows, width));
+  }
+
   if (data.archivalCount !== undefined && data.archivalCount > 0) {
     lines.push('');
     const archivalLabel = data.archivalCount >= 100 ? '100+ entries' : `${data.archivalCount} entries`;
@@ -251,6 +261,15 @@ function displayAgentDetailsPlain(data: AgentDetailsData, _verbose: boolean = fa
   } else {
     lines.push('');
     lines.push('Attached Folders: None');
+  }
+
+  if (data.archives && data.archives.length > 0) {
+    lines.push('');
+    lines.push(`Archives (${data.archives.length}):`);
+    for (const archive of data.archives) {
+      lines.push(`  - ${archive.name}`);
+      lines.push(`    Embedding: ${archive.embedding || 'default'}`);
+    }
   }
 
   if (data.archivalCount !== undefined && data.archivalCount > 0) {

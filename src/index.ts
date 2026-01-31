@@ -104,7 +104,7 @@ program
   .option('--dry-run', 'show what would be created without making changes')
   .option('--force', 'remove resources not in config (strict reconciliation)')
   .option('--root <path>', 'root directory for resolving file paths')
-  .option('--manifest <path>', 'write agent manifest to path (default: <config>.manifest.json)')
+  .option('--manifest [path]', 'write agent manifest (default: <config>.manifest.json)')
   .action(applyCommand);
 
 // Get command - list resources

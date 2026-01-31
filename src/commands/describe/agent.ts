@@ -24,6 +24,14 @@ export async function describeAgent(
     // Get full agent details
     const agentDetails = await resolver.getAgentWithDetails(agent.id);
 
+    // Get attached archives
+    const archives = (agentDetails as any).archives || [];
+    const archiveData = archives.map((archive: any) => ({
+      name: archive.name || archive.id,
+      id: archive.id,
+      embedding: archive.embedding_config?.embedding_model || archive.embedding,
+    }));
+
     // Get folders with file info
     const folders = (agentDetails as any).folders || [];
     const folderData: { name: string; id: string; fileCount: number; files: string[] }[] = [];
@@ -103,6 +111,7 @@ export async function describeAgent(
         description: t.description,
       })),
       folders: folderData,
+      archives: archiveData,
       messages,
       archivalCount,
     };

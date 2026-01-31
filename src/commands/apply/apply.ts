@@ -342,24 +342,28 @@ export async function applyCommand(options: ApplyOptions, command: any) {
       log(displayApplySummary(summaryData));
     }
 
-    const manifestPath = options.manifest
-      ? path.resolve(options.manifest)
-      : getDefaultManifestPath(options.file);
-    const manifest = buildAgentManifest({
-      config,
-      configPath: options.file,
-      basePath: parser.basePath,
-      appliedAgents,
-      agentManager,
-      blockManager,
-      archiveManager,
-      sharedBlockIds,
-      toolNameToId,
-      folderNameToId: createdFolders,
-      mcpServerNameToId
-    });
-    writeAgentManifest(manifest, manifestPath);
-    log(`Agent manifest written to ${manifestPath}`);
+    // Only generate manifest if explicitly requested via --manifest flag
+    if (options.manifest !== undefined) {
+      // --manifest without path gives true, --manifest <path> gives the path string
+      const manifestPath = typeof options.manifest === 'string'
+        ? path.resolve(options.manifest)
+        : getDefaultManifestPath(options.file);
+      const manifest = buildAgentManifest({
+        config,
+        configPath: options.file,
+        basePath: parser.basePath,
+        appliedAgents,
+        agentManager,
+        blockManager,
+        archiveManager,
+        sharedBlockIds,
+        toolNameToId,
+        folderNameToId: createdFolders,
+        mcpServerNameToId
+      });
+      writeAgentManifest(manifest, manifestPath);
+      log(`Agent manifest written to ${manifestPath}`);
+    }
 
   } catch (err: any) {
     throw new Error(`Apply failed: ${formatLettaError(err.message || err)}`);

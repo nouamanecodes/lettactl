@@ -6,3 +6,6 @@ __pycache__
 logs/
 .letta/
 .idea/
+
+# Generated manifests
+*.manifest.json
