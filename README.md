@@ -139,6 +139,8 @@ lettactl apply -f agents.yml --dry-run # See what would change
 lettactl apply -f agents.yml --root . # Specify root directory for file resolution
 lettactl apply -f agents.yml -v       # Verbose output
 lettactl apply -f agents.yml -q       # Quiet mode (for CI pipelines)
+lettactl apply -f agents.yml --manifest  # Generate manifest with all resource IDs
+lettactl apply -f agents.yml --manifest output.json  # Custom manifest path
 
 # Template mode: apply config to existing agents matching a glob pattern
 lettactl apply -f template.yaml --match "*-assistant"  # All agents ending in -assistant
@@ -148,6 +150,13 @@ lettactl apply -f template.yaml --match "*" --dry-run  # Preview changes to all 
 
 **Template Mode (`--match`):**
 Apply a template configuration to multiple existing agents at once. Uses merge semantics - adds/updates tools, blocks, and prompts without removing existing resources. Perfect for propagating tool updates or shared config changes across agent fleets.
+
+**Agent Manifests (`--manifest`):**
+Generate a JSON manifest with all resolved resource IDs after deployment. Useful for CI/CD pipelines that need to track what was deployed:
+```bash
+lettactl apply -f agents.yml --manifest
+# Generates agents.manifest.json with agent IDs, tool IDs, block IDs, etc.
+```
 
 ### Create Agents
 ```bash
@@ -401,6 +410,29 @@ lettactl delete mcp-servers my-server --force
 ```
 
 MCP servers are created/updated automatically during `lettactl apply` when defined in your configuration.
+
+**Using MCP Tools in Agents:**
+
+Once MCP servers are defined, reference their tools in agent configs using `mcp_tools`:
+
+```yaml
+mcp_servers:
+  - name: filesystem
+    type: stdio
+    command: npx
+    args: ["-y", "@anthropic/mcp-filesystem"]
+
+agents:
+  - name: file-agent
+    mcp_tools:
+      - server: filesystem
+        tools: all              # Include all tools from the server
+      # Or pick specific tools:
+      # - server: filesystem
+      #   tools: [read_file, write_file]
+```
+
+The tools are expanded and attached to the agent during apply.
 
 ---
 
@@ -793,6 +825,15 @@ agents:
       - archival_memory_search
       - tools/*                         # Auto-discover from tools/ folder
       - custom_tool_name                # Specific custom tools
+
+    # MCP tools (optional) - reference tools from MCP servers
+    mcp_tools:
+      - server: my-mcp-server           # MCP server name (defined in mcp_servers)
+        tools: all                      # Include all tools from server
+      - server: another-server
+        tools:                          # Or specify individual tools
+          - specific_tool_1
+          - specific_tool_2
     
     # Shared blocks (optional)
     shared_blocks:
