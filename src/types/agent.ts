@@ -6,6 +6,7 @@ export interface AgentConfigHashes {
   memoryBlocks: string;      // Memory blocks hash
   folders: string;           // Folders hash
   sharedBlocks: string;      // Shared blocks hash
+  archives: string;          // Archives hash
 }
 
 export interface AgentVersion {

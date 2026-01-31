@@ -348,6 +348,80 @@ function displayBlocksPlain(blocks: BlockData[]): string {
 }
 
 // ============================================================================
+// Archive Display
+// ============================================================================
+
+export interface ArchiveData {
+  name: string;
+  id: string;
+  embedding?: string;
+  agentCount?: number;
+}
+
+/**
+ * Display archives in box format or plain table
+ */
+export function displayArchives(archives: ArchiveData[]): string {
+  if (!shouldUseFancyUx()) {
+    return displayArchivesPlain(archives);
+  }
+
+  const rows: string[] = [];
+  const maxNameLen = Math.max(...archives.map(a => a.name.length), 4);
+  const nameW = maxNameLen + 1;
+  const embedW = 24;
+  const baseWidth = 64;
+  const width = baseWidth + nameW;
+
+  for (const archive of archives) {
+    const name = archive.name;
+    const id = truncate(archive.id, 26);
+    const embedding = truncate(archive.embedding || '-', embedW - 1).padEnd(embedW);
+    const agents = archive.agentCount !== undefined ? archive.agentCount.toString().padStart(6) : '     -';
+
+    const row = STATUS.ok + '  ' +
+      chalk.white(name.padEnd(nameW)) + '  ' +
+      chalk.dim(id.padEnd(28)) + '  ' +
+      chalk.cyan(embedding) + '  ' +
+      chalk.white(agents);
+
+    rows.push(row);
+  }
+
+  const header = '   ' +
+    chalk.dim('NAME'.padEnd(nameW)) + '  ' +
+    chalk.dim('ID'.padEnd(28)) + '  ' +
+    chalk.dim('EMBEDDING'.padEnd(embedW)) + '  ' +
+    chalk.dim('AGENTS');
+
+  const boxLines = createBoxWithRows(`Archives (${archives.length})`, [header, ...rows], width);
+  return boxLines.join('\n');
+}
+
+function displayArchivesPlain(archives: ArchiveData[]): string {
+  const lines: string[] = [];
+
+  const maxNameLen = Math.max(...archives.map(a => a.name.length), 4);
+  const nameW = maxNameLen + 1;
+  const embedW = 24;
+
+  const header = 'NAME'.padEnd(nameW) + '  ID'.padEnd(30) + '  EMBEDDING'.padEnd(embedW + 2) + '  AGENTS';
+  lines.push(header);
+  lines.push('-'.repeat(header.length));
+
+  for (const archive of archives) {
+    const name = archive.name.padEnd(nameW);
+    const id = truncate(archive.id, 26).padEnd(28);
+    const embedding = truncate(archive.embedding || '-', embedW - 1).padEnd(embedW);
+    const agents = archive.agentCount !== undefined ? archive.agentCount.toString().padStart(6) : '     -';
+
+    lines.push(`${name}  ${id}  ${embedding}  ${agents}`);
+  }
+
+  return lines.join('\n');
+}
+
+// ============================================================================
 // Tool Display
 // ============================================================================
 
@@ -777,6 +851,7 @@ export interface AgentDetailsData {
   updated?: string;
   systemPrompt?: string;
   blocks?: { label: string; description?: string; limit?: number; valueLength?: number }[];
+  archives?: { name: string; id: string; description?: string; embedding?: string }[];
   tools?: { name: string; description?: string }[];
   folders?: { name: string; id: string; fileCount?: number; files?: string[] }[];
   messages?: { createdAt?: string; role?: string; preview?: string }[];
@@ -794,6 +869,20 @@ export interface BlockDetailsData {
   created?: string;
   attachedAgents?: { name: string; id: string }[];
   valuePreview?: string;
+}
+
+/**
+ * Data for archive details view
+ */
+export interface ArchiveDetailsData {
+  id: string;
+  name: string;
+  description?: string;
+  embedding?: string;
+  vectorDbProvider?: string;
+  created?: string;
+  updated?: string;
+  attachedAgents?: { name: string; id: string }[];
 }
 
 /**
@@ -896,6 +985,22 @@ export function displayAgentDetails(data: AgentDetailsData, verbose: boolean = f
     lines.push(...createBoxWithRows(`Memory Blocks (${data.blocks.length})`, blockRows, width));
   }
 
+  // Archives section
+  if (data.archives && data.archives.length > 0) {
+    lines.push('');
+    const archiveRows: string[] = [];
+    for (const archive of data.archives) {
+      archiveRows.push(chalk.white(archive.name));
+      if (archive.description) {
+        archiveRows.push(chalk.dim(`  Description: ${archive.description}`));
+      }
+      if (archive.embedding) {
+        archiveRows.push(chalk.dim(`  Embedding: ${archive.embedding}`));
+      }
+    }
+    lines.push(...createBoxWithRows(`Archives (${data.archives.length})`, archiveRows, width));
+  }
+
   // Tools section
   if (data.tools && data.tools.length > 0) {
     lines.push('');
@@ -975,6 +1080,23 @@ function displayAgentDetailsPlain(data: AgentDetailsData, _verbose: boolean = fa
   } else {
     lines.push('');
     lines.push('Memory Blocks: None');
+  }
+
+  if (data.archives && data.archives.length > 0) {
+    lines.push('');
+    lines.push(`Archives (${data.archives.length}):`);
+    for (const archive of data.archives) {
+      lines.push(`  - ${archive.name}`);
+      if (archive.description) {
+        lines.push(`    Description: ${archive.description}`);
+      }
+      if (archive.embedding) {
+        lines.push(`    Embedding: ${archive.embedding}`);
+      }
+    }
+  } else {
+    lines.push('');
+    lines.push('Archives: None');
   }
 
   if (data.tools && data.tools.length > 0) {
@@ -1099,6 +1221,67 @@ function displayBlockDetailsPlain(data: BlockDetailsData): string {
     lines.push(preview);
   } else {
     lines.push('  (empty)');
+  }
+
+  return lines.join('\n');
+}
+
+/**
+ * Display detailed archive info
+ */
+export function displayArchiveDetails(data: ArchiveDetailsData): string {
+  if (!shouldUseFancyUx()) {
+    return displayArchiveDetailsPlain(data);
+  }
+
+  const width = 70;
+  const lines: string[] = [];
+
+  const headerRows: BoxRow[] = [
+    { key: 'ID', value: data.id },
+    { key: 'Name', value: data.name },
+    { key: 'Description', value: data.description || '-' },
+    { key: 'Embedding', value: data.embedding || '-' },
+    { key: 'Vector DB', value: data.vectorDbProvider || '-' },
+    { key: 'Created', value: formatDate(data.created) },
+    { key: 'Updated', value: formatDate(data.updated) },
+  ];
+  lines.push(...createBox(`Archive: ${data.name}`, headerRows, width));
+
+  lines.push('');
+  if (data.attachedAgents && data.attachedAgents.length > 0) {
+    const agentRows = data.attachedAgents.map(a =>
+      chalk.white(a.name) + chalk.dim(` (${a.id})`)
+    );
+    lines.push(...createBoxWithRows(`Attached Agents (${data.attachedAgents.length})`, agentRows, width));
+  } else {
+    lines.push(...createBoxWithRows('Attached Agents (0)', [chalk.dim('(none - orphaned archive)')], width));
+  }
+
+  return lines.join('\n');
+}
+
+function displayArchiveDetailsPlain(data: ArchiveDetailsData): string {
+  const lines: string[] = [];
+
+  lines.push(`Archive Details: ${data.name}`);
+  lines.push('='.repeat(50));
+  lines.push(`ID:            ${data.id}`);
+  lines.push(`Name:          ${data.name || '-'}`);
+  lines.push(`Description:   ${data.description || '-'}`);
+  lines.push(`Embedding:     ${data.embedding || '-'}`);
+  lines.push(`Vector DB:     ${data.vectorDbProvider || '-'}`);
+  lines.push(`Created:       ${data.created || 'Unknown'}`);
+  lines.push(`Updated:       ${data.updated || 'Unknown'}`);
+
+  lines.push('');
+  lines.push(`Attached Agents (${data.attachedAgents?.length || 0}):`);
+  if (data.attachedAgents && data.attachedAgents.length > 0) {
+    for (const agent of data.attachedAgents) {
+      lines.push(`  - ${agent.name} (${agent.id})`);
+    }
+  } else {
+    lines.push('  (none - orphaned archive)');
   }
 
   return lines.join('\n');

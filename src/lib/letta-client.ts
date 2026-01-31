@@ -67,6 +67,43 @@ export class LettaClientWrapper {
     return allBlocks;
   }
 
+  async listArchives(options?: { limit?: number; agentId?: string; name?: string }) {
+    const allArchives: any[] = [];
+    const params: any = { limit: options?.limit || 1000 };
+
+    if (options?.agentId) {
+      params.agent_id = options.agentId;
+    }
+    if (options?.name) {
+      params.name = options.name;
+    }
+
+    for await (const archive of this.client.archives.list(params)) {
+      allArchives.push(archive);
+    }
+    return allArchives;
+  }
+
+  async listAgentArchives(agentId: string) {
+    return await this.listArchives({ agentId });
+  }
+
+  async getArchive(archiveId: string) {
+    return await this.client.archives.retrieve(archiveId);
+  }
+
+  async createArchive(archiveData: any) {
+    return await this.client.archives.create(archiveData);
+  }
+
+  async updateArchive(archiveId: string, archiveData: any) {
+    return await this.client.archives.update(archiveId, archiveData);
+  }
+
+  async deleteArchive(archiveId: string) {
+    return await this.client.archives.delete(archiveId);
+  }
+
   async listFolders(options?: { limit?: number }) {
     const allFolders: any[] = [];
     for await (const folder of this.client.folders.list({ limit: options?.limit || 1000 })) {
@@ -90,6 +127,14 @@ export class LettaClientWrapper {
     return await this.client.agents.folders.attach(folderId, {
       agent_id: agentId
     });
+  }
+
+  async attachArchiveToAgent(agentId: string, archiveId: string) {
+    return await this.client.agents.archives.attach(archiveId, { agent_id: agentId });
+  }
+
+  async detachArchiveFromAgent(agentId: string, archiveId: string) {
+    return await this.client.agents.archives.detach(archiveId, { agent_id: agentId });
   }
 
   async deleteFolder(folderId: string) {

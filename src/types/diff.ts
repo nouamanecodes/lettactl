@@ -26,6 +26,13 @@ export interface FolderDiff {
   unchanged: Array<{ name: string; id: string }>;
 }
 
+export interface ArchiveDiff {
+  toAttach: Array<{ name: string; id: string }>;
+  toDetach: Array<{ name: string; id: string }>;
+  toUpdate: Array<{ name: string; id: string; description?: string | null }>;
+  unchanged: Array<{ name: string; id: string }>;
+}
+
 export interface FieldChange<T> {
   from: T;
   to: T;
@@ -38,6 +45,7 @@ export interface AgentUpdateOperations {
     description?: FieldChange<string>;
     model?: FieldChange<string>;
     embedding?: FieldChange<string>;
+    embeddingConfig?: FieldChange<Record<string, any> | null>;
     contextWindow?: FieldChange<number>;
   };
 
@@ -45,6 +53,7 @@ export interface AgentUpdateOperations {
   tools?: ToolDiff;
   blocks?: BlockDiff;
   folders?: FolderDiff;
+  archives?: ArchiveDiff;
 
   // Metadata
   preservesConversation: boolean;

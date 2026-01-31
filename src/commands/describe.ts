@@ -8,12 +8,14 @@ import { normalizeToArray, findAttachedAgents } from '../lib/resource-usage';
 import {
   displayAgentDetails,
   displayBlockDetails,
+  displayArchiveDetails,
   displayToolDetails,
   displayFolderDetails,
   displayFileDetails,
   displayMcpServerDetails,
   AgentDetailsData,
   BlockDetailsData,
+  ArchiveDetailsData,
   ToolDetailsData,
   FolderDetailsData,
   FileDetailsData,
@@ -21,7 +23,7 @@ import {
 } from '../lib/ux/box';
 import { output } from '../lib/logger';
 
-const SUPPORTED_RESOURCES = ['agent', 'agents', 'block', 'blocks', 'tool', 'tools', 'folder', 'folders', 'file', 'files', 'mcp-servers'];
+const SUPPORTED_RESOURCES = ['agent', 'agents', 'block', 'blocks', 'archive', 'archives', 'tool', 'tools', 'folder', 'folders', 'file', 'files', 'mcp-servers'];
 
 async function describeCommandImpl(resource: string, name: string, options?: { output?: string }, command?: any) {
   const verbose = command?.parent?.opts().verbose || false;
@@ -41,6 +43,9 @@ async function describeCommandImpl(resource: string, name: string, options?: { o
       break;
     case 'block':
       await describeBlock(client, resolver, name, options, spinnerEnabled);
+      break;
+    case 'archive':
+      await describeArchive(client, resolver, name, options, spinnerEnabled);
       break;
     case 'tool':
       await describeTool(client, resolver, name, options, spinnerEnabled);
@@ -97,6 +102,15 @@ async function describeAgent(
       }
     }
 
+    // Get attached archives
+    const archives = (agentDetails as any).archives || [];
+    const archiveData = archives.map((archive: any) => ({
+      name: archive.name || archive.id,
+      id: archive.id,
+      description: archive.description,
+      embedding: archive.embedding_config?.embedding_model || archive.embedding,
+    }));
+
     // Get recent messages
     let messages: { createdAt?: string; role?: string; preview?: string }[] = [];
     try {
@@ -141,6 +155,7 @@ async function describeAgent(
         name: t.name || t,
         description: t.description,
       })),
+      archives: archiveData,
       folders: folderData,
       messages,
     };
@@ -195,6 +210,53 @@ async function describeBlock(
     output(displayBlockDetails(displayData));
   } catch (error) {
     spinner.fail(`Failed to load details for block ${name}`);
+    throw error;
+  }
+}
+
+async function describeArchive(
+  client: LettaClientWrapper,
+  resolver: AgentResolver,
+  name: string,
+  options?: { output?: string },
+  spinnerEnabled?: boolean
+) {
+  const spinner = createSpinner(`Loading details for archive ${name}...`, spinnerEnabled).start();
+
+  try {
+    const allArchives = await client.listArchives();
+    const archive = allArchives.find((a: any) => a.name === name || a.id === name);
+
+    if (!archive) {
+      spinner.fail(`Archive "${name}" not found`);
+      throw new Error(`Archive "${name}" not found`);
+    }
+
+    spinner.text = 'Finding attached agents...';
+    const attachedAgents = await findAttachedAgents(client, resolver, 'archives', archive.id);
+
+    spinner.stop();
+
+    if (OutputFormatter.handleJsonOutput({ ...archive, attached_agents: attachedAgents }, options?.output)) {
+      return;
+    }
+
+    const embedding = archive.embedding_config?.embedding_model || archive.embedding || undefined;
+
+    const displayData: ArchiveDetailsData = {
+      id: archive.id,
+      name: archive.name,
+      description: archive.description,
+      embedding,
+      vectorDbProvider: archive.vector_db_provider,
+      created: archive.created_at,
+      updated: archive.updated_at,
+      attachedAgents: attachedAgents.map((a: any) => ({ name: a.name, id: a.id })),
+    };
+
+    output(displayArchiveDetails(displayData));
+  } catch (error) {
+    spinner.fail(`Failed to load details for archive ${name}`);
     throw error;
   }
 }

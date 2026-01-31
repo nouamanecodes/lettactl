@@ -73,6 +73,11 @@ export class FileContentTracker {
       } else {
         // Default to tools/ directory
         const toolPath = path.join('tools', `${toolName}.py`);
+        const fullPath = path.resolve(this.basePath, toolPath);
+        if (!fs.existsSync(fullPath)) {
+          // Skip hashing when local source doesn't exist (common for MCP tools)
+          continue;
+        }
         toolHashes[toolName] = this.generateFileContentHash(toolPath);
       }
     }

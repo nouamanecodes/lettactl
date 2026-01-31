@@ -54,6 +54,9 @@ export class DiffApplier {
       if (fields.embedding !== undefined) {
         apiFields.embedding = fields.embedding.to;
       }
+      if (fields.embeddingConfig !== undefined) {
+        apiFields.embedding_config = fields.embeddingConfig.to;
+      }
       if (fields.contextWindow !== undefined) {
         apiFields.context_window_limit = fields.contextWindow.to;
       }
@@ -169,6 +172,26 @@ export class DiffApplier {
         operations.folders.toUpdate.some(f => f.filesToAdd.length > 0 || f.filesToUpdate.length > 0);
       if (hasFileChanges) {
         await this.client.closeAllAgentFiles(agentId);
+      }
+    }
+
+    // Apply archive changes
+    if (operations.archives) {
+      for (const archive of operations.archives.toUpdate) {
+        if (verbose) log(`  Updating archive: ${archive.name}`);
+        await this.client.updateArchive(archive.id, { description: archive.description, name: archive.name });
+      }
+
+      for (const archive of operations.archives.toAttach) {
+        if (verbose) log(`  Attaching archive: ${archive.name}`);
+        await this.client.attachArchiveToAgent(agentId, archive.id);
+      }
+
+      if (force) {
+        for (const archive of operations.archives.toDetach) {
+          if (verbose) log(`  Detaching archive: ${archive.name}`);
+          await this.client.detachArchiveFromAgent(agentId, archive.id);
+        }
       }
     }
 

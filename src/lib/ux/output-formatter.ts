@@ -5,12 +5,14 @@ import { log, output } from '../logger';
 import {
   displayAgents,
   displayBlocks,
+  displayArchives,
   displayTools,
   displayFolders,
   displayMcpServers,
   displayFiles,
   AgentData,
   BlockData,
+  ArchiveData,
   ToolData,
   FolderData,
   McpServerData,
@@ -91,6 +93,21 @@ export class OutputFormatter {
     }));
 
     return displayBlocks(data);
+  }
+
+  /**
+   * Creates a table for archive listing
+   * @param agentCounts - Optional map of archive ID to agent count
+   */
+  static createArchiveTable(archives: any[], agentCounts?: Map<string, number>): string {
+    const data: ArchiveData[] = archives.map(archive => ({
+      name: archive.name || 'Unknown',
+      id: archive.id || 'Unknown',
+      embedding: archive.embedding_config?.embedding_model || archive.embedding || 'Unknown',
+      agentCount: agentCounts?.get(archive.id),
+    }));
+
+    return displayArchives(data);
   }
 
   /**
@@ -253,6 +270,22 @@ export class OutputFormatter {
       }
     } else {
       log(`  = Folders: unchanged`);
+    }
+
+    // Archives changes
+    if (operations.archives) {
+      const { toAttach, toDetach, toUpdate, unchanged } = operations.archives;
+
+      if (toAttach.length > 0 || toDetach.length > 0 || toUpdate.length > 0) {
+        log(`  ~ Archives: ${unchanged.length} unchanged, ${toAttach.length + toDetach.length + toUpdate.length} modified`);
+        toAttach.forEach(archive => log(`    + Added archive: ${archive.name}`));
+        toUpdate.forEach(archive => log(`    ~ Updated archive: ${archive.name}`));
+        toDetach.forEach(archive => log(`    - Removed archive: ${archive.name} (requires --force)`));
+      } else {
+        log(`  = Archives: unchanged`);
+      }
+    } else {
+      log(`  = Archives: unchanged`);
     }
 
     log(`  Total operations: ${operations.operationCount}, preserves conversation: ${operations.preservesConversation}`);

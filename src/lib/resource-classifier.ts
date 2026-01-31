@@ -72,6 +72,26 @@ export class ResourceClassifier {
   }
 
   /**
+   * Checks if an archive is used by other agents
+   */
+  async isArchiveUsedByOtherAgents(archiveId: string, excludeAgentId: string, allAgents: any[]): Promise<boolean> {
+    const otherAgents = allAgents.filter((a: any) => a.id !== excludeAgentId);
+
+    for (const otherAgent of otherAgents) {
+      try {
+        const archives = await this.client.listAgentArchives(otherAgent.id);
+        if (archives && archives.find((a: any) => a.id === archiveId)) {
+          return true;
+        }
+      } catch (error) {
+        continue;
+      }
+    }
+
+    return false;
+  }
+
+  /**
    * Identifies agent-specific blocks based on naming patterns
    * Uses simple heuristic: blocks containing the agent name (excluding shared blocks)
    */

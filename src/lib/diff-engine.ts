@@ -1,14 +1,15 @@
 import { LettaClientWrapper } from './letta-client';
 import { AgentVersion } from './agent-manager';
 import { BlockManager } from './block-manager';
+import { ArchiveManager } from './archive-manager';
 import { normalizeResponse } from './response-normalizer';
 import { DiffApplier } from './diff-applier';
-import { analyzeToolChanges, analyzeBlockChanges, analyzeFolderChanges } from './diff-analyzers';
+import { analyzeToolChanges, analyzeBlockChanges, analyzeFolderChanges, analyzeArchiveChanges } from './diff-analyzers';
 import type { AgentUpdateOperations } from '../types/diff';
 import { log } from './logger';
 
 // Re-export types for backwards compatibility
-export type { ToolDiff, BlockDiff, FolderDiff, FieldChange, AgentUpdateOperations } from '../types/diff';
+export type { ToolDiff, BlockDiff, FolderDiff, ArchiveDiff, FieldChange, AgentUpdateOperations } from '../types/diff';
 
 /**
  * DiffEngine determines what specific operations are needed to update an agent
@@ -17,11 +18,13 @@ export type { ToolDiff, BlockDiff, FolderDiff, FieldChange, AgentUpdateOperation
 export class DiffEngine {
   private client: LettaClientWrapper;
   private blockManager: BlockManager;
+  private archiveManager: ArchiveManager;
   private basePath: string;
 
-  constructor(client: LettaClientWrapper, blockManager: BlockManager, basePath: string = '') {
+  constructor(client: LettaClientWrapper, blockManager: BlockManager, archiveManager: ArchiveManager, basePath: string = '') {
     this.client = client;
     this.blockManager = blockManager;
+    this.archiveManager = archiveManager;
     this.basePath = basePath;
   }
 
@@ -38,10 +41,12 @@ export class DiffEngine {
       toolSourceHashes?: Record<string, string>;
       model?: string;
       embedding?: string;
+      embeddingConfig?: Record<string, any>;
       contextWindow?: number;
       memoryBlocks?: Array<{name: string; description: string; limit: number; value: string}>;
       memoryBlockFileHashes?: Record<string, string>;
       folders?: Array<{name: string; files: string[]; fileContentHashes?: Record<string, string>}>;
+      archives?: Array<{name: string; description?: string; embedding?: string; embedding_config?: Record<string, any>}>;
       sharedBlocks?: string[];
     },
     toolRegistry: Map<string, string>,
@@ -65,11 +70,13 @@ export class DiffEngine {
     const currentToolsResponse = await this.client.listAgentTools(existingAgent.id);
     const currentBlocksResponse = await this.client.listAgentBlocks(existingAgent.id);
     const currentFoldersResponse = await this.client.listAgentFolders(existingAgent.id);
+    const currentArchivesResponse = await this.client.listAgentArchives(existingAgent.id);
     
     // Normalize responses to arrays
     const currentTools = normalizeResponse(currentToolsResponse);
     const currentBlocks = normalizeResponse(currentBlocksResponse);
     const currentFolders = normalizeResponse(currentFoldersResponse);
+    const currentArchives = normalizeResponse(currentArchivesResponse);
 
     // Analyze basic field changes
     const fieldUpdates: any = {};
@@ -100,9 +107,29 @@ export class DiffEngine {
       operations.operationCount++;
     }
 
-    const desiredEmbedding = desiredConfig.embedding || "letta/letta-free";
-    if (currentAgent.embedding !== desiredEmbedding) {
+    const desiredEmbedding = desiredConfig.embedding;
+    if (desiredEmbedding !== undefined && currentAgent.embedding !== desiredEmbedding) {
       fieldUpdates.embedding = { from: currentAgent.embedding, to: desiredEmbedding };
+      operations.operationCount++;
+    }
+
+    const normalizeConfig = (value: any): any => {
+      if (value === null || value === undefined) return null;
+      if (Array.isArray(value)) return value.map(normalizeConfig);
+      if (typeof value === 'object') {
+        const result: any = {};
+        for (const key of Object.keys(value).sort()) {
+          result[key] = normalizeConfig(value[key]);
+        }
+        return result;
+      }
+      return value;
+    };
+
+    const currentEmbeddingConfig = normalizeConfig((currentAgent as any).embedding_config);
+    const desiredEmbeddingConfig = normalizeConfig(desiredConfig.embeddingConfig);
+    if (JSON.stringify(currentEmbeddingConfig) !== JSON.stringify(desiredEmbeddingConfig)) {
+      fieldUpdates.embeddingConfig = { from: currentEmbeddingConfig, to: desiredEmbeddingConfig };
       operations.operationCount++;
     }
 
@@ -151,6 +178,16 @@ export class DiffEngine {
     );
     operations.operationCount += operations.folders.toAttach.length + operations.folders.toDetach.length +
       operations.folders.toUpdate.reduce((sum, folder) => sum + folder.filesToAdd.length + folder.filesToRemove.length + folder.filesToUpdate.length, 0);
+
+    // Analyze archive changes
+    const archiveOps = await analyzeArchiveChanges(
+      currentArchives,
+      desiredConfig.archives || [],
+      this.archiveManager,
+      dryRun
+    );
+    operations.archives = archiveOps;
+    operations.operationCount += archiveOps.toAttach.length + archiveOps.toDetach.length + archiveOps.toUpdate.length;
 
     return operations;
   }

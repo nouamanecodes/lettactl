@@ -8,7 +8,7 @@ import { normalizeToArray, computeAgentCounts } from '../lib/resource-usage';
 import { log, output } from '../lib/logger';
 import { AgentDataFetcher, DetailLevel } from '../lib/agent-data-fetcher';
 
-const SUPPORTED_RESOURCES = ['agents', 'blocks', 'tools', 'folders', 'files', 'mcp-servers'];
+const SUPPORTED_RESOURCES = ['agents', 'blocks', 'archives', 'tools', 'folders', 'files', 'mcp-servers'];
 
 interface GetOptions {
   output?: string;
@@ -60,6 +60,9 @@ async function getCommandImpl(resource: string, _name?: string, options?: GetOpt
       break;
     case 'blocks':
       await getBlocks(client, resolver, options, spinnerEnabled, agentId);
+      break;
+    case 'archives':
+      await getArchives(client, resolver, options, spinnerEnabled, agentId);
       break;
     case 'tools':
       await getTools(client, resolver, options, spinnerEnabled, agentId);
@@ -172,6 +175,62 @@ async function getBlocks(
     output(OutputFormatter.createBlockTable(blockList, isWide, agentCounts));
   } catch (error) {
     spinner.fail('Failed to load blocks');
+    throw error;
+  }
+}
+
+async function getArchives(
+  client: LettaClientWrapper,
+  resolver: AgentResolver,
+  options?: GetOptions,
+  spinnerEnabled?: boolean,
+  agentId?: string
+) {
+  let label = 'Loading archives...';
+  if (agentId) label = 'Loading agent archives...';
+  else if (options?.shared) label = 'Loading shared archives...';
+  else if (options?.orphaned) label = 'Loading orphaned archives...';
+
+  const spinner = createSpinner(label, spinnerEnabled).start();
+
+  try {
+    let archiveList: any[];
+    let agentCounts: Map<string, number> | undefined;
+
+    if (agentId) {
+      archiveList = normalizeToArray(await client.listAgentArchives(agentId));
+    } else {
+      archiveList = await client.listArchives();
+    }
+
+    if (!agentId) {
+      spinner.text = 'Computing archive usage...';
+      agentCounts = await computeAgentCounts(client, resolver, 'archives', archiveList.map((a: any) => a.id));
+
+      if (options?.shared) {
+        archiveList = archiveList.filter((a: any) => (agentCounts?.get(a.id) || 0) > 1);
+      } else if (options?.orphaned) {
+        archiveList = archiveList.filter((a: any) => (agentCounts?.get(a.id) || 0) === 0);
+      }
+    }
+
+    spinner.stop();
+
+    if (OutputFormatter.handleJsonOutput(archiveList, options?.output)) {
+      return;
+    }
+
+    if (archiveList.length === 0) {
+      if (agentId) output('No archives attached to this agent');
+      else if (options?.shared) output('No shared archives found (attached to 2+ agents)');
+      else if (options?.orphaned) output('No orphaned archives found (attached to 0 agents)');
+      else output('No archives found');
+      return;
+    }
+
+    output(OutputFormatter.createArchiveTable(archiveList, agentCounts));
+  } catch (error) {
+    spinner.fail('Failed to load archives');
     throw error;
   }
 }

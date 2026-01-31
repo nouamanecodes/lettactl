@@ -47,7 +47,8 @@ export class AgentManager {
           model: '', 
           memoryBlocks: '',
           folders: '',
-          sharedBlocks: ''
+          sharedBlocks: '',
+          archives: ''
         };
         const { baseName, version } = this.parseVersionFromName(agent.name);
 
@@ -78,10 +79,12 @@ export class AgentManager {
     toolSourceHashes?: Record<string, string>;
     model?: string;
     embedding?: string;
+    embeddingConfig?: Record<string, any>;
     contextWindow?: number;
     memoryBlocks?: Array<{name: string; description: string; limit: number; value: string}>;
     memoryBlockFileHashes?: Record<string, string>;
     folders?: Array<{name: string; files: string[]; fileContentHashes?: Record<string, string>}>;
+    archives?: Array<{name: string; description?: string; embedding?: string}>;
     sharedBlocks?: string[];
   }): AgentConfigHashes {
     
@@ -98,7 +101,8 @@ export class AgentManager {
     // Model configuration hash (model + embedding + context window)
     const modelConfig = {
       model: config.model || "google_ai/gemini-2.5-pro",
-      embedding: config.embedding || "letta/letta-free",
+      embedding: config.embedding || null,
+      embeddingConfig: config.embeddingConfig || null,
       contextWindow: config.contextWindow || 64000
     };
     const modelHash = generateContentHash(JSON.stringify(modelConfig));
@@ -130,6 +134,15 @@ export class AgentManager {
     
     // Shared blocks hash
     const sharedBlocksHash = generateContentHash(JSON.stringify([...(config.sharedBlocks || [])].sort()));
+
+    // Archives hash
+    const normalizedArchives = (config.archives || [])
+      .map(archive => ({
+        name: archive.name,
+        description: archive.description
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+    const archivesHash = generateContentHash(JSON.stringify(normalizedArchives));
     
     // Overall hash combining all components
     const overallHash = generateContentHash(JSON.stringify({
@@ -138,7 +151,8 @@ export class AgentManager {
       model: modelHash,
       memoryBlocks: memoryBlocksHash,
       folders: foldersHash,
-      sharedBlocks: sharedBlocksHash
+      sharedBlocks: sharedBlocksHash,
+      archives: archivesHash
     }));
     
     return {
@@ -148,7 +162,8 @@ export class AgentManager {
       model: modelHash,
       memoryBlocks: memoryBlocksHash,
       folders: foldersHash,
-      sharedBlocks: sharedBlocksHash
+      sharedBlocks: sharedBlocksHash,
+      archives: archivesHash
     };
   }
 
@@ -163,10 +178,12 @@ export class AgentManager {
       toolSourceHashes?: Record<string, string>;
       model?: string;
       embedding?: string;
+      embeddingConfig?: Record<string, any>;
       contextWindow?: number;
       memoryBlocks?: Array<{name: string; description: string; limit: number; value: string}>;
       memoryBlockFileHashes?: Record<string, string>;
       folders?: Array<{name: string; files: string[]}>;
+      archives?: Array<{name: string; description?: string; embedding?: string}>;
       sharedBlocks?: string[];
     },
     verbose: boolean = false
@@ -206,10 +223,12 @@ export class AgentManager {
     toolSourceHashes?: Record<string, string>;
     model?: string;
     embedding?: string;
+    embeddingConfig?: Record<string, any>;
     contextWindow?: number;
     memoryBlocks?: Array<{name: string; description: string; limit: number; value: string}>;
     memoryBlockFileHashes?: Record<string, string>;
     folders?: Array<{name: string; files: string[]}>;
+    archives?: Array<{name: string; description?: string; embedding?: string}>;
     sharedBlocks?: string[];
   }): {
     hasChanges: boolean;
@@ -238,6 +257,9 @@ export class AgentManager {
     if (existing.configHashes.sharedBlocks !== newHashes.sharedBlocks) {
       changedComponents.push('sharedBlocks');
     }
+    if (existing.configHashes.archives !== newHashes.archives) {
+      changedComponents.push('archives');
+    }
 
     return {
       hasChanges: changedComponents.length > 0,
@@ -254,9 +276,11 @@ export class AgentManager {
     tools: string[];
     model?: string;
     embedding?: string;
+    embeddingConfig?: Record<string, any>;
     contextWindow?: number;
     memoryBlocks?: Array<{name: string; description: string; limit: number; value: string}>;
     folders?: Array<{name: string; files: string[]}>;
+    archives?: Array<{name: string; description?: string; embedding?: string}>;
     sharedBlocks?: string[];
   }, agentId: string): void {
     const configHashes = this.generateAgentConfigHashes(agentConfig);

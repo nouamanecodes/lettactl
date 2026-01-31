@@ -726,6 +726,152 @@ fi
 $CLI delete agent e2e-force-test --force > /dev/null 2>&1 || true
 
 # ============================================================================
+# Test: Archives Basic
+# ============================================================================
+
+section "Archives Basic"
+
+# Cleanup any existing test agent
+$CLI delete agent e2e-41-archives-basic --force > /dev/null 2>&1 || true
+
+info "Creating agent with archives..."
+if $CLI apply -f "$FIXTURES/fleet-archives-test.yml" --root "$FIXTURES" > $OUT 2>&1; then
+    pass "Created archives basic agent"
+else
+    fail "Failed to create archives basic agent"
+    cat $OUT
+fi
+
+if $CLI get archives --agent e2e-41-archives-basic > $OUT 2>&1; then
+    if output_contains "e2e-archive-basic-1"; then
+        pass "Archive attached to agent"
+    else
+        fail "Archive not attached to agent"
+        cat $OUT
+    fi
+else
+    fail "Get archives for agent failed"
+    cat $OUT
+fi
+
+if $CLI describe agent e2e-41-archives-basic > $OUT 2>&1; then
+    if output_contains "e2e-archive-basic-1"; then
+        pass "Agent details show archive"
+    else
+        fail "Agent details missing archive"
+        cat $OUT
+    fi
+else
+    fail "Describe agent failed"
+    cat $OUT
+fi
+
+if $CLI describe archive e2e-archive-basic-1 > $OUT 2>&1; then
+    if output_contains "e2e-41-archives-basic"; then
+        pass "Archive details show attached agent"
+    else
+        fail "Archive details missing attached agent"
+        cat $OUT
+    fi
+else
+    fail "Describe archive failed"
+    cat $OUT
+fi
+
+# Cleanup
+$CLI delete agent e2e-41-archives-basic --force > /dev/null 2>&1 || true
+$CLI delete-all archives --pattern "e2e-archive-basic-.*" --force > /dev/null 2>&1 || true
+
+# ============================================================================
+# Test: Archives Force Removal
+# ============================================================================
+
+section "Archives Force Removal"
+
+# Cleanup any existing test agent
+$CLI delete agent e2e-42-archives-force --force > /dev/null 2>&1 || true
+
+info "Creating agent with archives to detach..."
+if $CLI apply -f "$FIXTURES/fleet-archives-force-test.yml" --root "$FIXTURES" > $OUT 2>&1; then
+    pass "Created archives force agent"
+else
+    fail "Failed to create archives force agent"
+    cat $OUT
+fi
+
+if $CLI get archives --agent e2e-42-archives-force > $OUT 2>&1; then
+    if output_contains "e2e-archive-force-keep"; then
+        pass "Force test archive attached"
+    else
+        fail "Force test archive not attached"
+        cat $OUT
+    fi
+else
+    fail "Get archives for force agent failed"
+    cat $OUT
+fi
+
+info "Applying reduced config WITHOUT --force..."
+if $CLI apply -f "$FIXTURES/fleet-archives-force-test-reduced.yml" --root "$FIXTURES" > $OUT 2>&1; then
+    if $CLI get archives --agent e2e-42-archives-force > $OUT 2>&1; then
+        if output_contains "e2e-archive-force-keep"; then
+            pass "Archive retained without --force"
+        else
+            fail "Archive incorrectly detached without --force"
+            cat $OUT
+        fi
+    fi
+else
+    fail "Apply reduced config failed"
+    cat $OUT
+fi
+
+info "Checking dry-run shows --force requirement..."
+if $CLI apply -f "$FIXTURES/fleet-archives-force-test-reduced.yml" --root "$FIXTURES" --dry-run > $OUT 2>&1; then
+    if output_contains "requires --force"; then
+        pass "Dry-run indicates --force required"
+    else
+        if $CLI get archives --agent e2e-42-archives-force 2>/dev/null | grep -q "e2e-archive-force-remove"; then
+            fail "Dry-run missing --force indicator"
+            cat $OUT
+        else
+            pass "No removals pending (archive already detached)"
+        fi
+    fi
+fi
+
+info "Applying reduced config WITH --force..."
+if $CLI apply -f "$FIXTURES/fleet-archives-force-test-reduced.yml" --root "$FIXTURES" --force > $OUT 2>&1; then
+    if $CLI get archives --agent e2e-42-archives-force > $OUT 2>&1; then
+        if ! output_contains "e2e-archive-force-keep"; then
+            pass "Archive detached with --force"
+        else
+            fail "Archive removal did not behave as expected"
+            cat $OUT
+        fi
+    fi
+else
+    fail "Apply with --force failed"
+    cat $OUT
+fi
+
+if $CLI get archives --orphaned > $OUT 2>&1; then
+    if output_contains "e2e-archive-force-keep"; then
+        pass "Orphaned archive listed"
+    else
+        fail "Orphaned archive not listed"
+        cat $OUT
+    fi
+else
+    fail "Get orphaned archives failed"
+    cat $OUT
+fi
+
+# Cleanup
+$CLI delete agent e2e-42-archives-force --force > /dev/null 2>&1 || true
+$CLI delete-all archives --pattern "e2e-archive-force-.*" --force > /dev/null 2>&1 || true
+
+# ============================================================================
 # Test: Protected Memory and File Tools (#130, #137)
 # ============================================================================
 

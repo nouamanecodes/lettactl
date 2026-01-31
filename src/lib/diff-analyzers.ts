@@ -1,10 +1,11 @@
 import { LettaClientWrapper } from './letta-client';
 import { BlockManager } from './block-manager';
 import { normalizeResponse } from './response-normalizer';
-import { ToolDiff, BlockDiff, FolderDiff } from './diff-engine';
+import { ToolDiff, BlockDiff, FolderDiff, ArchiveDiff } from './diff-engine';
 import { FolderFileConfig } from '../types/fleet-config';
 import { warn } from './logger';
 import { PROTECTED_MEMORY_TOOLS } from './builtin-tools';
+import { ArchiveManager } from './archive-manager';
 
 // Helper to extract file name from FolderFileConfig (string or from_bucket object)
 function getFileName(fileConfig: FolderFileConfig): string {
@@ -316,6 +317,78 @@ export async function analyzeFolderChanges(
       }
     } else {
       toDetach.push({ name: folder.name, id: folder.id });
+    }
+  }
+
+  return { toAttach, toDetach, toUpdate, unchanged };
+}
+
+export async function analyzeArchiveChanges(
+  currentArchives: any[],
+  desiredArchives: Array<{ name: string; description?: string; embedding?: string; embedding_config?: Record<string, any> }>,
+  archiveManager: ArchiveManager,
+  dryRun: boolean = false
+): Promise<ArchiveDiff> {
+  const currentArchiveNames = new Set<string>();
+  const currentByName = new Map<string, any>();
+
+  for (const archive of currentArchives) {
+    const name = archive.name || archive.archive_name;
+    if (!name) continue;
+    currentArchiveNames.add(name);
+    currentByName.set(name, archive);
+  }
+
+  const desiredArchiveNames = new Set(desiredArchives.map(a => a.name));
+
+  const toAttach: Array<{ name: string; id: string }> = [];
+  const toDetach: Array<{ name: string; id: string }> = [];
+  const toUpdate: Array<{ name: string; id: string; description?: string | null }> = [];
+  const unchanged: Array<{ name: string; id: string }> = [];
+
+  for (const archiveConfig of desiredArchives) {
+    if (!currentArchiveNames.has(archiveConfig.name)) {
+      let archiveId = archiveManager.getArchiveId(archiveConfig.name);
+
+      if (!archiveId) {
+        if (dryRun) {
+          toAttach.push({ name: archiveConfig.name, id: '(new)' });
+          continue;
+        }
+        archiveId = await archiveManager.getOrCreateArchive({
+          name: archiveConfig.name,
+          description: archiveConfig.description,
+          embedding: archiveConfig.embedding,
+          embedding_config: archiveConfig.embedding_config,
+        });
+      }
+
+      if (archiveId) {
+        toAttach.push({ name: archiveConfig.name, id: archiveId });
+      }
+    } else {
+      const current = currentByName.get(archiveConfig.name);
+      const currentDescription = current?.description;
+      if (archiveConfig.description !== undefined && archiveConfig.description !== currentDescription) {
+        const archiveId = current?.id || archiveManager.getArchiveId(archiveConfig.name);
+        if (archiveId) {
+          toUpdate.push({
+            name: archiveConfig.name,
+            id: archiveId,
+            description: archiveConfig.description,
+          });
+        }
+      } else {
+        unchanged.push({ name: archiveConfig.name, id: current?.id || '(unknown)' });
+      }
+    }
+  }
+
+  for (const [name, current] of currentByName) {
+    if (!desiredArchiveNames.has(name)) {
+      if (current?.id) {
+        toDetach.push({ name, id: current.id });
+      }
     }
   }
 

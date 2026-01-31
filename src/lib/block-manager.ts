@@ -63,6 +63,7 @@ export class BlockManager {
   async getOrCreateSharedBlock(blockConfig: any): Promise<string> {
     const blockKey = this.getBlockKey(blockConfig.name, true);
     const contentHash = generateContentHash(blockConfig.value);
+    const isMutable = blockConfig.mutable !== false;
 
     // Check both shared and non-shared keys
     let existing = this.blockRegistry.get(blockKey);
@@ -71,12 +72,17 @@ export class BlockManager {
     }
 
     if (existing) {
+      if (isMutable) {
+        log(`Using existing shared block: ${existing.label}`);
+        return existing.id;
+      }
+
       if (existing.contentHash === contentHash) {
         log(`Using existing shared block: ${existing.label}`);
         return existing.id;
       }
 
-      // Content changed - update in-place
+      // Content changed - update in-place when mutable is false
       log(`Updating shared block: ${existing.label}`);
       await this.client.updateBlock(existing.id, {
         value: blockConfig.value,

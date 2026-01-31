@@ -44,6 +44,11 @@ describe('AgentManager', () => {
       expect(gen({ systemPrompt: 's', tools: ['t'], toolSourceHashes: { t: '1' } }).tools)
         .not.toBe(gen({ systemPrompt: 's', tools: ['t'], toolSourceHashes: { t: '2' } }).tools);
     });
+
+    it('differs by archives', () => {
+      expect(gen({ systemPrompt: 's', tools: [], archives: [{ name: 'a' }] }).archives)
+        .not.toBe(gen({ systemPrompt: 's', tools: [], archives: [{ name: 'b' }] }).archives);
+    });
   });
 
   describe('getConfigChanges', () => {

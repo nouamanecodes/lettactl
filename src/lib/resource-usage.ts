@@ -14,7 +14,7 @@ export function normalizeToArray(response: any): any[] {
 export async function computeAgentCounts(
   client: LettaClientWrapper,
   resolver: AgentResolver,
-  resourceType: 'blocks' | 'tools' | 'folders',
+  resourceType: 'blocks' | 'tools' | 'folders' | 'archives',
   resourceIds: string[]
 ): Promise<Map<string, number>> {
   const counts = new Map<string, number>();
@@ -40,7 +40,7 @@ export async function computeAgentCounts(
 export async function findAttachedAgents(
   client: LettaClientWrapper,
   resolver: AgentResolver,
-  resourceType: 'blocks' | 'tools' | 'folders',
+  resourceType: 'blocks' | 'tools' | 'folders' | 'archives',
   resourceId: string
 ): Promise<any[]> {
   const allAgents = await resolver.getAllAgents();
@@ -62,7 +62,7 @@ export async function findAttachedAgents(
 async function getAgentResources(
   client: LettaClientWrapper,
   agentId: string,
-  resourceType: 'blocks' | 'tools' | 'folders'
+  resourceType: 'blocks' | 'tools' | 'folders' | 'archives'
 ): Promise<any[]> {
   let response: any;
 
@@ -75,6 +75,9 @@ async function getAgentResources(
       break;
     case 'folders':
       response = await client.listAgentFolders(agentId);
+      break;
+    case 'archives':
+      response = await client.listAgentArchives(agentId);
       break;
   }
 

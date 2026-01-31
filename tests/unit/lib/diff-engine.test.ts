@@ -1,17 +1,21 @@
 import { BlockManager } from '../../../src/lib/block-manager';
+import { ArchiveManager } from '../../../src/lib/archive-manager';
 import { LettaClientWrapper } from '../../../src/lib/letta-client';
-import { analyzeToolChanges, analyzeBlockChanges, analyzeFolderChanges } from '../../../src/lib/diff-analyzers';
+import { analyzeToolChanges, analyzeBlockChanges, analyzeFolderChanges, analyzeArchiveChanges } from '../../../src/lib/diff-analyzers';
 
 jest.mock('../../../src/lib/letta-client');
 jest.mock('../../../src/lib/block-manager');
+jest.mock('../../../src/lib/archive-manager');
 
 describe('DiffEngine', () => {
   let mockBlockManager: jest.Mocked<BlockManager>;
+  let mockArchiveManager: jest.Mocked<ArchiveManager>;
   let mockClient: jest.Mocked<LettaClientWrapper>;
 
   beforeEach(() => {
     mockClient = new (LettaClientWrapper as any)();
     mockBlockManager = new (BlockManager as any)(mockClient);
+    mockArchiveManager = new (ArchiveManager as any)(mockClient);
   });
 
   describe('analyzeToolChanges', () => {
@@ -86,6 +90,24 @@ describe('DiffEngine', () => {
     it('identifies unchanged folders', async () => {
       const result = await analyzeFolderChanges([{ name: 'folder', id: 'id-1' }], [{ name: 'folder', files: [] }], new Map(), mockClient);
       expect(result.unchanged).toHaveLength(1);
+    });
+  });
+
+  describe('analyzeArchiveChanges', () => {
+    it('identifies archives to attach', async () => {
+      mockArchiveManager.getArchiveId.mockReturnValue('archive-1');
+      const result = await analyzeArchiveChanges([], [{ name: 'archive' }], mockArchiveManager);
+      expect(result.toAttach).toEqual([{ name: 'archive', id: 'archive-1' }]);
+    });
+
+    it('identifies archives to detach', async () => {
+      const result = await analyzeArchiveChanges([{ name: 'archive', id: 'archive-1' }], [], mockArchiveManager);
+      expect(result.toDetach).toEqual([{ name: 'archive', id: 'archive-1' }]);
+    });
+
+    it('marks archives as unchanged', async () => {
+      const result = await analyzeArchiveChanges([{ name: 'archive', id: 'archive-1' }], [{ name: 'archive' }], mockArchiveManager);
+      expect(result.unchanged).toEqual([{ name: 'archive', id: 'archive-1' }]);
     });
   });
 });

@@ -244,6 +244,7 @@ lettactl delete-all agents --pattern "PROD.*" --force   # Matches "prod-agent-1"
 
 **What gets deleted:**
 - Agent-specific memory blocks
+- Agent archival memory archives
 - Agent-specific folders (if not shared)
 - Associated conversation history
 
@@ -262,17 +263,20 @@ lettactl delete-all agents --pattern "PROD.*" --force   # Matches "prod-agent-1"
 # Preview orphaned resources (dry-run by default)
 lettactl cleanup blocks                # Find orphaned blocks
 lettactl cleanup folders               # Find orphaned folders (and their files)
+lettactl cleanup archives              # Find orphaned archives
 lettactl cleanup all                   # Find all orphaned resources
 
 # Actually delete orphaned resources
 lettactl cleanup blocks --force        # Delete orphaned blocks
 lettactl cleanup folders --force       # Delete orphaned folders (cascades to files)
+lettactl cleanup archives --force      # Delete orphaned archives (and their passages)
 lettactl cleanup all --force           # Delete all orphaned resources
 ```
 
 **What gets cleaned up:**
 - **Orphaned blocks**: Memory blocks attached to 0 agents
 - **Orphaned folders**: Folders attached to 0 agents (files inside are also deleted)
+- **Orphaned archives**: Archives attached to 0 agents
 
 **Safety Features:**
 - Dry-run by default - shows what would be deleted
@@ -280,11 +284,33 @@ lettactl cleanup all --force           # Delete all orphaned resources
 - Shows file counts for orphaned folders
 - Uses API's native orphan detection for efficiency
 
+### Archival Memory (Archives)
+Archives are the archival memory stores attached to agents.
+
+**Key points:**
+- Archives are **per-agent** and **one per agent** (validated).
+- `apply` will create and attach the archive if it does not exist.
+- Removing an archive from config only detaches it when `--force` is used.
+- Passages are managed by the agent/tools (`archival_memory_insert/search`), not by lettactl.
+- Export/import includes archives and passages via Letta server export/import.
+
+**Example:**
+```yaml
+agents:
+  - name: my-agent
+    archives:
+      - name: my-archive
+        description: "Long-term knowledge base"
+        embedding: "openai/text-embedding-3-small"
+        # embedding_config: {}   # Optional provider-specific config
+```
+
 ### View Resources
 ```bash
 # List resources
 lettactl get agents                    # List all agents
 lettactl get blocks                    # List all memory blocks
+lettactl get archives                  # List all archives (archival memory stores)
 lettactl get tools                     # List all tools
 lettactl get folders                   # List all folders (with file counts)
 lettactl get files                     # List all files (deduplicated by name)
@@ -298,6 +324,7 @@ lettactl get files -o wide             # Shows every file instance per folder
 
 # Scoped to specific agent
 lettactl get blocks -a my-agent        # Blocks attached to my-agent
+lettactl get archives -a my-agent      # Archives attached to my-agent
 lettactl get tools -a my-agent         # Tools attached to my-agent
 lettactl get folders -a my-agent       # Folders attached to my-agent
 lettactl get files -a my-agent         # Files accessible to my-agent
@@ -305,6 +332,7 @@ lettactl get files -a my-agent         # Files accessible to my-agent
 # Fleet analysis
 lettactl get tools --shared            # Tools used by 2+ agents
 lettactl get blocks --orphaned         # Blocks not attached to any agent
+lettactl get archives --orphaned       # Archives not attached to any agent
 lettactl get folders --shared          # Shared folders with agent counts
 lettactl get files --shared            # Files in folders used by 2+ agents
 lettactl get files --orphaned          # Files in folders not used by any agent
@@ -312,6 +340,7 @@ lettactl get files --orphaned          # Files in folders not used by any agent
 # Detailed resource info
 lettactl describe agent my-agent       # Agent details + blocks/tools/folders/messages
 lettactl describe block persona        # Block details + attached agents + value preview
+lettactl describe archive kb-store     # Archive details + attached agents
 lettactl describe tool my-tool         # Tool details + attached agents + source code
 lettactl describe folder docs          # Folder details + files + attached agents
 lettactl describe file report.pdf      # File details + which folders contain it
@@ -739,6 +768,13 @@ agents:
         mutable: true                   # Optional: if false, value syncs from YAML on every apply
         value: "Direct content"         # Option 1: inline
         from_file: "blocks/file.md"    # Option 2: from file
+
+    # Archives (archival memory store) (optional)
+    archives:
+      # Note: only one archive is supported per agent
+      - name: knowledge-archive
+        description: "Long-term knowledge base"
+        embedding: "letta/letta-free"
     
     # File attachments (optional)
     folders:

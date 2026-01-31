@@ -61,7 +61,6 @@ export default async function createCommand(
 
     // Set defaults if not provided
     if (!createPayload.model) createPayload.model = "google_ai/gemini-2.5-pro";
-    if (!createPayload.embedding) createPayload.embedding = "letta/letta-free";
     if (!createPayload.system) createPayload.system = "You are a helpful AI assistant.";
 
     if (verbose) {

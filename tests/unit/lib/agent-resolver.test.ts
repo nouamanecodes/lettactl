@@ -89,10 +89,14 @@ describe('AgentResolver', () => {
       };
 
       mockClient.getAgent.mockResolvedValue(mockAgent as any);
+      mockClient.listAgentArchives.mockResolvedValue([] as any);
 
       const result = await agentResolver.getAgentWithDetails('agent-123');
 
-      expect(result).toEqual(mockAgent);
+      expect(result).toMatchObject({
+        ...mockAgent,
+        archives: [],
+      });
       expect(mockClient.getAgent).toHaveBeenCalledWith('agent-123');
     });
   });

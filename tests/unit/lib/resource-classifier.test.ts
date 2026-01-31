@@ -50,4 +50,13 @@ describe('ResourceClassifier', () => {
       expect(result[0].label).toBe('test-agent_memory');
     });
   });
+
+  describe('isArchiveUsedByOtherAgents', () => {
+    it('checks if archive is used by other agents', async () => {
+      mockClient.listAgentArchives.mockResolvedValueOnce([{ id: 'archive-1' }] as any);
+
+      const result = await classifier.isArchiveUsedByOtherAgents('archive-1', 'agent-1', [{ id: 'agent-1' }, { id: 'agent-2' }]);
+      expect(result).toBe(true);
+    });
+  });
 });

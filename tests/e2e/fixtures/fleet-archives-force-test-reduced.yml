@@ -1,0 +1,11 @@
+# Reduced config for archival memory --force reconciliation tests
+
+agents:
+  - name: e2e-42-archives-force
+    description: Agent for archive --force reconciliation
+    embedding: openai/text-embedding-3-small
+    system_prompt:
+      value: Agent with archives to detach.
+    llm_config:
+      model: google_ai/gemini-2.5-pro
+      context_window: 32000

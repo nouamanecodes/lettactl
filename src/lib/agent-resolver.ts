@@ -58,6 +58,15 @@ export class AgentResolver {
       agentWithDetails.folders = [];
     }
 
+    // Fetch attached archives
+    try {
+      const archives = await this.client.listAgentArchives(agentId);
+      agentWithDetails.archives = normalizeResponse(archives);
+    } catch (error) {
+      warn(`Warning: Could not fetch archives for agent ${agentId}`);
+      agentWithDetails.archives = [];
+    }
+
     return agentWithDetails;
   }
 }

@@ -118,7 +118,12 @@ export class FleetParser {
 
   private async resolvePromptContent(prompt: any): Promise<void> {
     // Use generic content resolver
-    const userPrompt = (await this.resolveContent(prompt, undefined, 'system prompt')).trim();
+    let userPrompt = (await this.resolveContent(prompt, undefined, 'system prompt')).trim();
+
+    // Strip wrapping fences if the entire prompt is a fenced block
+    if (userPrompt.startsWith('```') && userPrompt.endsWith('```')) {
+      userPrompt = userPrompt.slice(3, -3).trim();
+    }
     
     // Check if base prompt combination should be disabled
     if (prompt.disable_base_prompt) {
@@ -232,7 +237,7 @@ export class FleetParser {
               const toolsDir = path.resolve(this.basePath, 'tools');
               if (fs.existsSync(toolsDir)) {
                 const toolFiles = fs.readdirSync(toolsDir)
-                  .filter(file => file.endsWith('.py'))
+                  .filter(file => file.endsWith('.py') && file !== '__init__.py' && !file.startsWith('_'))
                   .map(file => path.basename(file, '.py'));
                 expandedTools.push(...toolFiles);
                 log(`Auto-discovered ${toolFiles.length} tools: ${toolFiles.join(', ')}`);
@@ -408,18 +413,24 @@ export class FleetParser {
 
     // Register/update MCP servers
     for (const serverConfig of config.mcp_servers) {
-      const serverName = serverConfig.name;
+      const resolvedConfig = this.expandEnvVars(serverConfig);
+      const serverName = resolvedConfig.name;
       let server = existingServerMap.get(serverName);
 
       if (!server) {
         // Create new MCP server
         if (verbose) log(`Creating MCP server: ${serverName}`);
 
-        const createParams = this.buildMcpServerParams(serverConfig);
+        const createParams = this.buildMcpServerParams(resolvedConfig);
         try {
           server = await client.createMcpServer(createParams);
           created.push(serverName);
           if (verbose) log(`MCP server ${serverName} created`);
+          try {
+            await client.refreshMcpServer(server.id);
+          } catch (err: any) {
+            warn(`Failed to refresh MCP server ${serverName}: ${err.message}`);
+          }
         } catch (err: any) {
           failed.push(serverName);
           warn(`Failed to create MCP server ${serverName}: ${err.message}`);
@@ -427,15 +438,20 @@ export class FleetParser {
         }
       } else {
         // Check if config has changed
-        const configChanged = this.mcpServerConfigChanged(server, serverConfig);
+        const configChanged = this.mcpServerConfigChanged(server, resolvedConfig);
 
         if (configChanged) {
           if (verbose) log(`Updating MCP server: ${serverName}`);
-          const updateParams = this.buildMcpServerParams(serverConfig);
+          const updateParams = this.buildMcpServerParams(resolvedConfig);
           try {
             server = await client.updateMcpServer(server.id, updateParams);
             updated.push(serverName);
             if (verbose) log(`MCP server ${serverName} updated`);
+            try {
+              await client.refreshMcpServer(server.id);
+            } catch (err: any) {
+              warn(`Failed to refresh MCP server ${serverName}: ${err.message}`);
+            }
           } catch (err: any) {
             failed.push(serverName);
             warn(`Failed to update MCP server ${serverName}: ${err.message}`);
@@ -451,6 +467,29 @@ export class FleetParser {
     }
 
     return { mcpServerNameToId, created, updated, unchanged, failed };
+  }
+
+  private expandEnvVars(value: any): any {
+    if (typeof value === 'string') {
+      return value.replace(/\$\{([A-Z0-9_]+)\}|\$([A-Z0-9_]+)/g, (_match, braced, bare) => {
+        const key = braced || bare;
+        return process.env[key] ?? '';
+      });
+    }
+
+    if (Array.isArray(value)) {
+      return value.map((entry) => this.expandEnvVars(entry));
+    }
+
+    if (value && typeof value === 'object') {
+      const result: any = {};
+      for (const [key, entry] of Object.entries(value)) {
+        result[key] = this.expandEnvVars(entry);
+      }
+      return result;
+    }
+
+    return value;
   }
 
   private mcpServerConfigChanged(existing: any, desired: any): boolean {

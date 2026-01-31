@@ -1,6 +1,7 @@
 import { FleetParser } from '../lib/fleet-parser';
 import { LettaClientWrapper } from '../lib/letta-client';
 import { BlockManager } from '../lib/block-manager';
+import { ArchiveManager } from '../lib/archive-manager';
 import { AgentManager } from '../lib/agent-manager';
 import { DiffEngine } from '../lib/diff-engine';
 import { FileContentTracker } from '../lib/file-content-tracker';
@@ -12,8 +13,11 @@ import { formatLettaError } from '../lib/error-handler';
 import { computeDryRunDiffs, displayDryRunResults } from '../lib/dry-run';
 import { log, warn, output, isQuietMode } from '../lib/logger';
 import { FILE_SEARCH_TOOLS } from '../lib/builtin-tools';
+import { buildMcpServerRegistry, expandMcpToolsForAgents } from '../lib/mcp-tools';
+import * as path from 'path';
+import { buildAgentManifest, getDefaultManifestPath, writeAgentManifest } from '../lib/agent-manifest';
 
-export async function applyCommand(options: { file: string; agent?: string; match?: string; dryRun?: boolean; force?: boolean; root?: string }, command: any) {
+export async function applyCommand(options: { file: string; agent?: string; match?: string; dryRun?: boolean; force?: boolean; root?: string; manifest?: string }, command: any) {
   // Quiet mode overrides verbose
   const verbose = isQuietMode() ? false : (command.parent?.opts().verbose || false);
   const spinnerEnabled = getSpinnerEnabled(command);
@@ -51,14 +55,17 @@ export async function applyCommand(options: { file: string; agent?: string; matc
     // Validate embedding configuration for self-hosted environments
     const isSelfHosted = !process.env.LETTA_BASE_URL?.includes('letta.com');
     if (isSelfHosted) {
-      const agentsWithoutEmbedding = config.agents.filter((agent: any) => !agent.embedding);
+      const agentsWithoutEmbedding = config.agents.filter((agent: any) => !agent.embedding && !agent.embedding_config);
       if (agentsWithoutEmbedding.length > 0) {
         const names = agentsWithoutEmbedding.map((a: any) => a.name).join(', ');
         throw new Error(
           `Self-hosted Letta requires explicit embedding configuration.\n` +
           `Agents missing embedding: ${names}\n\n` +
-          `Add an embedding field to each agent:\n` +
-          `  embedding: "openai/text-embedding-3-small"\n\n` +
+          `Add an embedding or embedding_config field to each agent:\n` +
+          `  embedding: "openai/text-embedding-3-small"\n` +
+          `  # OR\n` +
+          `  embedding_config:\n` +
+          `    embedding_model: "nomic-embed-text:latest"\n\n` +
           `Common embedding providers:\n` +
           `  - openai/text-embedding-3-small\n` +
           `  - openai/text-embedding-3-large\n` +
@@ -78,13 +85,17 @@ export async function applyCommand(options: { file: string; agent?: string; matc
     const client = new LettaClientWrapper();
     const blockManager = new BlockManager(client);
     const agentManager = new AgentManager(client);
-    const diffEngine = new DiffEngine(client, blockManager, parser.basePath);
+    const archiveManager = new ArchiveManager(client);
+    const diffEngine = new DiffEngine(client, blockManager, archiveManager, parser.basePath);
     const fileTracker = new FileContentTracker(parser.basePath, parser.storageBackend);
 
     // Load existing resources
     const loadSpinner = createSpinner('Loading existing resources...', spinnerEnabled).start();
     if (verbose) log('Loading existing blocks...');
     await blockManager.loadExistingBlocks();
+
+    if (verbose) log('Loading existing archives...');
+    await archiveManager.loadExistingArchives();
 
     if (verbose) log('Loading existing agents...');
     await agentManager.loadExistingAgents();
@@ -95,6 +106,7 @@ export async function applyCommand(options: { file: string; agent?: string; matc
       const results = await computeDryRunDiffs(config, {
         client,
         blockManager,
+        archiveManager,
         agentManager,
         diffEngine,
         fileTracker,
@@ -110,6 +122,31 @@ export async function applyCommand(options: { file: string; agent?: string; matc
     const blockSpinner = createSpinner('Processing shared blocks...', spinnerEnabled).start();
     const sharedBlockIds = await processSharedBlocks(config, blockManager, verbose);
     blockSpinner.succeed(`Processed ${sharedBlockIds.size} shared blocks`);
+
+    // Register MCP servers
+    let mcpServerNameToId = new Map<string, string>();
+    if (config.mcp_servers && config.mcp_servers.length > 0) {
+      const mcpSpinner = createSpinner('Registering MCP servers...', spinnerEnabled).start();
+      if (verbose) log('Registering MCP servers...');
+      const mcpResult = await parser.registerMcpServers(config, client, verbose);
+      mcpSpinner.succeed(`Registered ${config.mcp_servers.length} MCP servers`);
+
+      // Display MCP server operation summary
+      if (mcpResult.created.length > 0) {
+        log(`MCP servers created: ${mcpResult.created.join(', ')}`);
+      }
+      if (mcpResult.updated.length > 0) {
+        log(`MCP servers updated: ${mcpResult.updated.join(', ')}`);
+      }
+      if (mcpResult.unchanged.length > 0 && verbose) {
+        log(`MCP servers unchanged: ${mcpResult.unchanged.join(', ')}`);
+      }
+      if (mcpResult.failed.length > 0) {
+        warn(`MCP servers failed: ${mcpResult.failed.join(', ')}`);
+      }
+    }
+    mcpServerNameToId = await buildMcpServerRegistry(client);
+    await expandMcpToolsForAgents(config, client, mcpServerNameToId, verbose);
 
     // Generate tool source hashes and register tools
     const allToolNames = new Set<string>();
@@ -133,28 +170,6 @@ export async function applyCommand(options: { file: string; agent?: string; matc
     const customCount = toolNameToId.size - builtinCount;
     toolSpinner.succeed(`Registered ${customCount} custom, ${builtinCount} builtin tools`);
 
-    // Register MCP servers
-    if (config.mcp_servers && config.mcp_servers.length > 0) {
-      const mcpSpinner = createSpinner('Registering MCP servers...', spinnerEnabled).start();
-      if (verbose) log('Registering MCP servers...');
-      const mcpResult = await parser.registerMcpServers(config, client, verbose);
-      mcpSpinner.succeed(`Registered ${config.mcp_servers.length} MCP servers`);
-
-      // Display MCP server operation summary
-      if (mcpResult.created.length > 0) {
-        log(`MCP servers created: ${mcpResult.created.join(', ')}`);
-      }
-      if (mcpResult.updated.length > 0) {
-        log(`MCP servers updated: ${mcpResult.updated.join(', ')}`);
-      }
-      if (mcpResult.unchanged.length > 0 && verbose) {
-        log(`MCP servers unchanged: ${mcpResult.unchanged.join(', ')}`);
-      }
-      if (mcpResult.failed.length > 0) {
-        warn(`MCP servers failed: ${mcpResult.failed.join(', ')}`);
-      }
-    }
-
     // Process folders
     const folderSpinner = createSpinner('Processing folders...', spinnerEnabled).start();
     const createdFolders = await processFolders(config, client, parser, options, verbose);
@@ -167,6 +182,7 @@ export async function applyCommand(options: { file: string; agent?: string; matc
     const succeeded: string[] = [];
     const failed: { name: string; err: string }[] = [];
     const skipped: string[] = [];
+    const appliedAgents = new Map<string, { id: string; resolvedName: string }>();
 
     for (const agent of config.agents) {
       if (options.agent && !agent.name.includes(options.agent)) continue;
@@ -174,6 +190,7 @@ export async function applyCommand(options: { file: string; agent?: string; matc
         log(`  Description: ${agent.description}`);
         log(`  Tools: ${agent.tools?.join(', ') || 'none'}`);
         log(`  Memory blocks: ${agent.memory_blocks?.length || 0}`);
+        log(`  Archives: ${agent.archives?.length || 0}`);
         log(`  Folders: ${agent.folders?.length || 0}`);
       }
 
@@ -207,6 +224,7 @@ export async function applyCommand(options: { file: string; agent?: string; matc
           toolSourceHashes,
           model: agent.llm_config?.model,
           embedding: agent.embedding,
+          embeddingConfig: agent.embedding_config,
           contextWindow: agent.llm_config?.context_window,
           memoryBlocks: (agent.memory_blocks || []).map((block: any) => ({
             name: block.name,
@@ -215,6 +233,19 @@ export async function applyCommand(options: { file: string; agent?: string; matc
             value: block.value || '',
             mutable: block.mutable
           })),
+          archives: (agent.archives || []).map((archive: any) => {
+            const resolved: any = {
+              name: archive.name,
+              description: archive.description,
+              embedding_config: archive.embedding_config
+            };
+            if (archive.embedding) {
+              resolved.embedding = archive.embedding;
+            } else if (!archive.embedding_config && agent.embedding) {
+              resolved.embedding = agent.embedding;
+            }
+            return resolved;
+          }),
           memoryBlockFileHashes,
           folders: (agent.folders || []).map((folder: any) => ({
             name: folder.name,
@@ -236,6 +267,10 @@ export async function applyCommand(options: { file: string; agent?: string; matc
           const changes = agentManager.getConfigChanges(existingAgent, agentConfig);
           if (!changes.hasChanges) {
             skipped.push(agent.name);
+            appliedAgents.set(agent.name, {
+              id: existingAgent.id,
+              resolvedName: existingAgent.name
+            });
             if (verbose) log(`Agent ${agent.name} already up to date`);
             continue;
           }
@@ -254,17 +289,23 @@ export async function applyCommand(options: { file: string; agent?: string; matc
             builtinTools,
             createdFolders,
             sharedBlockIds,
+            archiveManager,
             spinnerEnabled,
             verbose,
             force: options.force || false,
             previousFolderFileHashes
           });
           succeeded.push(agent.name);
+          appliedAgents.set(agent.name, {
+            id: existingAgent.id,
+            resolvedName: existingAgent.name
+          });
         } else {
           // Create new agent
-          await createNewAgent(agent, agentName, {
+          const createdAgent = await createNewAgent(agent, agentName, {
             client,
             blockManager,
+            archiveManager,
             agentManager,
             toolNameToId,
             builtinTools,
@@ -275,6 +316,10 @@ export async function applyCommand(options: { file: string; agent?: string; matc
             folderContentHashes
           });
           succeeded.push(agent.name);
+          appliedAgents.set(agent.name, {
+            id: createdAgent.id,
+            resolvedName: createdAgent.name
+          });
         }
       } catch (err: any) {
         const errorMsg = formatLettaError(err.message);
@@ -303,6 +348,25 @@ export async function applyCommand(options: { file: string; agent?: string; matc
     } else {
       log(`Apply completed: all ${skipped.length} agents already up to date`);
     }
+
+    const manifestPath = options.manifest
+      ? path.resolve(options.manifest)
+      : getDefaultManifestPath(options.file);
+    const manifest = buildAgentManifest({
+      config,
+      configPath: options.file,
+      basePath: parser.basePath,
+      appliedAgents,
+      agentManager,
+      blockManager,
+      archiveManager,
+      sharedBlockIds,
+      toolNameToId,
+      folderNameToId: createdFolders,
+      mcpServerNameToId
+    });
+    writeAgentManifest(manifest, manifestPath);
+    log(`Agent manifest written to ${manifestPath}`);
 
   } catch (err: any) {
     throw new Error(`Apply failed: ${formatLettaError(err.message || err)}`);

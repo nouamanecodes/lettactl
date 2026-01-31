@@ -6,7 +6,7 @@ import { normalizeToArray, computeAgentCounts } from '../lib/resource-usage';
 import { log, warn, output } from '../lib/logger';
 import chalk from 'chalk';
 
-const SUPPORTED_RESOURCES = ['blocks', 'folders', 'all'];
+const SUPPORTED_RESOURCES = ['blocks', 'folders', 'archives', 'all'];
 
 interface CleanupOptions {
   force?: boolean;
@@ -44,6 +44,11 @@ async function cleanupCommandImpl(
 
   if (resource === 'folders' || resource === 'all') {
     const deleted = await cleanupOrphanedFolders(client, resolver, isDryRun, spinnerEnabled, verbose);
+    totalDeleted += deleted;
+  }
+
+  if (resource === 'archives' || resource === 'all') {
+    const deleted = await cleanupOrphanedArchives(client, resolver, isDryRun, spinnerEnabled, verbose);
     totalDeleted += deleted;
   }
 
@@ -177,6 +182,61 @@ async function cleanupOrphanedFolders(
     return orphanedFolders.length;
   } catch (error) {
     spinner.fail('Failed to find orphaned folders');
+    throw error;
+  }
+}
+
+async function cleanupOrphanedArchives(
+  client: LettaClientWrapper,
+  resolver: AgentResolver,
+  isDryRun: boolean,
+  spinnerEnabled?: boolean,
+  verbose?: boolean
+): Promise<number> {
+  const useSpinner = spinnerEnabled ?? true;
+  const isVerbose = verbose ?? false;
+  const spinner = createSpinner('Finding orphaned archives...', useSpinner).start();
+
+  try {
+    const allArchives = await client.listArchives();
+    const archiveIds = allArchives.map((a: any) => a.id);
+
+    const agentCounts = await computeAgentCounts(client, resolver, 'archives', archiveIds);
+    const orphanedArchives = allArchives.filter((a: any) => agentCounts.get(a.id) === 0);
+
+    if (orphanedArchives.length === 0) {
+      spinner.succeed('No orphaned archives found');
+      return 0;
+    }
+
+    spinner.stop();
+    output(`\n${chalk.cyan('Orphaned Archives')} (${orphanedArchives.length}):`);
+
+    for (const archive of orphanedArchives) {
+      output(`  - ${archive.name || archive.id}`);
+    }
+
+    if (!isDryRun) {
+      const deleteSpinner = createSpinner(`Deleting ${orphanedArchives.length} orphaned archives...`, useSpinner).start();
+
+      let deleted = 0;
+      for (const archive of orphanedArchives) {
+        try {
+          await client.deleteArchive(archive.id);
+          deleted++;
+          if (isVerbose) log(`Deleted archive: ${archive.name || archive.id}`);
+        } catch (err: any) {
+          warn(`Failed to delete archive ${archive.name || archive.id}: ${err.message}`);
+        }
+      }
+
+      deleteSpinner.succeed(`Deleted ${deleted} orphaned archives`);
+      return deleted;
+    }
+
+    return orphanedArchives.length;
+  } catch (error) {
+    spinner.fail('Failed to find orphaned archives');
     throw error;
   }
 }

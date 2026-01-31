@@ -29,7 +29,7 @@ const COMMANDS = [
   'completion',
 ];
 
-const RESOURCES = ['agents', 'agent', 'blocks', 'block', 'tools', 'tool', 'folders', 'folder', 'files', 'file', 'mcp-servers'];
+const RESOURCES = ['agents', 'agent', 'blocks', 'block', 'archives', 'archive', 'tools', 'tool', 'folders', 'folder', 'files', 'file', 'mcp-servers'];
 
 const bashCompletion = `
 # lettactl bash completion
@@ -52,7 +52,7 @@ _lettactl_completions() {
             return 0
             ;;
         cleanup)
-            COMPREPLY=( $(compgen -W "blocks folders all" -- "\${cur}") )
+            COMPREPLY=( $(compgen -W "blocks folders archives all" -- "\${cur}") )
             return 0
             ;;
         completion)
@@ -114,7 +114,9 @@ _lettactl() {
         'agents:List all agents'
         'agent:Single agent'
         'blocks:Memory blocks'
+        'archives:Archives'
         'block:Single block'
+        'archive:Single archive'
         'tools:Tools'
         'tool:Single tool'
         'folders:Folders'
@@ -144,7 +146,7 @@ _lettactl() {
                     _describe -t resources 'resource type' resources
                     ;;
                 cleanup)
-                    _values 'resource' 'blocks' 'folders' 'all'
+                    _values 'resource' 'blocks' 'folders' 'archives' 'all'
                     ;;
                 completion)
                     _values 'shell' 'bash' 'zsh' 'fish'
@@ -189,10 +191,10 @@ complete -c lettactl -n __fish_use_subcommand -a run-delete -d 'Delete/cancel a 
 complete -c lettactl -n __fish_use_subcommand -a completion -d 'Generate shell completion'
 
 # Resources for get/describe/delete/create/update/export
-complete -c lettactl -n '__fish_seen_subcommand_from get describe delete create update export' -a 'agents agent blocks block tools tool folders folder files file mcp-servers' -d 'Resource type'
+complete -c lettactl -n '__fish_seen_subcommand_from get describe delete create update export' -a 'agents agent blocks block archives archive tools tool folders folder files file mcp-servers' -d 'Resource type'
 
 # Cleanup resources
-complete -c lettactl -n '__fish_seen_subcommand_from cleanup' -a 'blocks folders all' -d 'Resource type'
+complete -c lettactl -n '__fish_seen_subcommand_from cleanup' -a 'blocks folders archives all' -d 'Resource type'
 
 # Completion shells
 complete -c lettactl -n '__fish_seen_subcommand_from completion' -a 'bash zsh fish' -d 'Shell type'

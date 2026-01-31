@@ -86,9 +86,17 @@ export class AgentValidator {
     if (agent.memory_blocks) {
       MemoryBlockValidator.validate(agent.memory_blocks);
     }
+
+    if (agent.archives) {
+      ArchiveValidator.validate(agent.archives);
+    }
     
     if (agent.tools) {
       ToolsValidator.validate(agent.tools);
+    }
+
+    if (agent.mcp_tools) {
+      McpToolsValidator.validate(agent.mcp_tools);
     }
     
     if (agent.folders) {
@@ -101,6 +109,10 @@ export class AgentValidator {
     
     if (agent.embedding) {
       this.validateEmbedding(agent.embedding);
+    }
+
+    if (agent.embedding_config) {
+      this.validateEmbeddingConfig(agent.embedding_config);
     }
     
     if (agent.shared_blocks) {
@@ -152,7 +164,7 @@ export class AgentValidator {
   private static validateUnknownFields(agent: any): void {
     const allowedFields = [
       'name', 'description', 'system_prompt', 'llm_config',
-      'tools', 'memory_blocks', 'folders', 'embedding', 'shared_blocks',
+      'tools', 'mcp_tools', 'memory_blocks', 'archives', 'folders', 'embedding', 'embedding_config', 'shared_blocks',
       'first_message'
     ];
     
@@ -170,6 +182,12 @@ export class AgentValidator {
   private static validateEmbedding(embedding: any): void {
     if (!embedding || typeof embedding !== 'string' || embedding.trim() === '') {
       throw new Error('Embedding must be a non-empty string.');
+    }
+  }
+
+  private static validateEmbeddingConfig(embeddingConfig: any): void {
+    if (!embeddingConfig || typeof embeddingConfig !== 'object' || Array.isArray(embeddingConfig)) {
+      throw new Error('Embedding config must be an object.');
     }
   }
   
@@ -327,6 +345,97 @@ export class MemoryBlockValidator {
     if (hasBucket) {
       BucketConfigValidator.validate(block.from_bucket);
     }
+  }
+}
+
+/**
+ * Validator for archives
+ */
+export class ArchiveValidator {
+  static validate(archives: any): void {
+    if (!Array.isArray(archives)) {
+      throw new Error('Archives must be an array.');
+    }
+
+    if (archives.length > 1) {
+      throw new Error('Only one archive is supported per agent.');
+    }
+
+    const archiveNames = new Set<string>();
+
+    archives.forEach((archive, index) => {
+      try {
+        this.validateArchive(archive);
+
+        if (archive.name) {
+          if (archiveNames.has(archive.name)) {
+            throw new Error(`Duplicate archive name "${archive.name}". Archive names must be unique within an agent.`);
+          }
+          archiveNames.add(archive.name);
+        }
+      } catch (err: any) {
+        throw new Error(`Archive ${index + 1}: ${err.message}`);
+      }
+    });
+  }
+
+  private static validateArchive(archive: any): void {
+    if (!archive || typeof archive !== 'object') {
+      throw new Error('Archive must be an object.');
+    }
+
+    if (!archive.name || typeof archive.name !== 'string' || archive.name.trim() === '') {
+      throw new Error('Archive must have a non-empty name.');
+    }
+
+    if (archive.description !== undefined && (typeof archive.description !== 'string' || archive.description.trim() === '')) {
+      throw new Error(`Archive "${archive.name}" description must be a non-empty string.`);
+    }
+
+    if (archive.embedding !== undefined && (typeof archive.embedding !== 'string' || archive.embedding.trim() === '')) {
+      throw new Error(`Archive "${archive.name}" embedding must be a non-empty string.`);
+    }
+
+    if (archive.embedding_config !== undefined && (typeof archive.embedding_config !== 'object' || Array.isArray(archive.embedding_config))) {
+      throw new Error(`Archive "${archive.name}" embedding_config must be an object.`);
+    }
+  }
+}
+
+/**
+ * Validator for MCP tool selection
+ */
+export class McpToolsValidator {
+  static validate(selections: any): void {
+    if (!Array.isArray(selections)) {
+      throw new Error('mcp_tools must be an array.');
+    }
+
+    selections.forEach((selection, index) => {
+      if (!selection || typeof selection !== 'object') {
+        throw new Error(`mcp_tools ${index + 1} must be an object.`);
+      }
+
+      if (!selection.server || typeof selection.server !== 'string' || selection.server.trim() === '') {
+        throw new Error(`mcp_tools ${index + 1} must include a non-empty server name.`);
+      }
+
+      if (selection.tools !== undefined) {
+        if (selection.tools === 'all') {
+          return;
+        }
+
+        if (!Array.isArray(selection.tools)) {
+          throw new Error(`mcp_tools ${index + 1} tools must be an array or "all".`);
+        }
+
+        selection.tools.forEach((tool: any, toolIndex: number) => {
+          if (!tool || typeof tool !== 'string' || tool.trim() === '') {
+            throw new Error(`mcp_tools ${index + 1} tool ${toolIndex + 1} must be a non-empty string.`);
+          }
+        });
+      }
+    });
   }
 }
 

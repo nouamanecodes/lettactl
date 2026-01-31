@@ -26,6 +26,7 @@ async function deleteCommandImpl(resource: string, name: string, options?: { for
     output(`This will permanently delete agent: ${name} (${agent.id})`);
     output('This will also delete:');
     output('  - Agent-specific memory blocks');
+    output('  - Agent archival memory archives');
     output('  - Agent-specific folders (if not shared)');
     output('  - Associated conversation history');
     output('Shared blocks and folders will be preserved.');
@@ -51,7 +52,7 @@ async function deleteAllCommandImpl(resource: string, options?: {
   force?: boolean;
   pattern?: string;
 }, command?: any) {
-  validateResourceType(resource, ['agent', 'agents', 'folders', 'folder', 'blocks', 'block', 'tools', 'tool', 'mcp-servers']);
+  validateResourceType(resource, ['agent', 'agents', 'folders', 'folder', 'blocks', 'block', 'archives', 'archive', 'tools', 'tool', 'mcp-servers']);
 
   const client = new LettaClientWrapper();
   const spinnerEnabled = getSpinnerEnabled(command);
@@ -62,6 +63,9 @@ async function deleteAllCommandImpl(resource: string, options?: {
   }
   if (resource === 'blocks' || resource === 'block') {
     return await deleteAllBlocks(client, options, spinnerEnabled);
+  }
+  if (resource === 'archives' || resource === 'archive') {
+    return await deleteAllArchives(client, options, spinnerEnabled);
   }
   if (resource === 'tools' || resource === 'tool') {
     return await deleteAllTools(client, options, spinnerEnabled);
@@ -102,6 +106,7 @@ async function deleteAllCommandImpl(resource: string, options?: {
     output('');
     output('This will permanently delete all listed agents and their associated resources:');
     output('  - Agent-specific memory blocks');
+    output('  - Agent archival memory archives');
     output('  - Agent-specific folders (if not shared)');
     output('  - Associated conversation history');
     output('Shared blocks and folders will be preserved.');
@@ -203,6 +208,46 @@ async function deleteAllBlocks(client: LettaClientWrapper, options?: { force?: b
     }
   }
   spinner.succeed(`Deleted ${deleted}/${blocksToDelete.length} block(s)`);
+}
+
+async function deleteAllArchives(client: LettaClientWrapper, options?: { force?: boolean; pattern?: string }, spinnerEnabled: boolean = true) {
+  const listSpinner = createSpinner('Loading archives...', spinnerEnabled).start();
+  const archives = await client.listArchives();
+  const archiveList = normalizeResponse(archives);
+  listSpinner.stop();
+
+  let archivesToDelete = archiveList;
+  if (options?.pattern) {
+    const pattern = new RegExp(options.pattern, 'i');
+    archivesToDelete = archiveList.filter((a: any) => pattern.test(a.name || '') || pattern.test(a.id));
+  }
+
+  if (archivesToDelete.length === 0) {
+    output(options?.pattern ? `No archives found matching pattern: ${options.pattern}` : 'No archives found to delete');
+    return;
+  }
+
+  output(`Found ${archivesToDelete.length} archive(s) to delete:`);
+  archivesToDelete.forEach((a: any, i: number) => output(`  ${i + 1}. ${a.name || a.id} (${a.id})`));
+
+  if (!options?.force) {
+    output('\nThis will permanently delete all listed archives and their passages.');
+    output('WARNING: Archives attached to agents will cause errors.');
+    output('Use --force to confirm deletion.');
+    process.exit(1);
+  }
+
+  const spinner = createSpinner(`Deleting ${archivesToDelete.length} archives...`, spinnerEnabled).start();
+  let deleted = 0;
+  for (const archive of archivesToDelete) {
+    try {
+      await client.deleteArchive(archive.id);
+      deleted++;
+    } catch (err: any) {
+      error(`Failed to delete archive ${archive.name || archive.id}: ${err.message}`);
+    }
+  }
+  spinner.succeed(`Deleted ${deleted}/${archivesToDelete.length} archive(s)`);
 }
 
 async function deleteAllTools(client: LettaClientWrapper, options?: { force?: boolean; pattern?: string }, spinnerEnabled: boolean = true) {
@@ -327,6 +372,26 @@ async function deleteAgentWithCleanup(
         }
       } else {
         if (verbose) output(`  Keeping block used by other agents: ${block.label || block.id}`);
+      }
+    }
+  }
+
+  // Delete attached archives if they're not used by other agents
+  const agentArchives = await client.listAgentArchives(agent.id);
+  if (agentArchives.length > 0) {
+    if (verbose) output(`Checking attached archives...`);
+    for (const archive of agentArchives) {
+      const archiveInUse = await classifier.isArchiveUsedByOtherAgents(archive.id, agent.id, allAgents);
+      if (!archiveInUse) {
+        if (verbose) output(`  Deleting agent archive: ${archive.name || archive.id}`);
+        try {
+          await client.deleteArchive(archive.id);
+          if (verbose) output(`  Archive deleted`);
+        } catch (err: any) {
+          warn(`  Could not delete archive: ${err.message}`);
+        }
+      } else if (verbose) {
+        output(`  Keeping archive used by other agents: ${archive.name || archive.id}`);
       }
     }
   }

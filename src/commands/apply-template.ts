@@ -1,6 +1,7 @@
 import { FleetParser } from '../lib/fleet-parser';
 import { LettaClientWrapper } from '../lib/letta-client';
 import { BlockManager } from '../lib/block-manager';
+import { ArchiveManager } from '../lib/archive-manager';
 import { DiffEngine } from '../lib/diff-engine';
 import { FileContentTracker } from '../lib/file-content-tracker';
 import { OutputFormatter } from '../lib/ux/output-formatter';
@@ -9,6 +10,7 @@ import { minimatch } from 'minimatch';
 import { readLastApplied, applyThreeWayMerge, hashCurrentTools, hashCurrentBlocks, METADATA_KEY } from '../lib/last-applied-config';
 import { normalizeResponse } from '../lib/response-normalizer';
 import { log, output } from '../lib/logger';
+import { buildMcpServerRegistry, expandMcpToolsForAgents } from '../lib/mcp-tools';
 
 /**
  * Template mode: apply a template config to all existing agents matching a glob pattern.
@@ -16,7 +18,7 @@ import { log, output } from '../lib/logger';
  * applied via template (preserves user-added resources).
  */
 export async function applyTemplateMode(
-  options: { file: string; match: string; dryRun?: boolean; root?: string },
+  options: { file: string; match: string; dryRun?: boolean; root?: string; manifest?: string },
   config: any,
   parser: FleetParser,
   command: any
@@ -68,11 +70,22 @@ export async function applyTemplateMode(
 
   // Initialize managers
   const blockManager = new BlockManager(client);
-  const diffEngine = new DiffEngine(client, blockManager, parser.basePath);
+  const archiveManager = new ArchiveManager(client);
+  const diffEngine = new DiffEngine(client, blockManager, archiveManager, parser.basePath);
   const fileTracker = new FileContentTracker(parser.basePath, parser.storageBackend);
   const createdFolders = new Map<string, string>();
 
   await blockManager.loadExistingBlocks();
+  await archiveManager.loadExistingArchives();
+
+  // Register MCP servers (if configured) and expand MCP tool selections
+  if (config.mcp_servers && config.mcp_servers.length > 0) {
+    const mcpSpinner = createSpinner('Registering MCP servers...', spinnerEnabled).start();
+    await parser.registerMcpServers(config, client, verbose);
+    mcpSpinner.succeed(`Registered ${config.mcp_servers.length} MCP servers`);
+  }
+  const mcpServerNameToId = await buildMcpServerRegistry(client);
+  await expandMcpToolsForAgents(config, client, mcpServerNameToId, verbose);
 
   // Process shared blocks from template
   const sharedBlockIds = new Map<string, string>();
@@ -119,6 +132,7 @@ export async function applyTemplateMode(
         toolSourceHashes,
         sharedBlocks: templateSharedBlocks,
         embedding: templateAgent?.embedding,
+        embeddingConfig: templateAgent?.embedding_config,
         model: templateAgent?.llm_config?.model,
         contextWindow: templateAgent?.llm_config?.context_window,
       };
@@ -128,7 +142,7 @@ export async function applyTemplateMode(
         id: existingAgent.id,
         name: existingAgent.name,
         baseName: existingAgent.name,
-        configHashes: { overall: '', systemPrompt: '', tools: '', model: '', memoryBlocks: '', folders: '', sharedBlocks: '' },
+        configHashes: { overall: '', systemPrompt: '', tools: '', model: '', memoryBlocks: '', folders: '', sharedBlocks: '', archives: '' },
         version: 'latest',
         lastUpdated: existingAgent.updated_at || new Date().toISOString()
       };
