@@ -70,5 +70,11 @@
     "ts-jest": "^29.4.6",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.3"
+  },
+  "pnpm": {
+    "overrides": {
+      "glob@<9": "^10.4.0",
+      "inflight": "npm:@pnpm/noop@1.0.0"
+    }
   }
 }
