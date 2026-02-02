@@ -1,6 +1,6 @@
-import { LettaClientWrapper } from '../../lib/letta-client';
-import { AgentResolver } from '../../lib/agent-resolver';
-import { output, error, warn } from '../../lib/logger';
+import { LettaClientWrapper } from '../../lib/client/letta-client';
+import { AgentResolver } from '../../lib/client/agent-resolver';
+import { output, error, warn } from '../../lib/shared/logger';
 
 export default async function updateCommand(
   resource: string,

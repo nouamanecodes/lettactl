@@ -1,10 +1,10 @@
 import { listMessagesCommand, sendMessageCommand } from '../../../src/commands/messages';
-import { LettaClientWrapper } from '../../../src/lib/letta-client';
-import { AgentResolver } from '../../../src/lib/agent-resolver';
+import { LettaClientWrapper } from '../../../src/lib/client/letta-client';
+import { AgentResolver } from '../../../src/lib/client/agent-resolver';
 
 // Mock dependencies
-jest.mock('../../../src/lib/letta-client');
-jest.mock('../../../src/lib/agent-resolver');
+jest.mock('../../../src/lib/client/letta-client');
+jest.mock('../../../src/lib/client/agent-resolver');
 jest.mock('ora', () => {
   return jest.fn(() => ({
     start: jest.fn(() => ({

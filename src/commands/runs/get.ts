@@ -1,7 +1,7 @@
-import { LettaClientWrapper } from '../../lib/letta-client';
+import { LettaClientWrapper } from '../../lib/client/letta-client';
 import { formatStatus, OutputFormatter } from '../../lib/ux/output-formatter';
 import { Run } from '../../types/run';
-import { output } from '../../lib/logger';
+import { output } from '../../lib/shared/logger';
 import { GetRunOptions } from './types';
 import { waitForRun, streamRun, showRunMessages } from './utils';
 

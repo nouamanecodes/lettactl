@@ -1,6 +1,6 @@
-import { LettaClientWrapper } from '../../lib/letta-client';
+import { LettaClientWrapper } from '../../lib/client/letta-client';
 import { createSpinner } from '../../lib/ux/spinner';
-import { log, warn, output } from '../../lib/logger';
+import { log, warn, output } from '../../lib/shared/logger';
 import { displayOrphanedResources } from '../../lib/ux/display';
 
 export async function cleanupOrphanedBlocks(

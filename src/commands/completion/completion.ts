@@ -1,7 +1,7 @@
 /**
  * Shell completion scripts for lettactl
  */
-import { output, error } from '../../lib/logger';
+import { output, error } from '../../lib/shared/logger';
 
 const COMMANDS = [
   'apply',

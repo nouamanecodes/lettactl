@@ -1,16 +1,16 @@
-import { FleetParser } from '../../lib/fleet-parser';
-import { LettaClientWrapper } from '../../lib/letta-client';
-import { BlockManager } from '../../lib/block-manager';
-import { ArchiveManager } from '../../lib/archive-manager';
-import { DiffEngine } from '../../lib/diff-engine';
-import { FileContentTracker } from '../../lib/file-content-tracker';
+import { FleetParser } from '../../lib/apply/fleet-parser';
+import { LettaClientWrapper } from '../../lib/client/letta-client';
+import { BlockManager } from '../../lib/managers/block-manager';
+import { ArchiveManager } from '../../lib/managers/archive-manager';
+import { DiffEngine } from '../../lib/apply/diff-engine';
+import { FileContentTracker } from '../../lib/apply/file-content-tracker';
 import { OutputFormatter } from '../../lib/ux/output-formatter';
 import { createSpinner, getSpinnerEnabled } from '../../lib/ux/spinner';
 import { minimatch } from 'minimatch';
-import { readLastApplied, applyThreeWayMerge, hashCurrentTools, hashCurrentBlocks, METADATA_KEY } from '../../lib/last-applied-config';
-import { normalizeResponse } from '../../lib/response-normalizer';
-import { log, output } from '../../lib/logger';
-import { buildMcpServerRegistry, expandMcpToolsForAgents } from '../../lib/mcp-tools';
+import { readLastApplied, applyThreeWayMerge, hashCurrentTools, hashCurrentBlocks, METADATA_KEY } from '../../lib/apply/last-applied-config';
+import { normalizeResponse } from '../../lib/shared/response-normalizer';
+import { log, output } from '../../lib/shared/logger';
+import { buildMcpServerRegistry, expandMcpToolsForAgents } from '../../lib/tools/mcp-tools';
 
 /**
  * Template mode: apply a template config to all existing agents matching a glob pattern.

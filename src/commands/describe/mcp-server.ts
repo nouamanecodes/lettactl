@@ -1,8 +1,8 @@
-import { LettaClientWrapper } from '../../lib/letta-client';
+import { LettaClientWrapper } from '../../lib/client/letta-client';
 import { OutputFormatter } from '../../lib/ux/output-formatter';
 import { createSpinner } from '../../lib/ux/spinner';
 import { displayMcpServerDetails, McpServerDetailsData } from '../../lib/ux/display';
-import { output } from '../../lib/logger';
+import { output } from '../../lib/shared/logger';
 import { DescribeOptions } from './types';
 
 export async function describeMcpServer(

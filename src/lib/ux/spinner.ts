@@ -1,5 +1,5 @@
 import ora from 'ora';
-import { isQuietMode, output } from '../logger';
+import { isQuietMode, output } from '../shared/logger';
 
 export interface SpinnerInterface {
   text: string;

@@ -2,7 +2,7 @@ import chalk from 'chalk';
 import { printBanner } from './banner';
 import { LETTA_PURPLE } from './constants';
 import { BOX, createBox, mergeColumns, BoxRow } from './box';
-import { output } from '../logger';
+import { output } from '../shared/logger';
 
 const purple = chalk.hex(LETTA_PURPLE);
 

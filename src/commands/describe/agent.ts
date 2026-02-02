@@ -1,10 +1,10 @@
-import { LettaClientWrapper } from '../../lib/letta-client';
-import { AgentResolver } from '../../lib/agent-resolver';
+import { LettaClientWrapper } from '../../lib/client/letta-client';
+import { AgentResolver } from '../../lib/client/agent-resolver';
 import { OutputFormatter } from '../../lib/ux/output-formatter';
 import { createSpinner } from '../../lib/ux/spinner';
-import { normalizeToArray } from '../../lib/resource-usage';
+import { normalizeToArray } from '../../lib/resources/resource-usage';
 import { displayAgentDetails, AgentDetailsData } from '../../lib/ux/display';
-import { output } from '../../lib/logger';
+import { output } from '../../lib/shared/logger';
 import { DescribeOptions } from './types';
 
 export async function describeAgent(

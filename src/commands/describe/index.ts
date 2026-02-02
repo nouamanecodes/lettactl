@@ -1,7 +1,7 @@
-import { LettaClientWrapper } from '../../lib/letta-client';
-import { AgentResolver } from '../../lib/agent-resolver';
-import { validateResourceType, validateRequired } from '../../lib/validators';
-import { withErrorHandling } from '../../lib/error-handler';
+import { LettaClientWrapper } from '../../lib/client/letta-client';
+import { AgentResolver } from '../../lib/client/agent-resolver';
+import { validateResourceType, validateRequired } from '../../lib/validation/validators';
+import { withErrorHandling } from '../../lib/shared/error-handler';
 import { getSpinnerEnabled } from '../../lib/ux/spinner';
 
 import { SUPPORTED_RESOURCES, DescribeOptions } from './types';

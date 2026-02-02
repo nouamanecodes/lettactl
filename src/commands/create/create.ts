@@ -1,7 +1,7 @@
-import { LettaClientWrapper } from '../../lib/letta-client';
+import { LettaClientWrapper } from '../../lib/client/letta-client';
 import { createSpinner, getSpinnerEnabled } from '../../lib/ux/spinner';
-import { log, output, error } from '../../lib/logger';
-import { DEFAULT_MODEL, DEFAULT_EMBEDDING } from '../../lib/constants';
+import { log, output, error } from '../../lib/shared/logger';
+import { DEFAULT_MODEL, DEFAULT_EMBEDDING } from '../../lib/shared/constants';
 
 export default async function createCommand(
   resource: string,

@@ -1,12 +1,12 @@
-import { FleetParser } from './lib/fleet-parser';
-import { SupabaseStorageBackend } from './lib/storage-backend';
+import { FleetParser } from './lib/apply/fleet-parser';
+import { SupabaseStorageBackend } from './lib/storage/storage-backend';
 import { FleetConfig, AgentConfig } from './types/fleet-config';
-import { FleetConfigValidator } from './lib/config-validators';
+import { FleetConfigValidator } from './lib/validation/config-validators';
 import { applyCommand } from './commands/apply';
 import { deleteAgentWithCleanup } from './commands/delete';
-import { LettaClientWrapper } from './lib/letta-client';
-import { AgentResolver } from './lib/agent-resolver';
-import { isRunTerminal, getEffectiveRunStatus } from './lib/run-utils';
+import { LettaClientWrapper } from './lib/client/letta-client';
+import { AgentResolver } from './lib/client/agent-resolver';
+import { isRunTerminal, getEffectiveRunStatus } from './lib/messaging/run-utils';
 import { Run } from './types/run';
 import * as yaml from 'js-yaml';
 import * as fs from 'fs';
@@ -223,4 +223,4 @@ export class FleetConfigBuilder {
 
 export { FleetConfig, AgentConfig } from './types/fleet-config';
 export { Run } from './types/run';
-export { isRunTerminal, getEffectiveRunStatus } from './lib/run-utils';
+export { isRunTerminal, getEffectiveRunStatus } from './lib/messaging/run-utils';
