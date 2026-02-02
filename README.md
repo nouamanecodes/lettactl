@@ -189,11 +189,14 @@ lettactl update agent my-agent \
 
 ### Export/Import Agents
 ```bash
-# Export agent to file
-lettactl export agent my-agent --output my-agent-backup.json
+# Export agent to JSON (Letta native format, includes conversation history)
+lettactl export agent my-agent -o my-agent-backup.json
+
+# Export agent to YAML (git-trackable config format)
+lettactl export agent my-agent -f yaml -o agents.yml
 
 # Export with legacy format
-lettactl export agent my-agent --legacy-format --output legacy-backup.json
+lettactl export agent my-agent --legacy-format -o legacy-backup.json
 
 # Import agent from file
 lettactl import my-agent-backup.json
@@ -203,6 +206,40 @@ lettactl import my-agent-backup.json \
   --name restored-agent \
   --append-copy
 ```
+
+### Git-Native Versioning & Rollback
+
+lettactl is designed to work with git for version control. Your YAML config IS your version history.
+
+```bash
+# 1. Capture current server state to git
+lettactl export agent my-agent -f yaml -o agents.yml
+git add agents.yml && git commit -m "snapshot: current config"
+
+# 2. Check for drift (server vs config)
+lettactl apply -f agents.yml --dry-run
+
+# 3. Make changes and deploy
+vim agents.yml  # edit config
+lettactl apply -f agents.yml
+git commit -am "feat: updated system prompt"
+
+# 4. Rollback if needed
+git revert HEAD
+lettactl apply -f agents.yml
+```
+
+![Drift Detection](assets/drift-detection.png)
+
+**Workflow:**
+| Need | Command |
+|------|---------|
+| Check drift | `lettactl apply --dry-run` |
+| Capture server state | `lettactl export agent <name> -f yaml` |
+| Deploy config | `lettactl apply -f agents.yml` |
+| Rollback | `git revert` + `lettactl apply` |
+| Version history | `git log agents.yml` |
+| Compare versions | `git diff HEAD~1 agents.yml` |
 
 ### Message Operations
 ```bash

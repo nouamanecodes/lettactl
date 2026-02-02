@@ -1198,6 +1198,298 @@ $CLI delete agent e2e-bulk-msg-2 --force > /dev/null 2>&1 || true
 $CLI delete agent e2e-bulk-msg-3 --force > /dev/null 2>&1 || true
 
 # ============================================================================
+# Test: YAML Export & Rollback Workflow (#164)
+# ============================================================================
+
+section "YAML Export & Rollback Workflow (#164)"
+
+# Cleanup any existing test agent
+$CLI delete agent e2e-yaml-export-test --force > /dev/null 2>&1 || true
+
+# Create agent with initial config
+YAML_EXPORT_CONFIG="$LOG_DIR/yaml-export-config.yml"
+cat > "$YAML_EXPORT_CONFIG" << EOF
+agents:
+  - name: e2e-yaml-export-test
+    description: "Initial description for export test"
+    llm_config:
+      model: "google_ai/gemini-2.5-pro"
+      context_window: 32000
+    system_prompt:
+      value: "You are the ORIGINAL assistant."
+    embedding: "openai/text-embedding-3-small"
+EOF
+
+info "Creating agent..."
+if $CLI apply -f "$YAML_EXPORT_CONFIG" > $OUT 2>&1; then
+    pass "Agent created"
+else
+    fail "Agent creation failed"
+    cat $OUT
+fi
+
+# Export to YAML
+YAML_SNAPSHOT="$LOG_DIR/yaml-snapshot.yml"
+info "Exporting to YAML..."
+if $CLI export agent e2e-yaml-export-test -f yaml -o "$YAML_SNAPSHOT" > $OUT 2>&1; then
+    if [ -f "$YAML_SNAPSHOT" ] && grep -q "name: e2e-yaml-export-test" "$YAML_SNAPSHOT"; then
+        pass "YAML export created with correct structure"
+    else
+        fail "YAML export missing or malformed"
+    fi
+else
+    fail "YAML export failed"
+    cat $OUT
+fi
+
+# Modify agent
+YAML_MODIFIED="$LOG_DIR/yaml-modified.yml"
+cat > "$YAML_MODIFIED" << EOF
+agents:
+  - name: e2e-yaml-export-test
+    description: "MODIFIED description"
+    llm_config:
+      model: "google_ai/gemini-2.5-pro"
+      context_window: 32000
+    system_prompt:
+      value: "You are a MODIFIED assistant."
+    embedding: "openai/text-embedding-3-small"
+EOF
+
+info "Modifying agent..."
+$CLI apply -f "$YAML_MODIFIED" > $OUT 2>&1
+
+# Drift detection
+info "Checking drift detection..."
+if $CLI apply -f "$YAML_SNAPSHOT" --dry-run > $OUT 2>&1; then
+    if output_contains "DRIFT DETECTED"; then
+        pass "Drift detection shows DRIFT DETECTED header"
+    else
+        fail "Drift detection missing header"
+        cat $OUT
+    fi
+else
+    fail "Dry-run failed"
+    cat $OUT
+fi
+
+# Rollback
+info "Rolling back via apply..."
+if $CLI apply -f "$YAML_SNAPSHOT" > $OUT 2>&1; then
+    if $CLI describe agent e2e-yaml-export-test > $OUT 2>&1; then
+        if ! output_contains "MODIFIED"; then
+            pass "Rollback restored original config"
+        else
+            fail "Rollback did not restore original"
+            cat $OUT
+        fi
+    fi
+else
+    fail "Rollback apply failed"
+    cat $OUT
+fi
+
+# Cleanup
+$CLI delete agent e2e-yaml-export-test --force > /dev/null 2>&1 || true
+rm -f "$YAML_EXPORT_CONFIG" "$YAML_SNAPSHOT" "$YAML_MODIFIED"
+
+# ============================================================================
+# Test: No Folders Regression (#146)
+# ============================================================================
+
+section "No Folders Regression (#146)"
+
+$CLI delete agent e2e-39-agent-one --force > /dev/null 2>&1 || true
+$CLI delete agent e2e-39-agent-two --force > /dev/null 2>&1 || true
+
+# Apply config with tools/* glob and memory blocks but NO folders
+# Before fix: this would hang indefinitely on "Processing folders..."
+info "Applying config with tools but no folders..."
+if $CLI apply -f "$FIXTURES/fleet-no-folders-test.yml" --root "$FIXTURES" > $OUT 2>&1; then
+    agent_exists "e2e-39-agent-one" && pass "Agent 1 created (no hang)" || fail "Agent 1 not created"
+    agent_exists "e2e-39-agent-two" && pass "Agent 2 created (no hang)" || fail "Agent 2 not created"
+else
+    fail "Apply with no folders failed"
+    cat $OUT
+fi
+
+# Verify tools were attached
+$CLI describe agent e2e-39-agent-one -o json > $OUT 2>&1
+if output_contains "end_conversation"; then
+    pass "Tools attached correctly"
+else
+    fail "Tools not attached"
+fi
+
+$CLI delete agent e2e-39-agent-one --force > /dev/null 2>&1 || true
+$CLI delete agent e2e-39-agent-two --force > /dev/null 2>&1 || true
+
+# ============================================================================
+# Test: Long Names Display (#132)
+# ============================================================================
+
+section "Long Names Display (#132)"
+
+LONG_NAME="e2e-40-this-is-a-very-long-agent-name-that-should-not-be-truncated"
+$CLI delete agent "$LONG_NAME" --force > /dev/null 2>&1 || true
+
+# Create agent with long name
+info "Creating agent with long name..."
+if $CLI create agent "$LONG_NAME" -d "Test agent with long name" -s "You are a test agent." > $OUT 2>&1; then
+    pass "Agent with long name created"
+else
+    fail "Agent with long name failed"
+    cat $OUT
+fi
+
+# Verify full name appears in get agents output (not truncated)
+$CLI get agents --no-ux > $OUT 2>&1
+if output_contains "$LONG_NAME"; then
+    pass "Full name displayed without truncation"
+else
+    fail "Name was truncated"
+    cat $OUT
+fi
+
+$CLI delete agent "$LONG_NAME" --force > /dev/null 2>&1 || true
+
+# ============================================================================
+# Test: Block Contents Display (#154)
+# ============================================================================
+
+section "Block Contents Display (#154)"
+
+$CLI delete agent e2e-41-block-contents --force > /dev/null 2>&1 || true
+
+# Create agent with large memory block
+info "Creating agent with large memory block..."
+if $CLI apply -f "$FIXTURES/fleet-block-contents-test.yml" --root "$FIXTURES" > $OUT 2>&1; then
+    pass "Agent with large block created"
+else
+    fail "Agent creation failed"
+    cat $OUT
+fi
+
+# Full content view: get blocks <agent>
+info "Testing full block content display..."
+$CLI get blocks e2e-41-block-contents --no-ux > $OUT 2>&1
+output_contains "long_knowledge" && pass "Block label shown" || fail "Block label missing"
+output_contains "MARKER_START_BLOCK_CONTENT" && pass "Beginning of block shown" || fail "Beginning missing"
+output_contains "MARKER_END_BLOCK_CONTENT" && pass "End of block shown" || fail "End missing"
+
+# Short mode: get blocks <agent> --short
+info "Testing --short truncation..."
+$CLI get blocks e2e-41-block-contents --short --no-ux > $OUT 2>&1
+if output_contains "..." && ! output_contains "MARKER_END_BLOCK_CONTENT"; then
+    pass "Short mode truncates correctly"
+else
+    fail "Short mode truncation broken"
+fi
+
+$CLI delete agent e2e-41-block-contents --force > /dev/null 2>&1 || true
+
+# ============================================================================
+# Test: Archival Memory Viewer (#161)
+# ============================================================================
+
+section "Archival Memory Viewer (#161)"
+
+ARCHIVAL_AGENT="e2e-43-archival-test"
+$CLI delete agent "$ARCHIVAL_AGENT" --force > /dev/null 2>&1 || true
+
+# Create agent with archival tools
+info "Creating agent with archival tools..."
+cat > "$LOG_DIR/archival-test.yml" << EOF
+agents:
+  - name: $ARCHIVAL_AGENT
+    description: "Agent for archival memory testing"
+    system_prompt:
+      value: "You are a test agent with archival memory."
+    llm_config:
+      model: google_ai/gemini-2.5-pro
+      context_window: 32000
+    embedding: openai/text-embedding-3-small
+    tools:
+      - archival_memory_insert
+      - archival_memory_search
+EOF
+
+$CLI apply -f "$LOG_DIR/archival-test.yml" > $OUT 2>&1
+agent_exists "$ARCHIVAL_AGENT" && pass "Archival agent created" || fail "Agent not created"
+
+# Get agent ID
+ARCHIVAL_AGENT_ID=$($CLI get agents -o json | node -e "
+  const data = JSON.parse(require('fs').readFileSync('/dev/stdin','utf8'));
+  const agent = (Array.isArray(data) ? data : []).find(a => a.name === '$ARCHIVAL_AGENT');
+  if (agent) process.stdout.write(agent.id);
+")
+
+if [ -n "$ARCHIVAL_AGENT_ID" ]; then
+    pass "Got agent ID"
+
+    # Insert archival entries via API
+    info "Inserting archival entries..."
+    for i in 1 2 3; do
+        curl -s -X POST "$LETTA_BASE_URL/v1/agents/$ARCHIVAL_AGENT_ID/archival-memory" \
+            -H "Content-Type: application/json" \
+            ${LETTA_API_KEY:+-H "Authorization: Bearer $LETTA_API_KEY"} \
+            -d "{\"text\": \"E2E archival entry $i: Test passage number $i.\"}" > /dev/null
+    done
+    pass "Inserted archival entries"
+
+    # Test get archival
+    $CLI get archival "$ARCHIVAL_AGENT" --no-ux > $OUT 2>&1
+    if output_contains "archival entry"; then
+        pass "Archival entries displayed"
+    else
+        fail "Archival entries not shown"
+        cat $OUT
+    fi
+else
+    fail "Could not get agent ID for archival test"
+fi
+
+$CLI delete agent "$ARCHIVAL_AGENT" --force > /dev/null 2>&1 || true
+rm -f "$LOG_DIR/archival-test.yml"
+
+# ============================================================================
+# Test: Reasoning Configuration
+# ============================================================================
+
+section "Reasoning Configuration"
+
+$CLI delete agent e2e-44-reasoning --force > /dev/null 2>&1 || true
+
+# Create agent with reasoning=false
+info "Creating agent with reasoning=false..."
+cat > "$LOG_DIR/reasoning-test.yml" << 'EOF'
+agents:
+  - name: e2e-44-reasoning
+    description: "Agent for reasoning test"
+    system_prompt:
+      value: "You are a helpful assistant."
+    llm_config:
+      model: openai/gpt-4o
+      context_window: 28000
+    embedding: openai/text-embedding-3-small
+    reasoning: false
+EOF
+
+if $CLI apply -f "$LOG_DIR/reasoning-test.yml" > $OUT 2>&1; then
+    agent_exists "e2e-44-reasoning" && pass "Agent with reasoning=false created" || fail "Agent not created"
+else
+    fail "Apply with reasoning failed"
+    cat $OUT
+fi
+
+# Validate reasoning field is accepted
+$CLI validate -f "$LOG_DIR/reasoning-test.yml" > $OUT 2>&1
+output_contains "valid" && pass "Reasoning field accepted in validation" || fail "Reasoning field rejected"
+
+$CLI delete agent e2e-44-reasoning --force > /dev/null 2>&1 || true
+rm -f "$LOG_DIR/reasoning-test.yml"
+
+# ============================================================================
 # Cleanup
 # ============================================================================
 

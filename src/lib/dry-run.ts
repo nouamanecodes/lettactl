@@ -7,7 +7,7 @@ import { DiffEngine, AgentUpdateOperations } from './diff-engine';
 import { FileContentTracker } from './file-content-tracker';
 import { FleetParser } from './fleet-parser';
 import { output } from './logger';
-import { displayDryRunSeparator, displayDryRunSummary, displayDryRunAction } from './ux/display';
+import { displayDryRunHeader, displayDryRunSummary, displayDryRunAction } from './ux/display';
 import { shouldUseFancyUx, truncate } from './ux/box';
 import { purple } from './ux/constants';
 import { buildMcpServerRegistry, expandMcpToolsForAgents } from './mcp-tools';
@@ -204,11 +204,28 @@ async function computeAgentDiff(
 export function displayDryRunResults(results: DryRunResult[], verbose: boolean): void {
   const fancy = shouldUseFancyUx();
 
-  output('');
-  output(displayDryRunSeparator());
-
+  // Calculate totals first for header
   let created = 0, updated = 0, unchanged = 0;
   let totalChanges = 0;
+  for (const result of results) {
+    if (result.action === 'create') {
+      created++;
+      totalChanges++;
+    } else if (result.action === 'update' && result.operations) {
+      updated++;
+      totalChanges += result.operations.operationCount;
+    } else {
+      unchanged++;
+    }
+  }
+
+  // Show header with drift status
+  output('');
+  output(displayDryRunHeader(totalChanges > 0));
+  output('');
+
+  // Reset for detailed output
+  created = 0; updated = 0; unchanged = 0; totalChanges = 0;
 
   for (const result of results) {
     if (result.action === 'create') {

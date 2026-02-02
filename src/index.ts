@@ -201,8 +201,9 @@ program
   .argument('<resource>', 'resource type (agent)')
   .argument('<name>', 'agent name')
   .option('-o, --output <file>', 'output filename')
+  .option('-f, --format <format>', 'output format (json|yaml)', 'json')
   .option('--max-steps <number>', 'maximum steps to export', parseInt)
-  .option('--legacy-format', 'use legacy v1 format')
+  .option('--legacy-format', 'use legacy v1 format (json only)')
   .action(exportCommand);
 
 // Import command - import agents from files
