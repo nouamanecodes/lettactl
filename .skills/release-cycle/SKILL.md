@@ -17,19 +17,25 @@ description: Use when releasing features - covers issues, branches, tests, commi
 
 ## E2E Tests
 
-Two types: **CLI tests** (bash) and **SDK tests** (Node.js). Both live in `tests/e2e/tests/`.
+Modular test runner that auto-discovers and runs all tests from `tests/e2e/tests/`.
 
 ```bash
-# Run single test (auto-detects .sh or .js)
+# Run ALL tests (discovers .sh and .js automatically)
+LETTA_BASE_URL=http://localhost:8283 ./tests/e2e/script.sh
+
+# Run single test
 ./tests/e2e/run-single.sh XX-test-name
 
-# Run all CLI tests
-./tests/e2e/script.sh
+# Run filtered subset
+./tests/e2e/script.sh --filter "4*"      # Tests 40-49
+./tests/e2e/script.sh --filter "block*"  # Tests matching "block*"
 ```
 
-### CLI Tests (`.sh`)
+### Test Structure
 
-Location: `tests/e2e/tests/XX-name.sh`
+Tests live in `tests/e2e/tests/` with naming convention `XX-name.sh` or `XX-sdk-name.js`.
+
+**CLI Tests (`.sh`)** - For commands and UX:
 
 ```bash
 #!/bin/bash
@@ -48,11 +54,7 @@ delete_agent_if_exists "$AGENT"
 print_summary
 ```
 
-### SDK Tests (`.js`)
-
-Location: `tests/e2e/tests/XX-sdk-name.js`
-
-Helpers: `tests/e2e/lib/common.js` (pass, fail, info, section, printSummary, preflightCheck)
+**SDK Tests (`.js`)** - For programmatic API (`src/sdk.ts`):
 
 ```javascript
 #!/usr/bin/env node
@@ -63,19 +65,53 @@ const { LettaCtl } = require(path.join(__dirname, '..', '..', '..', 'dist', 'sdk
 async function run() {
   section('Test: SDK Feature Name');
   preflightCheck();
-
   const ctl = new LettaCtl({ root: tmpDir });
   await ctl.deployFleet(config);
-  // assert server state + file state
   pass('Feature works');
-
   printSummary();
 }
 run().catch(err => { console.error('FATAL:', err); process.exit(1); });
 ```
 
-Use SDK tests for features that modify the programmatic API (`src/sdk.ts`).
-Use CLI tests for features that modify commands or UX.
+### Test Helpers
+
+From `tests/e2e/lib/common.sh`:
+- `pass "message"` / `fail "message"` - Record test result
+- `agent_exists "name"` - Check if agent exists
+- `output_contains "text"` - Check $OUT contains text
+- `output_not_contains "text"` - Check $OUT doesn't contain text
+- `delete_agent_if_exists "name"` - Cleanup helper
+- `preflight_check` - Verify server and CLI ready
+- `print_summary` - Show pass/fail counts
+
+### Fixture Conventions
+
+Fixtures in `tests/e2e/fixtures/`:
+- `fleet.yml` - Initial state for most tests
+- `fleet-updated.yml` - Modified state for update/diff tests
+
+**Memory block value sync** requires `mutable: false`:
+```yaml
+memory_blocks:
+  - name: policies
+    value: "Policy content..."
+    mutable: false  # Required for lettactl to sync value on apply
+```
+
+Without `mutable: false`, block values won't sync (agent could have modified them at runtime).
+
+### Test Output
+
+The runner aggregates results:
+```
+[1/48] 01-minimal (CLI) ... PASS (4 checks, 9s)
+[2/48] 42-sdk-fleet (SDK) ... PASS (15 checks, 7s)
+...
+Summary:
+  Tests run:       48
+  Checks passed:   336
+  Checks failed:   0
+```
 
 ## README Updates
 

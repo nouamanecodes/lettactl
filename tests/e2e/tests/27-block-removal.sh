@@ -20,8 +20,8 @@ $CLI get blocks --agent "$AGENT" > $OUT 2>&1
 output_contains "temp_block_a" && pass "Block A attached" || fail "Block A missing"
 output_contains "temp_block_b" && pass "Block B attached" || fail "Block B missing"
 
-# Apply update - ALL blocks removed
-$CLI apply -f "$FIXTURES/fleet-updated.yml" --root "$FIXTURES" --agent "$AGENT" > $OUT 2>&1
+# Apply update - ALL blocks removed (requires --force to actually remove)
+$CLI apply -f "$FIXTURES/fleet-updated.yml" --root "$FIXTURES" --agent "$AGENT" --force > $OUT 2>&1
 
 # Verify blocks are gone (only core_memory and recall_memory should remain)
 $CLI get blocks --agent "$AGENT" > $OUT 2>&1

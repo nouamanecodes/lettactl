@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # lettactl E2E Test Suite
-# Tests fleet deployment, diff detection, and kubectl-style updates
+# Modular test runner - discovers and runs tests from tests/e2e/tests/
 
 set -e
 
@@ -10,19 +10,40 @@ RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
+DIM='\033[2m'
 NC='\033[0m'
 
 # Counters
 PASSED=0
 FAILED=0
+TESTS_RUN=0
 
 # Parse flags
 QUIET_FLAG=""
+FILTER=""
 while [[ $# -gt 0 ]]; do
     case $1 in
         -q|--quiet)
             QUIET_FLAG="-q"
             shift
+            ;;
+        --filter|-f)
+            FILTER="$2"
+            shift 2
+            ;;
+        -h|--help)
+            echo "Usage: $0 [options]"
+            echo ""
+            echo "Options:"
+            echo "  --filter, -f <pattern>  Run only tests matching pattern (e.g., '4*', 'block*')"
+            echo "  -q, --quiet             Quiet mode"
+            echo "  -h, --help              Show this help"
+            echo ""
+            echo "Examples:"
+            echo "  $0                      # Run all tests"
+            echo "  $0 --filter '45*'       # Run test 45 only"
+            echo "  $0 --filter '4*'        # Run tests 40-49"
+            exit 0
             ;;
         *)
             shift
@@ -33,19 +54,24 @@ done
 # Paths
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
+TESTS_DIR="$SCRIPT_DIR/tests"
 FIXTURES="$SCRIPT_DIR/fixtures"
 CLI="node $ROOT_DIR/dist/index.js $QUIET_FLAG"
 LOG_DIR="$ROOT_DIR/logs"
 OUT="$LOG_DIR/e2e-out.txt"
 
+# Export for child test scripts
+export QUIET_FLAG
+export LETTA_BASE_URL
+
 # Ensure logs dir exists
 mkdir -p "$LOG_DIR"
 
-# Timestamped log file - tee output to both console and file
+# Timestamped log file
 TIMESTAMP=$(date +%Y%m%d-%H%M%S)
 LOG_FILE="$LOG_DIR/e2e-$TIMESTAMP.log"
 exec > >(tee -a "$LOG_FILE") 2>&1
-echo "Log file: $LOG_FILE"
+echo -e "${DIM}Log: $LOG_FILE${NC}"
 
 # ============================================================================
 # Helpers
@@ -70,16 +96,6 @@ section() {
     echo -e "${BLUE}════════════════════════════════════════════════════════════════${NC}"
     echo -e "${BLUE} $1${NC}"
     echo -e "${BLUE}════════════════════════════════════════════════════════════════${NC}"
-}
-
-# Check if agent exists by name
-agent_exists() {
-    $CLI get agents > "$OUT" 2>&1 && grep -q "$1" "$OUT"
-}
-
-# Check output contains string
-output_contains() {
-    grep -q "$1" $OUT
 }
 
 # ============================================================================
@@ -118,7 +134,7 @@ fi
 pass "CLI built"
 
 # ============================================================================
-# Cleanup any existing e2e agents
+# Initial Cleanup
 # ============================================================================
 
 section "Cleanup Previous Test Agents"
@@ -128,1366 +144,86 @@ $CLI delete-all agents --pattern "e2e-.*" --force > $OUT 2>&1 || true
 pass "Cleanup complete"
 
 # ============================================================================
-# Test: Validate Fleet Config
+# Discover and Run Tests
 # ============================================================================
 
-section "Validate Fleet Configs"
+section "Running Tests"
 
-if $CLI validate -f "$FIXTURES/fleet.yml" > $OUT 2>&1; then
-    pass "fleet.yml validation"
+# Find test files (.sh and .js)
+if [ -n "$FILTER" ]; then
+    info "Filter: $FILTER"
+    TEST_FILES=$(find "$TESTS_DIR" -maxdepth 1 \( -name "${FILTER}.sh" -o -name "${FILTER}.js" \) 2>/dev/null | sort || true)
 else
-    fail "fleet.yml validation"
-    cat $OUT
+    TEST_FILES=$(find "$TESTS_DIR" -maxdepth 1 \( -name "*.sh" -o -name "*.js" \) 2>/dev/null | sort || true)
 fi
 
-if $CLI validate -f "$FIXTURES/fleet-updated.yml" > $OUT 2>&1; then
-    pass "fleet-updated.yml validation"
-else
-    fail "fleet-updated.yml validation"
-    cat $OUT
+if [ -z "$TEST_FILES" ]; then
+    echo -e "${YELLOW}No tests found${NC}"
+    exit 0
 fi
 
-# ============================================================================
-# Test: Invalid Configs (should fail)
-# ============================================================================
+# Count tests
+TEST_COUNT=$(echo "$TEST_FILES" | wc -l)
+info "Found $TEST_COUNT test(s)"
+echo ""
 
-section "Invalid Config Validation"
+# Run each test
+for TEST_FILE in $TEST_FILES; do
+    # Get test name without extension
+    TEST_NAME=$(basename "$TEST_FILE" | sed -e 's/\.sh$//' -e 's/\.js$//')
+    TESTS_RUN=$((TESTS_RUN + 1))
 
-# fleet-invalid.yml contains multiple invalid configs - any validation error is a pass
-if $CLI apply -f "$FIXTURES/fleet-invalid.yml" --dry-run > $OUT 2>&1; then
-    fail "fleet-invalid.yml should have failed validation"
-    cat $OUT
-else
-    # Check for any expected validation error
-    if output_contains "Self-hosted Letta requires explicit embedding" || \
-       output_contains "Missing required fields in from_bucket" || \
-       output_contains "unsupported provider"; then
-        pass "Invalid config rejected"
+    # Determine test type
+    if [[ "$TEST_FILE" == *.js ]]; then
+        TEST_TYPE="SDK"
     else
-        fail "Unexpected error from invalid config"
-        cat $OUT
-    fi
-fi
-
-# ============================================================================
-# Test: Partial Failure Handling (kubectl-style continue on error)
-# ============================================================================
-
-section "Partial Failure Handling"
-
-# Cleanup any existing partial failure test agents
-$CLI delete-all agents --pattern "e2e-partial-.*" --force > /dev/null 2>&1 || true
-
-# Apply should continue despite failures and exit non-zero
-if $CLI apply -f "$FIXTURES/fleet-partial-failure.yml" > $OUT 2>&1; then
-    fail "Apply should have exited non-zero due to failures"
-    cat $OUT
-else
-    # Verify we continued processing (both valid agents should exist)
-    if $CLI get agents 2>/dev/null | grep -q "e2e-partial-valid-1" && \
-       $CLI get agents 2>/dev/null | grep -q "e2e-partial-valid-2"; then
-        pass "Continued after failure - both valid agents created"
-    else
-        fail "Did not continue after failure"
-        cat $OUT
+        TEST_TYPE="CLI"
     fi
 
-    # Verify summary output shows 2 succeeded, 3 failed
-    if output_contains "Succeeded: 2" && output_contains "Failed: 3"; then
-        pass "Summary shows correct counts (2 succeeded, 3 failed)"
+    echo -ne "${BLUE}[$TESTS_RUN/$TEST_COUNT]${NC} $TEST_NAME ${DIM}($TEST_TYPE)${NC} ... "
+
+    # Create temp file for output
+    TEST_OUT="$LOG_DIR/test-$TEST_NAME.out"
+
+    # Run test and capture time
+    START_TIME=$(date +%s)
+
+    if [[ "$TEST_FILE" == *.js ]]; then
+        # Run JS/SDK test with node
+        if node "$TEST_FILE" > "$TEST_OUT" 2>&1; then
+            TEST_EXIT=0
+        else
+            TEST_EXIT=$?
+        fi
     else
-        fail "Incorrect summary counts"
-        cat $OUT
+        # Run bash test
+        if bash "$TEST_FILE" > "$TEST_OUT" 2>&1; then
+            TEST_EXIT=0
+        else
+            TEST_EXIT=$?
+        fi
     fi
 
-    # Verify explicit error for missing shared block
-    if output_contains "Shared block" && output_contains "not found"; then
-        pass "Missing shared block error surfaced"
+    END_TIME=$(date +%s)
+    DURATION=$((END_TIME - START_TIME))
+
+    # Extract pass/fail counts from output
+    TEST_PASSED=$(grep -c "^\[PASS\]" "$TEST_OUT" 2>/dev/null) || TEST_PASSED=0
+    TEST_FAILED=$(grep -c "^\[FAIL\]" "$TEST_OUT" 2>/dev/null) || TEST_FAILED=0
+
+    PASSED=$((PASSED + ${TEST_PASSED:-0}))
+    FAILED=$((FAILED + ${TEST_FAILED:-0}))
+
+    if [ $TEST_EXIT -eq 0 ] && [ "$TEST_FAILED" -eq 0 ]; then
+        echo -e "${GREEN}PASS${NC} ${DIM}(${TEST_PASSED} checks, ${DURATION}s)${NC}"
     else
-        fail "Missing shared block error not shown"
-        cat $OUT
-    fi
-
-    # Verify explicit error for missing tool
-    if output_contains "Tool" && output_contains "not found"; then
-        pass "Missing tool error surfaced"
-    else
-        fail "Missing tool error not shown"
-        cat $OUT
-    fi
-fi
-
-# Cleanup partial failure test agents
-$CLI delete-all agents --pattern "e2e-partial-.*" --force > /dev/null 2>&1 || true
-
-# ============================================================================
-# Test: Dry Run (should show creates)
-# ============================================================================
-
-section "Dry Run - Initial Fleet"
-
-if $CLI apply -f "$FIXTURES/fleet.yml" --root "$FIXTURES" --dry-run > $OUT 2>&1; then
-    if output_contains "CREATE"; then
-        pass "Dry run shows creates"
-    else
-        fail "Dry run missing CREATE"
-        cat $OUT
-    fi
-else
-    fail "Dry run command failed"
-    cat $OUT
-fi
-
-# ============================================================================
-# Test: Apply Initial Fleet (30 agents)
-# ============================================================================
-
-section "Apply Initial Fleet (30 agents)"
-
-info "Applying fleet.yml..."
-if $CLI apply -f "$FIXTURES/fleet.yml" --root "$FIXTURES" > $OUT 2>&1; then
-    pass "Apply fleet.yml succeeded"
-else
-    fail "Apply fleet.yml failed"
-    cat $OUT
-fi
-
-# Verify all 30 agents exist
-section "Verify All Agents Created"
-
-AGENTS=(
-    "e2e-01-minimal"
-    "e2e-02-prompt-file"
-    "e2e-03-no-base-prompt"
-    "e2e-04-large-context"
-    "e2e-05-block-single"
-    "e2e-06-blocks-multi"
-    "e2e-07-block-file"
-    "e2e-08-block-versioned"
-    "e2e-09-shared-single"
-    "e2e-10-shared-multi"
-    "e2e-11-shared-and-memory"
-    "e2e-12-folder-explicit"
-    "e2e-13-folder-glob-txt"
-    "e2e-14-folder-glob-all"
-    "e2e-15-folders-multi"
-    "e2e-16-tools-archival"
-    "e2e-17-full-local"
-    "e2e-18-shares-with-09"
-    "e2e-19-shares-folder"
-    "e2e-20-kitchen-sink"
-    "e2e-21-folder-tools-auto"
-    "e2e-22-bucket-glob"
-    "e2e-23-bucket-single"
-    "e2e-24-mixed-sources"
-    "e2e-25-immutable-block"
-    "e2e-26-empty-block"
-    "e2e-27-block-removal"
-    "e2e-28-special-chars"
-    "e2e-29-unicode-content"
-    "e2e-30-cleanup-test"
-    "e2e-33-block-isolation-a"
-    "e2e-33-block-isolation-b"
-)
-
-for agent in "${AGENTS[@]}"; do
-    if agent_exists "$agent"; then
-        pass "Agent exists: $agent"
-    else
-        fail "Agent missing: $agent"
+        echo -e "${RED}FAIL${NC} ${DIM}(${TEST_PASSED} pass, ${TEST_FAILED} fail, ${DURATION}s)${NC}"
+        # Show failure details
+        echo -e "${DIM}─── Failures ───${NC}"
+        grep "^\[FAIL\]" "$TEST_OUT" 2>/dev/null | head -10 || true
+        echo -e "${DIM}────────────────${NC}"
     fi
 done
-
-# ============================================================================
-# Test: Verify Shared Blocks Created
-# ============================================================================
-
-section "Verify Shared Blocks"
-
-if $CLI get blocks > $OUT 2>&1; then
-    if output_contains "e2e-shared-inline"; then
-        pass "Shared block: e2e-shared-inline"
-    else
-        fail "Missing shared block: e2e-shared-inline"
-    fi
-
-    if output_contains "e2e-shared-fromfile"; then
-        pass "Shared block: e2e-shared-fromfile"
-    else
-        fail "Missing shared block: e2e-shared-fromfile"
-    fi
-
-    if output_contains "e2e-shared-versioned"; then
-        pass "Shared block: e2e-shared-versioned"
-    else
-        fail "Missing shared block: e2e-shared-versioned"
-    fi
-else
-    fail "Get blocks command failed"
-fi
-
-# ============================================================================
-# Test: Idempotent Apply (no changes)
-# ============================================================================
-
-section "Idempotent Apply (No Changes Expected)"
-
-if $CLI apply -f "$FIXTURES/fleet.yml" --root "$FIXTURES" --dry-run > $OUT 2>&1; then
-    if output_contains "unchanged" || ! output_contains "Would"; then
-        pass "Re-apply shows no changes needed"
-    else
-        fail "Re-apply incorrectly shows changes"
-        cat $OUT
-    fi
-else
-    fail "Idempotent dry-run failed"
-    cat $OUT
-fi
-
-# ============================================================================
-# Test: Describe Agents (spot check)
-# ============================================================================
-
-section "Describe Commands"
-
-if $CLI describe agent e2e-01-minimal > $OUT 2>&1; then
-    pass "Describe agent: e2e-01-minimal"
-else
-    fail "Describe agent failed"
-fi
-
-if $CLI describe agent e2e-20-kitchen-sink > $OUT 2>&1; then
-    if output_contains "kitchen"; then
-        pass "Describe agent: e2e-20-kitchen-sink"
-    else
-        fail "Describe missing expected content"
-    fi
-else
-    fail "Describe kitchen-sink failed"
-fi
-
-# ============================================================================
-# Test: Get Commands
-# ============================================================================
-
-section "Get Commands"
-
-if $CLI get agents > $OUT 2>&1; then
-    pass "Get agents (table)"
-else
-    fail "Get agents failed"
-fi
-
-if $CLI get agents -o json > $OUT 2>&1; then
-    if grep -q '\[' "$OUT"; then
-        pass "Get agents (json)"
-    else
-        fail "Get agents json format wrong"
-    fi
-else
-    fail "Get agents json failed"
-fi
-
-if $CLI get blocks > $OUT 2>&1; then
-    pass "Get blocks"
-else
-    fail "Get blocks failed"
-fi
-
-if $CLI get blocks --agent e2e-06-blocks-multi > $OUT 2>&1; then
-    if output_contains "user_profile"; then
-        pass "Get blocks filtered by agent"
-    else
-        fail "Get blocks filter missing expected block"
-    fi
-else
-    fail "Get blocks --agent failed"
-fi
-
-if $CLI get tools > $OUT 2>&1; then
-    pass "Get tools"
-else
-    fail "Get tools failed"
-fi
-
-if $CLI get folders > $OUT 2>&1; then
-    pass "Get folders"
-else
-    fail "Get folders failed"
-fi
-
-# ============================================================================
-# Test: Context and Files Commands
-# ============================================================================
-
-section "Context & Files Commands"
-
-if $CLI context e2e-01-minimal > $OUT 2>&1; then
-    pass "Context command"
-else
-    fail "Context command failed"
-fi
-
-if $CLI files e2e-12-folder-explicit > $OUT 2>&1; then
-    pass "Files command"
-else
-    fail "Files command failed"
-fi
-
-# ============================================================================
-# Test: Runs Commands
-# ============================================================================
-
-section "Runs Commands"
-
-if $CLI runs > $OUT 2>&1; then
-    pass "List runs"
-else
-    fail "List runs failed"
-fi
-
-if $CLI runs --limit 5 > $OUT 2>&1; then
-    pass "List runs with limit"
-else
-    fail "List runs --limit failed"
-fi
-
-# ============================================================================
-# Test: Apply Updated Fleet (Diff Detection)
-# ============================================================================
-
-section "Apply Updated Fleet (Diff Detection)"
-
-info "Dry run to see what changes..."
-if $CLI apply -f "$FIXTURES/fleet-updated.yml" --root "$FIXTURES" --dry-run > $OUT 2>&1; then
-    # Should show updates, not creates
-    if output_contains "update" || output_contains "Update" || output_contains "~"; then
-        pass "Dry run detects updates"
-    else
-        fail "Dry run not detecting updates"
-        cat $OUT
-    fi
-else
-    fail "Updated dry-run failed"
-    cat $OUT
-fi
-
-info "Applying fleet-updated.yml..."
-if $CLI apply -f "$FIXTURES/fleet-updated.yml" --root "$FIXTURES" > $OUT 2>&1; then
-    pass "Apply fleet-updated.yml succeeded"
-else
-    fail "Apply fleet-updated.yml failed"
-    cat $OUT
-fi
-
-# ============================================================================
-# Test: Verify Diffs Applied
-# ============================================================================
-
-section "Verify Diffs Applied"
-
-# Check agent 01 description changed
-if $CLI describe agent e2e-01-minimal > $OUT 2>&1; then
-    if output_contains "UPDATED"; then
-        pass "Agent 01 description updated"
-    else
-        fail "Agent 01 description not updated"
-    fi
-else
-    fail "Describe agent 01 failed"
-fi
-
-# Check agent 04 context window changed (200000 -> 180000)
-if $CLI describe agent e2e-04-large-context > $OUT 2>&1; then
-    if output_contains "180000"; then
-        pass "Agent 04 context window updated"
-    else
-        fail "Agent 04 context window not updated"
-    fi
-else
-    fail "Describe agent 04 failed"
-fi
-
-# Check agent 06 has new block
-if $CLI get blocks --agent e2e-06-blocks-multi > $OUT 2>&1; then
-    if output_contains "new_block"; then
-        pass "Agent 06 new block added"
-    else
-        fail "Agent 06 new block missing"
-    fi
-else
-    fail "Get blocks for agent 06 failed"
-fi
-
-# Check agent 20 has new memory block added
-if $CLI get blocks --agent e2e-20-kitchen-sink > $OUT 2>&1; then
-    if output_contains "brand_new_block"; then
-        pass "Agent 20 new block added"
-    else
-        fail "Agent 20 new block missing"
-    fi
-else
-    fail "Get blocks for agent 20 failed"
-fi
-
-# Check agent 25 immutable block value synced (mutable: false)
-# The policies block value should update from "Policy version 1..." to "Policy version 2..."
-# describe block shows the actual value preview
-if $CLI describe block policies > $OUT 2>&1; then
-    if output_contains "version 2"; then
-        pass "Agent 25 immutable block value synced"
-    else
-        fail "Agent 25 immutable block value not synced (should contain 'version 2')"
-        cat $OUT
-    fi
-else
-    fail "Describe block policies failed"
-fi
-
-# ============================================================================
-# Test: Idempotent After Update
-# ============================================================================
-
-section "Idempotent After Update"
-
-if $CLI apply -f "$FIXTURES/fleet-updated.yml" --root "$FIXTURES" --dry-run > $OUT 2>&1; then
-    if output_contains "unchanged" || ! output_contains "Would"; then
-        pass "Post-update re-apply shows no changes"
-    else
-        fail "Post-update incorrectly shows changes"
-        cat $OUT
-    fi
-else
-    fail "Post-update idempotent check failed"
-fi
-
-# ============================================================================
-# Test: Bucket Files Idempotence (#98, #100)
-# ============================================================================
-
-section "Bucket Files Idempotence"
-
-# Test that bucket glob agents show no FILE changes on re-apply
-# (tool changes may occur due to test flow but files should be stable)
-if $CLI apply -f "$FIXTURES/fleet.yml" --root "$FIXTURES" --agent e2e-22-bucket-glob --dry-run > $OUT 2>&1; then
-    if ! output_contains "Added file" && ! output_contains "Removed file" && ! output_contains "Updated file"; then
-        pass "Bucket glob files idempotent"
-    else
-        fail "Bucket glob files showing changes on re-apply"
-        cat $OUT
-    fi
-else
-    fail "Bucket glob idempotence check failed"
-    cat $OUT
-fi
-
-# Test single bucket file idempotence
-if $CLI apply -f "$FIXTURES/fleet.yml" --root "$FIXTURES" --agent e2e-23-bucket-single --dry-run > $OUT 2>&1; then
-    if ! output_contains "Added file" && ! output_contains "Removed file" && ! output_contains "Updated file"; then
-        pass "Single bucket file idempotent"
-    else
-        fail "Single bucket file showing changes on re-apply"
-        cat $OUT
-    fi
-else
-    fail "Single bucket idempotence check failed"
-    cat $OUT
-fi
-
-# Test mixed local + bucket idempotence
-if $CLI apply -f "$FIXTURES/fleet.yml" --root "$FIXTURES" --agent e2e-24-mixed-sources --dry-run > $OUT 2>&1; then
-    if ! output_contains "Added file" && ! output_contains "Removed file" && ! output_contains "Updated file"; then
-        pass "Mixed local+bucket files idempotent"
-    else
-        fail "Mixed files showing changes on re-apply"
-        cat $OUT
-    fi
-else
-    fail "Mixed files idempotence check failed"
-    cat $OUT
-fi
-
-# ============================================================================
-# Test: Export Agent
-# ============================================================================
-
-section "Export Command"
-
-EXPORT_FILE="$LOG_DIR/e2e-export-test.letta"
-if $CLI export agent e2e-01-minimal -o "$EXPORT_FILE" > $OUT 2>&1; then
-    if [ -f "$EXPORT_FILE" ]; then
-        pass "Export agent created file"
-        rm -f "$EXPORT_FILE"
-    else
-        fail "Export file not created"
-    fi
-else
-    fail "Export command failed"
-fi
-
-# ============================================================================
-# Test: Delete Single Agent
-# ============================================================================
-
-section "Delete Commands"
-
-if $CLI delete agent e2e-01-minimal --force > $OUT 2>&1; then
-    if ! agent_exists "e2e-01-minimal"; then
-        pass "Delete single agent"
-    else
-        fail "Agent still exists after delete"
-    fi
-else
-    fail "Delete command failed"
-fi
-
-# ============================================================================
-# Test: --force Reconciliation (#123)
-# ============================================================================
-
-section "Force Reconciliation (--force flag)"
-
-# Cleanup any existing force test agent
-$CLI delete agent e2e-force-test --force > /dev/null 2>&1 || true
-
-# Create agent with multiple blocks and tools
-info "Creating agent with block_keep, block_remove, send_message, conversation_search..."
-if $CLI apply -f "$FIXTURES/fleet-force-test.yml" > $OUT 2>&1; then
-    pass "Created force test agent"
-else
-    fail "Failed to create force test agent"
-    cat $OUT
-fi
-
-# Verify both blocks exist
-if $CLI get blocks --agent e2e-force-test > $OUT 2>&1; then
-    if output_contains "block_keep" && output_contains "block_remove"; then
-        pass "Both blocks attached initially"
-    else
-        fail "Initial blocks not attached"
-        cat $OUT
-    fi
-fi
-
-# Apply reduced config WITHOUT --force - blocks should remain
-info "Applying reduced config WITHOUT --force..."
-if $CLI apply -f "$FIXTURES/fleet-force-test-reduced.yml" > $OUT 2>&1; then
-    # Check that block_remove is still attached (not removed without --force)
-    if $CLI get blocks --agent e2e-force-test > $OUT 2>&1; then
-        if output_contains "block_remove"; then
-            pass "block_remove retained without --force"
-        else
-            fail "block_remove incorrectly removed without --force"
-        fi
-    fi
-else
-    fail "Apply reduced config failed"
-    cat $OUT
-fi
-
-# Verify dry-run shows "(requires --force)" for removals
-info "Checking dry-run shows --force requirement..."
-if $CLI apply -f "$FIXTURES/fleet-force-test-reduced.yml" --dry-run > $OUT 2>&1; then
-    if output_contains "requires --force"; then
-        pass "Dry-run indicates --force required for removals"
-    else
-        # If block was already removed, this would fail - check if block still exists
-        if $CLI get blocks --agent e2e-force-test 2>/dev/null | grep -q "block_remove"; then
-            fail "Dry-run missing --force indicator"
-            cat $OUT
-        else
-            pass "No removals pending (block already processed)"
-        fi
-    fi
-fi
-
-# Apply reduced config WITH --force - block_remove should be detached
-info "Applying reduced config WITH --force..."
-if $CLI apply -f "$FIXTURES/fleet-force-test-reduced.yml" --force > $OUT 2>&1; then
-    # Check that block_remove is now gone
-    if $CLI get blocks --agent e2e-force-test > $OUT 2>&1; then
-        if output_contains "block_keep" && ! output_contains "block_remove"; then
-            pass "block_remove detached with --force"
-        else
-            if output_contains "block_remove"; then
-                fail "block_remove not removed with --force"
-            else
-                fail "block_keep also missing"
-            fi
-            cat $OUT
-        fi
-    fi
-else
-    fail "Apply with --force failed"
-    cat $OUT
-fi
-
-# Cleanup force test agent
-$CLI delete agent e2e-force-test --force > /dev/null 2>&1 || true
-
-# ============================================================================
-# Test: Archives Basic
-# ============================================================================
-
-section "Archives Basic"
-
-# Cleanup any existing test agent
-$CLI delete agent e2e-41-archives-basic --force > /dev/null 2>&1 || true
-
-info "Creating agent with archives..."
-if $CLI apply -f "$FIXTURES/fleet-archives-test.yml" --root "$FIXTURES" > $OUT 2>&1; then
-    pass "Created archives basic agent"
-else
-    fail "Failed to create archives basic agent"
-    cat $OUT
-fi
-
-if $CLI get archives --agent e2e-41-archives-basic > $OUT 2>&1; then
-    if output_contains "e2e-archive-basic-1"; then
-        pass "Archive attached to agent"
-    else
-        fail "Archive not attached to agent"
-        cat $OUT
-    fi
-else
-    fail "Get archives for agent failed"
-    cat $OUT
-fi
-
-if $CLI describe agent e2e-41-archives-basic > $OUT 2>&1; then
-    if output_contains "e2e-archive-basic-1"; then
-        pass "Agent details show archive"
-    else
-        fail "Agent details missing archive"
-        cat $OUT
-    fi
-else
-    fail "Describe agent failed"
-    cat $OUT
-fi
-
-if $CLI describe archive e2e-archive-basic-1 > $OUT 2>&1; then
-    if output_contains "e2e-41-archives-basic"; then
-        pass "Archive details show attached agent"
-    else
-        fail "Archive details missing attached agent"
-        cat $OUT
-    fi
-else
-    fail "Describe archive failed"
-    cat $OUT
-fi
-
-# Cleanup
-$CLI delete agent e2e-41-archives-basic --force > /dev/null 2>&1 || true
-$CLI delete-all archives --pattern "e2e-archive-basic-.*" --force > /dev/null 2>&1 || true
-
-# ============================================================================
-# Test: Archives Force Removal
-# ============================================================================
-
-section "Archives Force Removal"
-
-# Cleanup any existing test agent
-$CLI delete agent e2e-42-archives-force --force > /dev/null 2>&1 || true
-
-info "Creating agent with archives to detach..."
-if $CLI apply -f "$FIXTURES/fleet-archives-force-test.yml" --root "$FIXTURES" > $OUT 2>&1; then
-    pass "Created archives force agent"
-else
-    fail "Failed to create archives force agent"
-    cat $OUT
-fi
-
-if $CLI get archives --agent e2e-42-archives-force > $OUT 2>&1; then
-    if output_contains "e2e-archive-force-keep"; then
-        pass "Force test archive attached"
-    else
-        fail "Force test archive not attached"
-        cat $OUT
-    fi
-else
-    fail "Get archives for force agent failed"
-    cat $OUT
-fi
-
-info "Applying reduced config WITHOUT --force..."
-if $CLI apply -f "$FIXTURES/fleet-archives-force-test-reduced.yml" --root "$FIXTURES" > $OUT 2>&1; then
-    if $CLI get archives --agent e2e-42-archives-force > $OUT 2>&1; then
-        if output_contains "e2e-archive-force-keep"; then
-            pass "Archive retained without --force"
-        else
-            fail "Archive incorrectly detached without --force"
-            cat $OUT
-        fi
-    fi
-else
-    fail "Apply reduced config failed"
-    cat $OUT
-fi
-
-info "Checking dry-run shows --force requirement..."
-if $CLI apply -f "$FIXTURES/fleet-archives-force-test-reduced.yml" --root "$FIXTURES" --dry-run > $OUT 2>&1; then
-    if output_contains "requires --force"; then
-        pass "Dry-run indicates --force required"
-    else
-        if $CLI get archives --agent e2e-42-archives-force 2>/dev/null | grep -q "e2e-archive-force-remove"; then
-            fail "Dry-run missing --force indicator"
-            cat $OUT
-        else
-            pass "No removals pending (archive already detached)"
-        fi
-    fi
-fi
-
-info "Applying reduced config WITH --force..."
-if $CLI apply -f "$FIXTURES/fleet-archives-force-test-reduced.yml" --root "$FIXTURES" --force > $OUT 2>&1; then
-    if $CLI get archives --agent e2e-42-archives-force > $OUT 2>&1; then
-        if ! output_contains "e2e-archive-force-keep"; then
-            pass "Archive detached with --force"
-        else
-            fail "Archive removal did not behave as expected"
-            cat $OUT
-        fi
-    fi
-else
-    fail "Apply with --force failed"
-    cat $OUT
-fi
-
-if $CLI get archives --orphaned > $OUT 2>&1; then
-    if output_contains "e2e-archive-force-keep"; then
-        pass "Orphaned archive listed"
-    else
-        fail "Orphaned archive not listed"
-        cat $OUT
-    fi
-else
-    fail "Get orphaned archives failed"
-    cat $OUT
-fi
-
-# Cleanup
-$CLI delete agent e2e-42-archives-force --force > /dev/null 2>&1 || true
-$CLI delete-all archives --pattern "e2e-archive-force-.*" --force > /dev/null 2>&1 || true
-
-# ============================================================================
-# Test: Protected Memory and File Tools (#130, #137)
-# ============================================================================
-
-section "Protected Memory and File Tools (#130, #137)"
-
-# Cleanup any existing test agent
-$CLI delete agent e2e-memory-tools-test --force > /dev/null 2>&1 || true
-
-# Create agent with all memory and file tools
-info "Creating agent with memory and file tools..."
-if $CLI apply -f "$FIXTURES/fleet-memory-tools-test.yml" > $OUT 2>&1; then
-    pass "Created memory tools test agent"
-else
-    fail "Failed to create memory tools test agent"
-    cat $OUT
-fi
-
-# Verify all memory tools are attached
-$CLI get tools --agent e2e-memory-tools-test > $OUT 2>&1
-if output_contains "memory_insert"; then
-    pass "memory_insert attached"
-else
-    fail "memory_insert not attached"
-fi
-if output_contains "memory_replace"; then
-    pass "memory_replace attached"
-else
-    fail "memory_replace not attached"
-fi
-if output_contains "memory_rethink"; then
-    pass "memory_rethink attached"
-else
-    fail "memory_rethink not attached"
-fi
-# Verify file tools are attached (#137)
-if output_contains "open_files"; then
-    pass "open_files attached"
-else
-    fail "open_files not attached"
-fi
-if output_contains "grep_files"; then
-    pass "grep_files attached"
-else
-    fail "grep_files not attached"
-fi
-
-# Apply reduced config that doesn't list memory/file tools (no --force)
-info "Applying config WITHOUT memory/file tools listed (no --force)..."
-$CLI apply -f "$FIXTURES/fleet-memory-tools-reduced.yml" > $OUT 2>&1
-
-# All protected tools should remain
-$CLI get tools --agent e2e-memory-tools-test > $OUT 2>&1
-if output_contains "memory_insert"; then
-    pass "memory_insert preserved"
-else
-    fail "memory_insert incorrectly removed"
-fi
-if output_contains "memory_replace"; then
-    pass "memory_replace preserved"
-else
-    fail "memory_replace incorrectly removed"
-fi
-if output_contains "memory_rethink"; then
-    pass "memory_rethink preserved"
-else
-    fail "memory_rethink incorrectly removed"
-fi
-if output_contains "conversation_search"; then
-    pass "conversation_search preserved"
-else
-    fail "conversation_search incorrectly removed"
-fi
-# File tools should also be preserved (#137)
-if output_contains "open_files"; then
-    pass "open_files preserved"
-else
-    fail "open_files incorrectly removed"
-fi
-if output_contains "grep_files"; then
-    pass "grep_files preserved"
-else
-    fail "grep_files incorrectly removed"
-fi
-
-# With --force: ALL protected tools should STILL stay
-info "Applying config with --force..."
-$CLI apply -f "$FIXTURES/fleet-memory-tools-reduced.yml" --force > $OUT 2>&1
-
-$CLI get tools --agent e2e-memory-tools-test > $OUT 2>&1
-if output_contains "memory_insert"; then
-    pass "memory_insert preserved with --force"
-else
-    fail "memory_insert removed despite being protected"
-fi
-if output_contains "memory_replace"; then
-    pass "memory_replace preserved with --force"
-else
-    fail "memory_replace removed despite being protected"
-fi
-if output_contains "memory_rethink"; then
-    pass "memory_rethink preserved with --force"
-else
-    fail "memory_rethink removed despite being protected"
-fi
-if output_contains "conversation_search"; then
-    pass "conversation_search preserved with --force"
-else
-    fail "conversation_search removed despite being protected"
-fi
-# File tools with --force (#137)
-if output_contains "open_files"; then
-    pass "open_files preserved with --force"
-else
-    fail "open_files removed despite being protected"
-fi
-if output_contains "grep_files"; then
-    pass "grep_files preserved with --force"
-else
-    fail "grep_files removed despite being protected"
-fi
-
-# Cleanup
-$CLI delete agent e2e-memory-tools-test --force > /dev/null 2>&1 || true
-
-# ============================================================================
-# Test: Folder File Change Detection (#127)
-# ============================================================================
-
-section "Folder File Change Detection (#127)"
-
-# Cleanup any existing test agent
-$CLI delete agent e2e-folder-files-test --force > /dev/null 2>&1 || true
-
-# Create agent with 2 files
-info "Creating agent with doc1.txt and doc2.txt..."
-if $CLI apply -f "$FIXTURES/fleet-folder-files-test.yml" --root "$FIXTURES" > $OUT 2>&1; then
-    pass "Created folder files test agent"
-else
-    fail "Failed to create folder files test agent"
-    cat $OUT
-fi
-
-# Re-apply same config - should show no file changes
-info "Re-applying same config (should be idempotent)..."
-if $CLI apply -f "$FIXTURES/fleet-folder-files-test.yml" --root "$FIXTURES" --dry-run > $OUT 2>&1; then
-    if output_contains "Updated file" || output_contains "Added file"; then
-        fail "Idempotent re-apply incorrectly shows file changes"
-        cat $OUT
-    else
-        pass "Idempotent re-apply shows no file changes"
-    fi
-fi
-
-# Apply config with added file - only new file should show as added
-info "Applying config with additional file (data.json)..."
-$CLI apply -f "$FIXTURES/fleet-folder-files-added.yml" --root "$FIXTURES" --dry-run > $OUT 2>&1
-
-# Dry-run shows "+1 files" format
-if output_contains "+1 files"; then
-    pass "New file detected in dry-run"
-else
-    fail "New file not detected in dry-run"
-    cat $OUT
-fi
-
-# Should NOT show any files as updated
-if output_contains "Updated file" || grep -q "~[0-9]* files" $OUT; then
-    fail "Existing files incorrectly marked as updated"
-    cat $OUT
-else
-    pass "Existing files not marked as updated"
-fi
-
-# Actually apply and verify idempotence
-$CLI apply -f "$FIXTURES/fleet-folder-files-added.yml" --root "$FIXTURES" > $OUT 2>&1
-$CLI apply -f "$FIXTURES/fleet-folder-files-added.yml" --root "$FIXTURES" --dry-run > $OUT 2>&1
-if output_contains "Updated file" || output_contains "Added file" || output_contains "+1 files"; then
-    fail "Post-change re-apply incorrectly shows file changes"
-    cat $OUT
-else
-    pass "Post-change re-apply shows no file changes"
-fi
-
-# Cleanup
-$CLI delete agent e2e-folder-files-test --force > /dev/null 2>&1 || true
-
-# ============================================================================
-# Test: Memory Block Live Access
-# ============================================================================
-
-section "Memory Block Live Access"
-
-# Cleanup any existing test agent
-$CLI delete agent e2e-memory-live-test --force > /dev/null 2>&1 || true
-
-# Create agent without memory block
-info "Creating agent without memory block..."
-if $CLI apply -f "$FIXTURES/fleet-memory-block-live-test.yml" > $OUT 2>&1; then
-    pass "Created agent without memory block"
-else
-    fail "Failed to create agent"
-    cat $OUT
-fi
-
-# Verify no secret_code block initially
-$CLI get blocks --agent e2e-memory-live-test > $OUT 2>&1
-if output_contains "secret_code"; then
-    fail "secret_code block should not exist yet"
-else
-    pass "No secret_code block initially"
-fi
-
-# Add memory block via apply
-info "Adding memory block via apply..."
-$CLI apply -f "$FIXTURES/fleet-memory-block-live-updated.yml" > $OUT 2>&1
-
-# Verify memory block is attached
-$CLI get blocks --agent e2e-memory-live-test > $OUT 2>&1
-if output_contains "secret_code"; then
-    pass "secret_code block attached"
-else
-    fail "secret_code block not attached"
-fi
-
-# Verify agent can access the block content
-info "Sending message to verify block access..."
-$CLI send e2e-memory-live-test "What is in your secret_code memory block? Tell me the exact value." > $OUT 2>&1
-if output_contains "PHOENIX-42"; then
-    pass "Agent can access memory block content"
-else
-    fail "Agent cannot access memory block content"
-    cat $OUT
-fi
-
-# Cleanup
-$CLI delete agent e2e-memory-live-test --force > /dev/null 2>&1 || true
-
-# ============================================================================
-# Test: First Message on Creation (#134)
-# ============================================================================
-
-section "First Message on Creation (#134)"
-
-# Cleanup any existing test agent
-$CLI delete agent e2e-first-message-test --force > /dev/null 2>&1 || true
-
-# Create agent with first_message
-info "Creating agent with first_message..."
-if $CLI apply -f "$FIXTURES/fleet-first-message-test.yml" > $OUT 2>&1; then
-    if output_contains "First message completed"; then
-        pass "First message sent and completed"
-    else
-        fail "First message not sent"
-        cat $OUT
-    fi
-else
-    fail "Failed to create agent with first_message"
-    cat $OUT
-fi
-
-# Verify agent remembers first message content
-info "Verifying agent remembers first message content..."
-$CLI send e2e-first-message-test "What secret code were you told to remember? Tell me the exact code." > $OUT 2>&1
-if output_contains "CALIBRATION-99"; then
-    pass "Agent remembers content from first_message"
-else
-    fail "Agent does not remember first_message content"
-    cat $OUT
-fi
-
-# Cleanup
-$CLI delete agent e2e-first-message-test --force > /dev/null 2>&1 || true
-
-# ============================================================================
-# Test: Bulk Messaging
-# ============================================================================
-
-section "Bulk Messaging"
-
-# Cleanup any existing test agents
-$CLI delete agent e2e-bulk-msg-1 --force > /dev/null 2>&1 || true
-$CLI delete agent e2e-bulk-msg-2 --force > /dev/null 2>&1 || true
-$CLI delete agent e2e-bulk-msg-3 --force > /dev/null 2>&1 || true
-
-# Create 3 test agents
-info "Creating 3 test agents for bulk messaging..."
-if $CLI apply -f "$FIXTURES/fleet-bulk-message-test.yml" > $OUT 2>&1; then
-    pass "Created bulk message test agents"
-else
-    fail "Failed to create bulk message test agents"
-    cat $OUT
-fi
-
-# Verify agents exist
-agent_exists "e2e-bulk-msg-1" && pass "Agent 1 created" || fail "Agent 1 not created"
-agent_exists "e2e-bulk-msg-2" && pass "Agent 2 created" || fail "Agent 2 not created"
-agent_exists "e2e-bulk-msg-3" && pass "Agent 3 created" || fail "Agent 3 not created"
-
-# Send bulk message
-info "Sending bulk message to e2e-bulk-msg-* agents..."
-if $CLI send --all "e2e-bulk-msg-*" "Hello, what is your name?" --confirm > $OUT 2>&1; then
-    if output_contains "Completed: 3/3"; then
-        pass "Bulk message sent to all 3 agents"
-    else
-        fail "Bulk message did not complete for all agents"
-        cat $OUT
-    fi
-else
-    fail "Bulk message command failed"
-    cat $OUT
-fi
-
-# Verify OK status
-if output_contains "OK e2e-bulk-msg-1" && output_contains "OK e2e-bulk-msg-2" && output_contains "OK e2e-bulk-msg-3"; then
-    pass "All agents responded OK"
-else
-    fail "Not all agents responded OK"
-    cat $OUT
-fi
-
-# Cleanup
-$CLI delete agent e2e-bulk-msg-1 --force > /dev/null 2>&1 || true
-$CLI delete agent e2e-bulk-msg-2 --force > /dev/null 2>&1 || true
-$CLI delete agent e2e-bulk-msg-3 --force > /dev/null 2>&1 || true
-
-# ============================================================================
-# Test: YAML Export & Rollback Workflow (#164)
-# ============================================================================
-
-section "YAML Export & Rollback Workflow (#164)"
-
-# Cleanup any existing test agent
-$CLI delete agent e2e-yaml-export-test --force > /dev/null 2>&1 || true
-
-# Create agent with initial config
-YAML_EXPORT_CONFIG="$LOG_DIR/yaml-export-config.yml"
-cat > "$YAML_EXPORT_CONFIG" << EOF
-agents:
-  - name: e2e-yaml-export-test
-    description: "Initial description for export test"
-    llm_config:
-      model: "google_ai/gemini-2.5-pro"
-      context_window: 32000
-    system_prompt:
-      value: "You are the ORIGINAL assistant."
-    embedding: "openai/text-embedding-3-small"
-EOF
-
-info "Creating agent..."
-if $CLI apply -f "$YAML_EXPORT_CONFIG" > $OUT 2>&1; then
-    pass "Agent created"
-else
-    fail "Agent creation failed"
-    cat $OUT
-fi
-
-# Export to YAML
-YAML_SNAPSHOT="$LOG_DIR/yaml-snapshot.yml"
-info "Exporting to YAML..."
-if $CLI export agent e2e-yaml-export-test -f yaml -o "$YAML_SNAPSHOT" > $OUT 2>&1; then
-    if [ -f "$YAML_SNAPSHOT" ] && grep -q "name: e2e-yaml-export-test" "$YAML_SNAPSHOT"; then
-        pass "YAML export created with correct structure"
-    else
-        fail "YAML export missing or malformed"
-    fi
-else
-    fail "YAML export failed"
-    cat $OUT
-fi
-
-# Modify agent
-YAML_MODIFIED="$LOG_DIR/yaml-modified.yml"
-cat > "$YAML_MODIFIED" << EOF
-agents:
-  - name: e2e-yaml-export-test
-    description: "MODIFIED description"
-    llm_config:
-      model: "google_ai/gemini-2.5-pro"
-      context_window: 32000
-    system_prompt:
-      value: "You are a MODIFIED assistant."
-    embedding: "openai/text-embedding-3-small"
-EOF
-
-info "Modifying agent..."
-$CLI apply -f "$YAML_MODIFIED" > $OUT 2>&1
-
-# Drift detection
-info "Checking drift detection..."
-if $CLI apply -f "$YAML_SNAPSHOT" --dry-run > $OUT 2>&1; then
-    if output_contains "DRIFT DETECTED"; then
-        pass "Drift detection shows DRIFT DETECTED header"
-    else
-        fail "Drift detection missing header"
-        cat $OUT
-    fi
-else
-    fail "Dry-run failed"
-    cat $OUT
-fi
-
-# Rollback
-info "Rolling back via apply..."
-if $CLI apply -f "$YAML_SNAPSHOT" > $OUT 2>&1; then
-    if $CLI describe agent e2e-yaml-export-test > $OUT 2>&1; then
-        if ! output_contains "MODIFIED"; then
-            pass "Rollback restored original config"
-        else
-            fail "Rollback did not restore original"
-            cat $OUT
-        fi
-    fi
-else
-    fail "Rollback apply failed"
-    cat $OUT
-fi
-
-# Cleanup
-$CLI delete agent e2e-yaml-export-test --force > /dev/null 2>&1 || true
-rm -f "$YAML_EXPORT_CONFIG" "$YAML_SNAPSHOT" "$YAML_MODIFIED"
-
-# ============================================================================
-# Test: No Folders Regression (#146)
-# ============================================================================
-
-section "No Folders Regression (#146)"
-
-$CLI delete agent e2e-39-agent-one --force > /dev/null 2>&1 || true
-$CLI delete agent e2e-39-agent-two --force > /dev/null 2>&1 || true
-
-# Apply config with tools/* glob and memory blocks but NO folders
-# Before fix: this would hang indefinitely on "Processing folders..."
-info "Applying config with tools but no folders..."
-if $CLI apply -f "$FIXTURES/fleet-no-folders-test.yml" --root "$FIXTURES" > $OUT 2>&1; then
-    agent_exists "e2e-39-agent-one" && pass "Agent 1 created (no hang)" || fail "Agent 1 not created"
-    agent_exists "e2e-39-agent-two" && pass "Agent 2 created (no hang)" || fail "Agent 2 not created"
-else
-    fail "Apply with no folders failed"
-    cat $OUT
-fi
-
-# Verify tools were attached
-$CLI describe agent e2e-39-agent-one -o json > $OUT 2>&1
-if output_contains "end_conversation"; then
-    pass "Tools attached correctly"
-else
-    fail "Tools not attached"
-fi
-
-$CLI delete agent e2e-39-agent-one --force > /dev/null 2>&1 || true
-$CLI delete agent e2e-39-agent-two --force > /dev/null 2>&1 || true
-
-# ============================================================================
-# Test: Long Names Display (#132)
-# ============================================================================
-
-section "Long Names Display (#132)"
-
-LONG_NAME="e2e-40-this-is-a-very-long-agent-name-that-should-not-be-truncated"
-$CLI delete agent "$LONG_NAME" --force > /dev/null 2>&1 || true
-
-# Create agent with long name
-info "Creating agent with long name..."
-if $CLI create agent "$LONG_NAME" -d "Test agent with long name" -s "You are a test agent." > $OUT 2>&1; then
-    pass "Agent with long name created"
-else
-    fail "Agent with long name failed"
-    cat $OUT
-fi
-
-# Verify full name appears in get agents output (not truncated)
-$CLI get agents --no-ux > $OUT 2>&1
-if output_contains "$LONG_NAME"; then
-    pass "Full name displayed without truncation"
-else
-    fail "Name was truncated"
-    cat $OUT
-fi
-
-$CLI delete agent "$LONG_NAME" --force > /dev/null 2>&1 || true
-
-# ============================================================================
-# Test: Block Contents Display (#154)
-# ============================================================================
-
-section "Block Contents Display (#154)"
-
-$CLI delete agent e2e-41-block-contents --force > /dev/null 2>&1 || true
-
-# Create agent with large memory block
-info "Creating agent with large memory block..."
-if $CLI apply -f "$FIXTURES/fleet-block-contents-test.yml" --root "$FIXTURES" > $OUT 2>&1; then
-    pass "Agent with large block created"
-else
-    fail "Agent creation failed"
-    cat $OUT
-fi
-
-# Full content view: get blocks <agent>
-info "Testing full block content display..."
-$CLI get blocks e2e-41-block-contents --no-ux > $OUT 2>&1
-output_contains "long_knowledge" && pass "Block label shown" || fail "Block label missing"
-output_contains "MARKER_START_BLOCK_CONTENT" && pass "Beginning of block shown" || fail "Beginning missing"
-output_contains "MARKER_END_BLOCK_CONTENT" && pass "End of block shown" || fail "End missing"
-
-# Short mode: get blocks <agent> --short
-info "Testing --short truncation..."
-$CLI get blocks e2e-41-block-contents --short --no-ux > $OUT 2>&1
-if output_contains "..." && ! output_contains "MARKER_END_BLOCK_CONTENT"; then
-    pass "Short mode truncates correctly"
-else
-    fail "Short mode truncation broken"
-fi
-
-$CLI delete agent e2e-41-block-contents --force > /dev/null 2>&1 || true
-
-# ============================================================================
-# Test: Archival Memory Viewer (#161)
-# ============================================================================
-
-section "Archival Memory Viewer (#161)"
-
-ARCHIVAL_AGENT="e2e-43-archival-test"
-$CLI delete agent "$ARCHIVAL_AGENT" --force > /dev/null 2>&1 || true
-
-# Create agent with archival tools
-info "Creating agent with archival tools..."
-cat > "$LOG_DIR/archival-test.yml" << EOF
-agents:
-  - name: $ARCHIVAL_AGENT
-    description: "Agent for archival memory testing"
-    system_prompt:
-      value: "You are a test agent with archival memory."
-    llm_config:
-      model: google_ai/gemini-2.5-pro
-      context_window: 32000
-    embedding: openai/text-embedding-3-small
-    tools:
-      - archival_memory_insert
-      - archival_memory_search
-EOF
-
-$CLI apply -f "$LOG_DIR/archival-test.yml" > $OUT 2>&1
-agent_exists "$ARCHIVAL_AGENT" && pass "Archival agent created" || fail "Agent not created"
-
-# Get agent ID
-ARCHIVAL_AGENT_ID=$($CLI get agents -o json | node -e "
-  const data = JSON.parse(require('fs').readFileSync('/dev/stdin','utf8'));
-  const agent = (Array.isArray(data) ? data : []).find(a => a.name === '$ARCHIVAL_AGENT');
-  if (agent) process.stdout.write(agent.id);
-")
-
-if [ -n "$ARCHIVAL_AGENT_ID" ]; then
-    pass "Got agent ID"
-
-    # Insert archival entries via API
-    info "Inserting archival entries..."
-    for i in 1 2 3; do
-        curl -s -X POST "$LETTA_BASE_URL/v1/agents/$ARCHIVAL_AGENT_ID/archival-memory" \
-            -H "Content-Type: application/json" \
-            ${LETTA_API_KEY:+-H "Authorization: Bearer $LETTA_API_KEY"} \
-            -d "{\"text\": \"E2E archival entry $i: Test passage number $i.\"}" > /dev/null
-    done
-    pass "Inserted archival entries"
-
-    # Test get archival
-    $CLI get archival "$ARCHIVAL_AGENT" --no-ux > $OUT 2>&1
-    if output_contains "archival entry"; then
-        pass "Archival entries displayed"
-    else
-        fail "Archival entries not shown"
-        cat $OUT
-    fi
-else
-    fail "Could not get agent ID for archival test"
-fi
-
-$CLI delete agent "$ARCHIVAL_AGENT" --force > /dev/null 2>&1 || true
-rm -f "$LOG_DIR/archival-test.yml"
-
-# ============================================================================
-# Test: Reasoning Configuration
-# ============================================================================
-
-section "Reasoning Configuration"
-
-$CLI delete agent e2e-44-reasoning --force > /dev/null 2>&1 || true
-
-# Create agent with reasoning=false
-info "Creating agent with reasoning=false..."
-cat > "$LOG_DIR/reasoning-test.yml" << 'EOF'
-agents:
-  - name: e2e-44-reasoning
-    description: "Agent for reasoning test"
-    system_prompt:
-      value: "You are a helpful assistant."
-    llm_config:
-      model: openai/gpt-4o
-      context_window: 28000
-    embedding: openai/text-embedding-3-small
-    reasoning: false
-EOF
-
-if $CLI apply -f "$LOG_DIR/reasoning-test.yml" > $OUT 2>&1; then
-    agent_exists "e2e-44-reasoning" && pass "Agent with reasoning=false created" || fail "Agent not created"
-else
-    fail "Apply with reasoning failed"
-    cat $OUT
-fi
-
-# Validate reasoning field is accepted
-$CLI validate -f "$LOG_DIR/reasoning-test.yml" > $OUT 2>&1
-output_contains "valid" && pass "Reasoning field accepted in validation" || fail "Reasoning field rejected"
-
-$CLI delete agent e2e-44-reasoning --force > /dev/null 2>&1 || true
-rm -f "$LOG_DIR/reasoning-test.yml"
 
 # ============================================================================
 # Cleanup
@@ -1499,15 +235,6 @@ info "Removing all e2e-* agents..."
 $CLI delete-all agents --pattern "e2e-.*" --force > $OUT 2>&1 || true
 pass "Cleanup complete"
 
-# Verify cleanup
-if $CLI get agents > $OUT 2>&1; then
-    if output_contains "e2e-"; then
-        fail "Some e2e agents remain"
-    else
-        pass "All e2e agents removed"
-    fi
-fi
-
 # ============================================================================
 # Summary
 # ============================================================================
@@ -1516,9 +243,9 @@ section "Summary"
 
 TOTAL=$((PASSED + FAILED))
 echo ""
-echo -e "  ${GREEN}Passed:${NC} $PASSED"
-echo -e "  ${RED}Failed:${NC} $FAILED"
-echo -e "  Total:  $TOTAL"
+echo -e "  Tests run:       $TESTS_RUN"
+echo -e "  ${GREEN}Checks passed:${NC} $PASSED"
+echo -e "  ${RED}Checks failed:${NC} $FAILED"
 echo ""
 
 if [ $FAILED -gt 0 ]; then

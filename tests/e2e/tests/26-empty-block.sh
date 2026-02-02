@@ -27,7 +27,7 @@ output_contains "UPDATED" && pass "Description updated" || fail "Description not
 
 # Verify minimal block now has content
 $CLI describe block empty_notes > $OUT 2>&1
-output_contains "Now has content" && pass "Minimal block populated" || fail "Minimal block still minimal"
+output_contains "Now has content!" && pass "Minimal block populated" || fail "Minimal block still minimal"
 
 delete_agent_if_exists "$AGENT"
 print_summary

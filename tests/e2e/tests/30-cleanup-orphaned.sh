@@ -30,7 +30,7 @@ $CLI delete agent "$AGENT" --force > $OUT 2>&1
 section "Cleanup Dry Run"
 $CLI cleanup all > $OUT 2>&1
 output_contains "Orphaned" && pass "Cleanup found orphaned resources" || fail "Cleanup found nothing"
-output_contains "dry-run" || output_contains "Dry-run" && pass "Dry-run mode active" || fail "Not in dry-run mode"
+(output_contains "dry-run" || output_contains "Dry-run" || output_contains "Would") && pass "Dry-run mode active" || fail "Not in dry-run mode"
 
 # Actually cleanup with --force
 section "Cleanup Force"

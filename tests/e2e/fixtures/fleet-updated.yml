@@ -500,6 +500,7 @@ agents:
         description: Notes block with minimal initial value
         limit: 2000
         value: "Now has content!"
+        mutable: false
       - name: populated_notes
         description: Notes block with value
         limit: 2000
