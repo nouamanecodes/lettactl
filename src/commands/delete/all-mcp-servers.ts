@@ -1,6 +1,6 @@
-import { LettaClientWrapper } from '../../lib/letta-client';
+import { LettaClientWrapper } from '../../lib/client/letta-client';
 import { createSpinner } from '../../lib/ux/spinner';
-import { output, error } from '../../lib/logger';
+import { output, error } from '../../lib/shared/logger';
 import { DeleteAllOptions } from './types';
 
 export async function deleteAllMcpServers(client: LettaClientWrapper, options?: DeleteAllOptions, spinnerEnabled: boolean = true) {

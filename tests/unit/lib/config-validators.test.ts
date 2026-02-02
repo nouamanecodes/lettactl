@@ -1,4 +1,4 @@
-import { ArchiveValidator, McpToolsValidator } from '../../../src/lib/config-validators';
+import { ArchiveValidator, McpToolsValidator } from '../../../src/lib/validation/config-validators';
 
 describe('ArchiveValidator', () => {
   it('rejects more than one archive per agent', () => {

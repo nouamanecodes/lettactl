@@ -1,8 +1,8 @@
-import { AgentManager } from '../../../src/lib/agent-manager';
-import { LettaClientWrapper } from '../../../src/lib/letta-client';
+import { AgentManager } from '../../../src/lib/managers/agent-manager';
+import { LettaClientWrapper } from '../../../src/lib/client/letta-client';
 import { generateContentHash } from '../../../src/utils/hash-utils';
 
-jest.mock('../../../src/lib/letta-client');
+jest.mock('../../../src/lib/client/letta-client');
 
 describe('AgentManager', () => {
   let manager: AgentManager;

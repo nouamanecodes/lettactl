@@ -1,6 +1,6 @@
-import { LettaClientWrapper } from '../../lib/letta-client';
-import { AgentResolver } from '../../lib/agent-resolver';
-import { output, error } from '../../lib/logger';
+import { LettaClientWrapper } from '../../lib/client/letta-client';
+import { AgentResolver } from '../../lib/client/agent-resolver';
+import { output, error } from '../../lib/shared/logger';
 import { CompactOptions } from './types';
 
 export async function compactMessagesCommand(

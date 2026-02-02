@@ -1,8 +1,8 @@
-import { LettaClientWrapper } from '../../lib/letta-client';
-import { AgentResolver } from '../../lib/agent-resolver';
+import { LettaClientWrapper } from '../../lib/client/letta-client';
+import { AgentResolver } from '../../lib/client/agent-resolver';
 import { createSpinner } from '../../lib/ux/spinner';
-import { normalizeToArray, computeAgentCounts } from '../../lib/resource-usage';
-import { log, warn, output } from '../../lib/logger';
+import { normalizeToArray, computeAgentCounts } from '../../lib/resources/resource-usage';
+import { log, warn, output } from '../../lib/shared/logger';
 import { displayOrphanedResources } from '../../lib/ux/display';
 
 export async function cleanupOrphanedFolders(

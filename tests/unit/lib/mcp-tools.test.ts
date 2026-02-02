@@ -1,7 +1,7 @@
-import { expandMcpToolsForAgents } from '../../../src/lib/mcp-tools';
-import { warn } from '../../../src/lib/logger';
+import { expandMcpToolsForAgents } from '../../../src/lib/tools/mcp-tools';
+import { warn } from '../../../src/lib/shared/logger';
 
-jest.mock('../../../src/lib/logger', () => ({
+jest.mock('../../../src/lib/shared/logger', () => ({
   log: jest.fn(),
   warn: jest.fn(),
 }));

@@ -1,7 +1,7 @@
-import { ResourceClassifier } from '../../../src/lib/resource-classifier';
-import { LettaClientWrapper } from '../../../src/lib/letta-client';
+import { ResourceClassifier } from '../../../src/lib/resources/resource-classifier';
+import { LettaClientWrapper } from '../../../src/lib/client/letta-client';
 
-jest.mock('../../../src/lib/letta-client');
+jest.mock('../../../src/lib/client/letta-client');
 
 describe('ResourceClassifier', () => {
   let classifier: ResourceClassifier;

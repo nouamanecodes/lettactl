@@ -1,9 +1,9 @@
 import chalk from 'chalk';
-import { LettaClientWrapper } from '../../lib/letta-client';
+import { LettaClientWrapper } from '../../lib/client/letta-client';
 import { OutputFormatter } from '../../lib/ux/output-formatter';
 import { shouldUseFancyUx } from '../../lib/ux/box';
 import { LETTA_PURPLE, STATUS } from '../../lib/ux/constants';
-import { output } from '../../lib/logger';
+import { output } from '../../lib/shared/logger';
 
 const purple = chalk.hex(LETTA_PURPLE);
 

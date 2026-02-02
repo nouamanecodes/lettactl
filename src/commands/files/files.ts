@@ -1,7 +1,7 @@
-import { LettaClientWrapper } from '../../lib/letta-client';
-import { AgentResolver } from '../../lib/agent-resolver';
+import { LettaClientWrapper } from '../../lib/client/letta-client';
+import { AgentResolver } from '../../lib/client/agent-resolver';
 import { OutputFormatter } from '../../lib/ux/output-formatter';
-import { output, error } from '../../lib/logger';
+import { output, error } from '../../lib/shared/logger';
 
 interface AgentFile {
   id: string;

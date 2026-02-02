@@ -1,9 +1,9 @@
-import { LettaClientWrapper } from '../../lib/letta-client';
-import { AgentResolver } from '../../lib/agent-resolver';
-import { normalizeResponse } from '../../lib/response-normalizer';
+import { LettaClientWrapper } from '../../lib/client/letta-client';
+import { AgentResolver } from '../../lib/client/agent-resolver';
+import { normalizeResponse } from '../../lib/shared/response-normalizer';
 import { formatStatus, OutputFormatter } from '../../lib/ux/output-formatter';
 import { Run } from '../../types/run';
-import { output } from '../../lib/logger';
+import { output } from '../../lib/shared/logger';
 import { ListRunsOptions } from './types';
 
 export async function listRunsCommand(

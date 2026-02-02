@@ -1,8 +1,8 @@
-import { LettaClientWrapper } from '../../lib/letta-client';
-import { AgentResolver } from '../../lib/agent-resolver';
-import { withErrorHandling } from '../../lib/error-handler';
+import { LettaClientWrapper } from '../../lib/client/letta-client';
+import { AgentResolver } from '../../lib/client/agent-resolver';
+import { withErrorHandling } from '../../lib/shared/error-handler';
 import { getSpinnerEnabled } from '../../lib/ux/spinner';
-import { output } from '../../lib/logger';
+import { output } from '../../lib/shared/logger';
 import { displayCleanupNote } from '../../lib/ux/display';
 import { SUPPORTED_RESOURCES, CleanupOptions } from './types';
 import { cleanupOrphanedBlocks } from './blocks';

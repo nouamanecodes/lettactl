@@ -1,7 +1,7 @@
-import { LettaClientWrapper } from '../../lib/letta-client';
-import { normalizeResponse } from '../../lib/response-normalizer';
+import { LettaClientWrapper } from '../../lib/client/letta-client';
+import { normalizeResponse } from '../../lib/shared/response-normalizer';
 import { createSpinner } from '../../lib/ux/spinner';
-import { output, error } from '../../lib/logger';
+import { output, error } from '../../lib/shared/logger';
 import { DeleteAllOptions } from './types';
 
 export async function deleteAllFolders(client: LettaClientWrapper, options?: DeleteAllOptions, spinnerEnabled: boolean = true) {

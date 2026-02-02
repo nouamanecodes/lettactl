@@ -1,14 +1,14 @@
-import { LettaClientWrapper } from '../../lib/letta-client';
-import { AgentResolver } from '../../lib/agent-resolver';
-import { normalizeResponse, sleep } from '../../lib/response-normalizer';
+import { LettaClientWrapper } from '../../lib/client/letta-client';
+import { AgentResolver } from '../../lib/client/agent-resolver';
+import { normalizeResponse, sleep } from '../../lib/shared/response-normalizer';
 import { createSpinner, getSpinnerEnabled } from '../../lib/ux/spinner';
-import { sendMessageToAgent } from '../../lib/message-sender';
-import { bulkSendMessage } from '../../lib/bulk-messenger';
-import { log, output, error } from '../../lib/logger';
+import { sendMessageToAgent } from '../../lib/messaging/message-sender';
+import { bulkSendMessage } from '../../lib/messaging/bulk-messenger';
+import { log, output, error } from '../../lib/shared/logger';
 import { Run } from '../../types/run';
 import { SendOptions } from './types';
 import { getMessageContent, formatElapsedTime } from './utils';
-import { isRunTerminal, getEffectiveRunStatus } from '../../lib/run-utils';
+import { isRunTerminal, getEffectiveRunStatus } from '../../lib/messaging/run-utils';
 
 export async function sendMessageCommand(
   agentNameOrMessage: string,

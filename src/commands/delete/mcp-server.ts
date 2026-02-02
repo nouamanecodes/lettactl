@@ -1,7 +1,7 @@
-import { LettaClientWrapper } from '../../lib/letta-client';
-import { validateRequired } from '../../lib/validators';
+import { LettaClientWrapper } from '../../lib/client/letta-client';
+import { validateRequired } from '../../lib/validation/validators';
 import { createSpinner, getSpinnerEnabled } from '../../lib/ux/spinner';
-import { output } from '../../lib/logger';
+import { output } from '../../lib/shared/logger';
 import { DeleteOptions } from './types';
 
 export async function deleteMcpServer(name: string, options?: DeleteOptions, command?: any) {

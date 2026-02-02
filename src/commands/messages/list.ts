@@ -1,7 +1,7 @@
-import { LettaClientWrapper } from '../../lib/letta-client';
-import { AgentResolver } from '../../lib/agent-resolver';
-import { normalizeResponse } from '../../lib/response-normalizer';
-import { output, error } from '../../lib/logger';
+import { LettaClientWrapper } from '../../lib/client/letta-client';
+import { AgentResolver } from '../../lib/client/agent-resolver';
+import { normalizeResponse } from '../../lib/shared/response-normalizer';
+import { output, error } from '../../lib/shared/logger';
 import { displayMessages, MessageDisplayData } from '../../lib/ux/display';
 import { ListOptions } from './types';
 import { getMessageContent } from './utils';

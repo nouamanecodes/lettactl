@@ -1,10 +1,10 @@
-import { LettaClientWrapper } from '../../lib/letta-client';
-import { AgentResolver } from '../../lib/agent-resolver';
-import { normalizeResponse } from '../../lib/response-normalizer';
+import { LettaClientWrapper } from '../../lib/client/letta-client';
+import { AgentResolver } from '../../lib/client/agent-resolver';
+import { normalizeResponse } from '../../lib/shared/response-normalizer';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as yaml from 'js-yaml';
-import { log, output, error } from '../../lib/logger';
+import { log, output, error } from '../../lib/shared/logger';
 
 export default async function exportCommand(
   resource: string,

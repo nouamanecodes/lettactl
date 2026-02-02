@@ -1,6 +1,6 @@
-import { FleetParser } from '../../lib/fleet-parser';
-import { SupabaseStorageBackend } from '../../lib/storage-backend';
-import { output, error } from '../../lib/logger';
+import { FleetParser } from '../../lib/apply/fleet-parser';
+import { SupabaseStorageBackend } from '../../lib/storage/storage-backend';
+import { output, error } from '../../lib/shared/logger';
 
 export async function validateCommand(options: { file: string }) {
   try {

@@ -1,7 +1,7 @@
-import { LettaClientWrapper } from '../../lib/letta-client';
+import { LettaClientWrapper } from '../../lib/client/letta-client';
 import * as fs from 'fs';
 import * as path from 'path';
-import { log, output, error } from '../../lib/logger';
+import { log, output, error } from '../../lib/shared/logger';
 
 export default async function importCommand(
   file: string,

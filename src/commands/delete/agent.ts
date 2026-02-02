@@ -1,8 +1,8 @@
-import { LettaClientWrapper } from '../../lib/letta-client';
-import { AgentResolver } from '../../lib/agent-resolver';
-import { ResourceClassifier } from '../../lib/resource-classifier';
-import { normalizeResponse } from '../../lib/response-normalizer';
-import { output, warn } from '../../lib/logger';
+import { LettaClientWrapper } from '../../lib/client/letta-client';
+import { AgentResolver } from '../../lib/client/agent-resolver';
+import { ResourceClassifier } from '../../lib/resources/resource-classifier';
+import { normalizeResponse } from '../../lib/shared/response-normalizer';
+import { output, warn } from '../../lib/shared/logger';
 
 export async function deleteAgentWithCleanup(
   client: LettaClientWrapper,

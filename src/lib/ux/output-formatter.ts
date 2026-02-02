@@ -1,7 +1,7 @@
 import Table from 'cli-table3';
-import { AgentUpdateOperations } from '../diff-engine';
-import { isBuiltinTool } from '../builtin-tools';
-import { log, output } from '../logger';
+import { AgentUpdateOperations } from '../apply/diff-engine';
+import { isBuiltinTool } from '../tools/builtin-tools';
+import { log, output } from '../shared/logger';
 import {
   displayAgents,
   displayBlocks,
@@ -23,7 +23,7 @@ import {
   McpServerData,
   FileData,
 } from './display';
-import { AgentDisplayData } from '../agent-data-fetcher';
+import { AgentDisplayData } from '../client/agent-data-fetcher';
 
 /**
  * Formats run/job status as bracketed labels

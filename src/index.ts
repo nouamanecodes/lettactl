@@ -25,7 +25,7 @@ import { contextCommand } from './commands/context';
 import { listRunsCommand, getRunCommand, deleteRunCommand } from './commands/runs';
 import { completionCommand } from './commands/completion';
 
-import { setQuietMode, output, error } from './lib/logger';
+import { setQuietMode, output, error } from './lib/shared/logger';
 import { printFancyHelp } from './lib/ux/help-formatter';
 
 // Global verbose flag for error handling

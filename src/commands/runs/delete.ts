@@ -1,5 +1,5 @@
-import { LettaClientWrapper } from '../../lib/letta-client';
-import { output, error } from '../../lib/logger';
+import { LettaClientWrapper } from '../../lib/client/letta-client';
+import { output, error } from '../../lib/shared/logger';
 
 export async function deleteRunCommand(
   runId: string,

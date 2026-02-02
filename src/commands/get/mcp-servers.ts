@@ -1,7 +1,7 @@
-import { LettaClientWrapper } from '../../lib/letta-client';
+import { LettaClientWrapper } from '../../lib/client/letta-client';
 import { OutputFormatter } from '../../lib/ux/output-formatter';
 import { createSpinner } from '../../lib/ux/spinner';
-import { output } from '../../lib/logger';
+import { output } from '../../lib/shared/logger';
 import { GetOptions } from './types';
 
 export async function getMcpServers(

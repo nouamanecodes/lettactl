@@ -1,4 +1,4 @@
-import { FleetParser } from '../../../src/lib/fleet-parser';
+import { FleetParser } from '../../../src/lib/apply/fleet-parser';
 import * as fs from 'fs';
 
 // Mock fs module

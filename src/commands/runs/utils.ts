@@ -1,10 +1,10 @@
-import { LettaClientWrapper } from '../../lib/letta-client';
-import { normalizeResponse, sleep } from '../../lib/response-normalizer';
+import { LettaClientWrapper } from '../../lib/client/letta-client';
+import { normalizeResponse, sleep } from '../../lib/shared/response-normalizer';
 import { OutputFormatter } from '../../lib/ux/output-formatter';
 import { getMessageContent } from '../messages';
 import { Run } from '../../types/run';
-import { output } from '../../lib/logger';
-import { isRunTerminal, getEffectiveRunStatus } from '../../lib/run-utils';
+import { output } from '../../lib/shared/logger';
+import { isRunTerminal, getEffectiveRunStatus } from '../../lib/messaging/run-utils';
 
 export async function waitForRun(client: LettaClientWrapper, runId: string, verbose: boolean) {
   const pollInterval = 1000; // 1 second
