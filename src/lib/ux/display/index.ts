@@ -39,4 +39,4 @@ export { displayApplySummary, ApplySummaryData } from './apply';
 export { displayOrphanedResources, displayCleanupNote, OrphanedItem } from './cleanup';
 
 // Dry-run display
-export { displayDryRunSeparator, displayDryRunSummary, displayDryRunAction, DryRunSummaryData } from './dry-run';
+export { displayDryRunHeader, displayDryRunSeparator, displayDryRunSummary, displayDryRunAction, DryRunSummaryData } from './dry-run';
