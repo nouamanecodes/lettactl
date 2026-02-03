@@ -7,3 +7,10 @@ export interface ApplyOptions {
   root?: string;
   manifest?: string;
 }
+
+export interface DeployResult {
+  agents: Record<string, string>;  // name → letta_agent_id
+  created: string[];
+  updated: string[];
+  unchanged: string[];
+}

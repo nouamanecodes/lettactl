@@ -105,7 +105,7 @@ program
   .option('--force', 'remove resources not in config (strict reconciliation)')
   .option('--root <path>', 'root directory for resolving file paths')
   .option('--manifest [path]', 'write agent manifest (default: <config>.manifest.json)')
-  .action(applyCommand);
+  .action(async (options, command) => { await applyCommand(options, command); });
 
 // Get command - list resources
 program

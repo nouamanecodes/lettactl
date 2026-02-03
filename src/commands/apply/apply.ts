@@ -16,10 +16,10 @@ import { FILE_SEARCH_TOOLS } from '../../lib/tools/builtin-tools';
 import { displayApplySummary } from '../../lib/ux/display';
 import { buildMcpServerRegistry, expandMcpToolsForAgents } from '../../lib/tools/mcp-tools';
 import { buildAgentManifest, getDefaultManifestPath, writeAgentManifest } from '../../lib/apply/agent-manifest';
-import { ApplyOptions } from './types';
+import { ApplyOptions, DeployResult } from './types';
 import * as path from 'path';
 
-export async function applyCommand(options: ApplyOptions, command: any) {
+export async function applyCommand(options: ApplyOptions, command: any): Promise<DeployResult> {
   // Quiet mode overrides verbose
   const verbose = isQuietMode() ? false : (command.parent?.opts().verbose || false);
   const spinnerEnabled = getSpinnerEnabled(command);
@@ -81,7 +81,7 @@ export async function applyCommand(options: ApplyOptions, command: any) {
     // Template mode: apply config to existing agents matching pattern
     if (options.match) {
       await applyTemplateMode({ ...options, match: options.match }, config, parser, command);
-      return;
+      return { agents: {}, created: [], updated: [], unchanged: [] };
     }
 
     const client = new LettaClientWrapper();
@@ -117,7 +117,7 @@ export async function applyCommand(options: ApplyOptions, command: any) {
         verbose
       });
       displayDryRunResults(results, verbose);
-      return;
+      return { agents: {}, created: [], updated: [], unchanged: [] };
     }
 
     // Process shared blocks
@@ -182,6 +182,8 @@ export async function applyCommand(options: ApplyOptions, command: any) {
 
     // Track results for summary (kubectl-style: continue on failure)
     const succeeded: string[] = [];
+    const created: string[] = [];
+    const updated: string[] = [];
     const failed: { name: string; err: string }[] = [];
     const skipped: string[] = [];
     const appliedAgents = new Map<string, { id: string; resolvedName: string }>();
@@ -299,6 +301,7 @@ export async function applyCommand(options: ApplyOptions, command: any) {
             previousFolderFileHashes
           });
           succeeded.push(agent.name);
+          updated.push(agent.name);
           appliedAgents.set(agent.name, {
             id: existingAgent.id,
             resolvedName: existingAgent.name
@@ -319,6 +322,7 @@ export async function applyCommand(options: ApplyOptions, command: any) {
             folderContentHashes
           });
           succeeded.push(agent.name);
+          created.push(agent.name);
           appliedAgents.set(agent.name, {
             id: createdAgent.id,
             resolvedName: createdAgent.name
@@ -364,6 +368,14 @@ export async function applyCommand(options: ApplyOptions, command: any) {
       writeAgentManifest(manifest, manifestPath);
       log(`Agent manifest written to ${manifestPath}`);
     }
+
+    // Build result with agent name → ID mapping
+    const resultAgents: Record<string, string> = {};
+    for (const [name, info] of appliedAgents) {
+      resultAgents[name] = info.id;
+    }
+
+    return { agents: resultAgents, created, updated, unchanged: skipped };
 
   } catch (err: any) {
     throw new Error(`Apply failed: ${formatLettaError(err.message || err)}`);
