@@ -3,6 +3,7 @@ import { SupabaseStorageBackend } from './lib/storage/storage-backend';
 import { FleetConfig, AgentConfig } from './types/fleet-config';
 import { FleetConfigValidator } from './lib/validation/config-validators';
 import { applyCommand } from './commands/apply';
+import { DeployResult } from './commands/apply/types';
 import { deleteAgentWithCleanup } from './commands/delete';
 import { LettaClientWrapper } from './lib/client/letta-client';
 import { AgentResolver } from './lib/client/agent-resolver';
@@ -63,7 +64,7 @@ export class LettaCtl {
     }
   }
 
-  async deployFleet(config: FleetConfig, options?: { dryRun?: boolean; agentPattern?: string; match?: string }): Promise<void> {
+  async deployFleet(config: FleetConfig, options?: { dryRun?: boolean; agentPattern?: string; match?: string }): Promise<DeployResult> {
     FleetConfigValidator.validate(config);
 
     const tempDir = path.join(os.tmpdir(), `lettactl-${Date.now()}`);
@@ -74,7 +75,7 @@ export class LettaCtl {
       const yamlContent = yaml.dump(config);
       fs.writeFileSync(tempFile, yamlContent);
 
-      await applyCommand(
+      const result = await applyCommand(
         {
           file: tempFile,
           agent: options?.agentPattern,
@@ -92,6 +93,8 @@ export class LettaCtl {
       if (!options?.dryRun) {
         this.writeFleetFile(config);
       }
+
+      return result;
     } finally {
       if (fs.existsSync(tempFile)) {
         fs.unlinkSync(tempFile);
@@ -110,8 +113,8 @@ export class LettaCtl {
     this.removeAgentFromFleetFile(agentName);
   }
 
-  async deployFromYaml(yamlPath: string, options?: { dryRun?: boolean; agentPattern?: string; match?: string; rootPath?: string }): Promise<void> {
-    await applyCommand(
+  async deployFromYaml(yamlPath: string, options?: { dryRun?: boolean; agentPattern?: string; match?: string; rootPath?: string }): Promise<DeployResult> {
+    return await applyCommand(
       {
         file: yamlPath,
         agent: options?.agentPattern,
@@ -119,7 +122,7 @@ export class LettaCtl {
         dryRun: options?.dryRun || false,
         root: options?.rootPath
       },
-      { 
+      {
         parent: {
           opts: () => ({ verbose: false })
         }
@@ -127,9 +130,9 @@ export class LettaCtl {
     );
   }
 
-  async deployFromYamlString(yamlContent: string, options?: { dryRun?: boolean; agentPattern?: string; match?: string }): Promise<void> {
+  async deployFromYamlString(yamlContent: string, options?: { dryRun?: boolean; agentPattern?: string; match?: string }): Promise<DeployResult> {
     const config = yaml.load(yamlContent) as FleetConfig;
-    await this.deployFleet(config, options);
+    return await this.deployFleet(config, options);
   }
 
   validateFleet(config: FleetConfig): boolean {
@@ -223,4 +226,5 @@ export class FleetConfigBuilder {
 
 export { FleetConfig, AgentConfig } from './types/fleet-config';
 export { Run } from './types/run';
+export { DeployResult } from './commands/apply/types';
 export { isRunTerminal, getEffectiveRunStatus } from './lib/messaging/run-utils';
