@@ -807,28 +807,28 @@ memory_blocks:
     from_file: "memory-blocks/company-info.md"
 ```
 
-**Controlling Block Mutability:**
+**Controlling Block Ownership:**
 
-By default, memory blocks are mutable - the agent can modify them and those changes persist across applies. Use `mutable: false` when you want the YAML to be the source of truth:
+By default, memory blocks are agent-owned - the agent can modify them and those changes persist across applies. Use `agent_owned: false` when you want the YAML to be the source of truth:
 
 ```yaml
 memory_blocks:
-  # Mutable (default): Agent can modify, changes preserved on re-apply
+  # Agent-owned (default): Agent can modify, changes preserved on re-apply
   - name: learned_preferences
     description: "User preferences the agent learns over time"
     limit: 2000
     value: "No preferences yet"
-    # mutable: true (default, not needed)
+    # agent_owned: true (default, not needed)
 
-  # Immutable: YAML value syncs to server on every apply
+  # YAML-owned: YAML value syncs to server on every apply
   - name: policies
     description: "Agent policies from config"
     limit: 2000
     value: "Always be helpful and concise."
-    mutable: false  # Value resets to YAML on every apply
+    agent_owned: false  # Value resets to YAML on every apply
 ```
 
-Use `mutable: false` for:
+Use `agent_owned: false` for:
 - Configuration/policies that should be version-controlled
 - Content that needs to sync from YAML on every deploy
 - Blocks where the developer, not the agent, controls the content
@@ -930,7 +930,7 @@ agents:
         description: "What this block stores"
         limit: 5000                     # Character limit
         version: "optional-tag"         # Optional: your version tag
-        mutable: true                   # Optional: if false, value syncs from YAML on every apply
+        agent_owned: true               # Optional: if false, value syncs from YAML on every apply
         value: "Direct content"         # Option 1: inline
         from_file: "blocks/file.md"    # Option 2: from file
 

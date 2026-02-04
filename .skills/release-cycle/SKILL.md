@@ -90,15 +90,15 @@ Fixtures in `tests/e2e/fixtures/`:
 - `fleet.yml` - Initial state for most tests
 - `fleet-updated.yml` - Modified state for update/diff tests
 
-**Memory block value sync** requires `mutable: false`:
+**Memory block value sync** requires `agent_owned: false`:
 ```yaml
 memory_blocks:
   - name: policies
     value: "Policy content..."
-    mutable: false  # Required for lettactl to sync value on apply
+    agent_owned: false  # Required for lettactl to sync value on apply
 ```
 
-Without `mutable: false`, block values won't sync (agent could have modified them at runtime).
+Without `agent_owned: false`, block values won't sync (agent owns and could have modified them).
 
 ### Test Output
 

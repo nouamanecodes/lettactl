@@ -45,7 +45,7 @@ MemoryBlock {
   limit: number
   value?: string
   from_file?: string
-  mutable?: boolean  // default: true
+  agent_owned?: boolean  // default: true
 }
 ```
 

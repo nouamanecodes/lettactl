@@ -236,7 +236,7 @@ export async function applyCommand(options: ApplyOptions, command: any): Promise
             description: block.description,
             limit: block.limit,
             value: block.value || '',
-            mutable: block.mutable
+            agent_owned: block.agent_owned
           })),
           archives: (agent.archives || []).map((archive: any) => {
             const resolved: any = {
