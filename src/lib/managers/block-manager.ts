@@ -63,7 +63,7 @@ export class BlockManager {
   async getOrCreateSharedBlock(blockConfig: any): Promise<string> {
     const blockKey = this.getBlockKey(blockConfig.name, true);
     const contentHash = generateContentHash(blockConfig.value);
-    const isMutable = blockConfig.mutable !== false;
+    const isAgentOwned = blockConfig.agent_owned !== false;
 
     // Check both shared and non-shared keys
     let existing = this.blockRegistry.get(blockKey);
@@ -72,7 +72,7 @@ export class BlockManager {
     }
 
     if (existing) {
-      if (isMutable) {
+      if (isAgentOwned) {
         log(`Using existing shared block: ${existing.label}`);
         return existing.id;
       }
@@ -82,7 +82,7 @@ export class BlockManager {
         return existing.id;
       }
 
-      // Content changed - update in-place when mutable is false
+      // Content changed - update in-place when agent_owned is false
       log(`Updating shared block: ${existing.label}`);
       await this.client.updateBlock(existing.id, {
         value: blockConfig.value,

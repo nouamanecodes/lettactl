@@ -134,7 +134,7 @@ async function computeAgentDiff(
       description: b.description,
       limit: b.limit,
       value: b.value || '',
-      mutable: b.mutable
+      agent_owned: b.agent_owned
     })),
     archives: (agent.archives || []).map((a: any) => {
       const resolved: any = {

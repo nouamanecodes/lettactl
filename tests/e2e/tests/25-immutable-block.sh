@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Test: mutable: false blocks sync value from YAML on every apply
+# Test: agent_owned: false blocks sync value from YAML on every apply
 # Issue: #101
 
 set -e
@@ -62,11 +62,11 @@ else
     exit 1
 fi
 
-# Verify block value synced (mutable: false should sync to "version 2")
+# Verify block value synced (agent_owned: false should sync to "version 2")
 section "Verify Block Value Synced"
 if $CLI describe block policies > $OUT 2>&1; then
     if output_contains "version 2"; then
-        pass "Block value synced to 'version 2' (mutable: false works)"
+        pass "Block value synced to 'version 2' (agent_owned: false works)"
     else
         fail "Block value not synced (should contain 'version 2')"
         cat $OUT

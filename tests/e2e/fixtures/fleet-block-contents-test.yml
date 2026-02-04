@@ -32,7 +32,7 @@ agents:
 
           Block descriptions provide metadata about the block's purpose. While the description is not included in the agent's context window, it serves as documentation for system administrators and helps tools like lettactl display meaningful information about each block.
 
-          The mutable flag indicates whether an agent is allowed to modify the block's content during a conversation. Immutable blocks are useful for storing reference information that should remain constant, such as API documentation, company policies, or factual knowledge bases.
+          The agent_owned flag indicates whether an agent owns the block's content (agent_owned: true, the default) or whether YAML owns it (agent_owned: false). When YAML owns the block, its value syncs from the config file on every apply. This is useful for storing reference information that should remain constant, such as API documentation, company policies, or factual knowledge bases.
 
           CHAPTER 3: CONTENT MANAGEMENT STRATEGIES
 

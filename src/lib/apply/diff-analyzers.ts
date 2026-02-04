@@ -94,7 +94,7 @@ export async function analyzeToolChanges(
 
 export async function analyzeBlockChanges(
   currentBlocks: any[],
-  desiredBlocks: Array<{ name: string; isShared?: boolean; description?: string; limit?: number; value?: string; mutable?: boolean }>,
+  desiredBlocks: Array<{ name: string; isShared?: boolean; description?: string; limit?: number; value?: string; agent_owned?: boolean }>,
   blockManager: BlockManager,
   agentName?: string,
   dryRun: boolean = false
@@ -145,8 +145,8 @@ export async function analyzeBlockChanges(
       // Block exists on both sides - check if value needs updating
       const desiredConfig = desiredBlocks.find(b => b.name === block.label);
 
-      // For mutable: false blocks, compare values and update if different
-      if (desiredConfig && desiredConfig.mutable === false && !desiredConfig.isShared) {
+      // For agent_owned: false blocks, compare values and update if different
+      if (desiredConfig && desiredConfig.agent_owned === false && !desiredConfig.isShared) {
         const desiredValue = desiredConfig.value || '';
         const currentValue = block.value || '';
 
