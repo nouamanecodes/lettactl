@@ -56,7 +56,7 @@
     "commander": "^14.0.2",
     "glob": "^13.0.0",
     "js-yaml": "^4.1.1",
-    "minimatch": "^10.1.1",
+    "minimatch": "^10.1.2",
     "ora": "5.4.1"
   },
   "devDependencies": {
