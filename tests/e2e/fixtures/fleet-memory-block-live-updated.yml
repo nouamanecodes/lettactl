@@ -1,17 +1,16 @@
-# Updated config with memory block added
-# The agent should be able to access this block's content
-
 agents:
-  - name: e2e-memory-live-test
-    description: Agent for testing live memory block access
-    embedding: openai/text-embedding-3-small
-    system_prompt:
-      value: You are a helpful assistant. When asked about your memory blocks, read them and respond with their contents.
-    llm_config:
-      model: google_ai/gemini-2.0-flash-lite
-      context_window: 32000
-    memory_blocks:
-      - name: secret_code
-        description: Contains a secret code the agent should be able to read
-        limit: 1000
-        value: "The secret code is PHOENIX-42"
+- name: e2e-memory-live-test
+  description: Agent for testing live memory block access
+  embedding: openai/text-embedding-3-small
+  system_prompt:
+    value: You are a helpful assistant. When asked about your memory blocks, read
+      them and respond with their contents.
+  llm_config:
+    model: google_ai/gemini-2.0-flash-lite
+    context_window: 32000
+  memory_blocks:
+  - name: secret_code
+    description: Contains a secret code the agent should be able to read
+    limit: 1000
+    value: The secret code is PHOENIX-42
+    agent_owned: true

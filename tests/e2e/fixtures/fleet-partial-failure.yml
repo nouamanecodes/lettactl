@@ -1,58 +1,45 @@
-# Partial Failure Test
-# Mix of valid agents and agents that will fail at runtime
-# Tests kubectl-style "continue on failure" behavior
-
 agents:
-  # Valid agent - should succeed
-  - name: e2e-partial-valid-1
-    description: First valid agent
-    embedding: openai/text-embedding-3-small
-    system_prompt:
-      value: This agent should be created successfully.
-    llm_config:
-      model: google_ai/gemini-2.5-pro
-      context_window: 32000
-
-  # Invalid model - will fail at runtime
-  - name: e2e-partial-bad-model
-    description: Agent with invalid model
-    embedding: openai/text-embedding-3-small
-    system_prompt:
-      value: This agent has an invalid model.
-    llm_config:
-      model: invalid-provider/nonexistent-model
-      context_window: 32000
-
-  # Missing shared block - will fail with explicit error
-  - name: e2e-partial-bad-block
-    description: Agent with missing shared block
-    embedding: openai/text-embedding-3-small
-    system_prompt:
-      value: This agent references a nonexistent shared block.
-    llm_config:
-      model: google_ai/gemini-2.5-pro
-      context_window: 32000
-    shared_blocks:
-      - nonexistent-shared-block
-
-  # Missing tool - will fail with explicit error
-  - name: e2e-partial-bad-tool
-    description: Agent with missing tool
-    embedding: openai/text-embedding-3-small
-    system_prompt:
-      value: This agent references a nonexistent tool.
-    llm_config:
-      model: google_ai/gemini-2.5-pro
-      context_window: 32000
-    tools:
-      - nonexistent_custom_tool
-
-  # Valid agent - should succeed (tests continuation after failure)
-  - name: e2e-partial-valid-2
-    description: Second valid agent after the failure
-    embedding: openai/text-embedding-3-small
-    system_prompt:
-      value: This agent should also be created successfully.
-    llm_config:
-      model: google_ai/gemini-2.5-pro
-      context_window: 32000
+- name: e2e-partial-valid-1
+  description: First valid agent
+  embedding: openai/text-embedding-3-small
+  system_prompt:
+    value: This agent should be created successfully.
+  llm_config:
+    model: google_ai/gemini-2.5-pro
+    context_window: 32000
+- name: e2e-partial-bad-model
+  description: Agent with invalid model
+  embedding: openai/text-embedding-3-small
+  system_prompt:
+    value: This agent has an invalid model.
+  llm_config:
+    model: invalid-provider/nonexistent-model
+    context_window: 32000
+- name: e2e-partial-bad-block
+  description: Agent with missing shared block
+  embedding: openai/text-embedding-3-small
+  system_prompt:
+    value: This agent references a nonexistent shared block.
+  llm_config:
+    model: google_ai/gemini-2.5-pro
+    context_window: 32000
+  shared_blocks:
+  - nonexistent-shared-block
+- name: e2e-partial-bad-tool
+  description: Agent with missing tool
+  embedding: openai/text-embedding-3-small
+  system_prompt:
+    value: This agent references a nonexistent tool.
+  llm_config:
+    model: google_ai/gemini-2.5-pro
+    context_window: 32000
+  tools:
+  - nonexistent_custom_tool
+- name: e2e-partial-valid-2
+  description: Second valid agent after the failure
+  embedding: openai/text-embedding-3-small
+  system_prompt:
+    value: This agent should also be created successfully.
+  llm_config:
+    model: google_ai/gemini-2.5-pro
+    context_window: 32000

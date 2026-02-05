@@ -1,15 +1,13 @@
-# Fleet config for archival memory basic tests
-
 agents:
-  - name: e2e-41-archives-basic
-    description: Agent with archival memory archives
+- name: e2e-41-archives-basic
+  description: Agent with archival memory archives
+  embedding: openai/text-embedding-3-small
+  system_prompt:
+    value: Agent with archival memory.
+  llm_config:
+    model: google_ai/gemini-2.5-pro
+    context_window: 32000
+  archives:
+  - name: e2e-archive-basic-1
+    description: Primary archive for e2e tests
     embedding: openai/text-embedding-3-small
-    system_prompt:
-      value: Agent with archival memory.
-    llm_config:
-      model: google_ai/gemini-2.5-pro
-      context_window: 32000
-    archives:
-      - name: e2e-archive-basic-1
-        description: Primary archive for e2e tests
-        embedding: openai/text-embedding-3-small

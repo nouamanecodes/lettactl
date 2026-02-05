@@ -49,6 +49,7 @@ shared_blocks:
     description: "Shared memory"
     limit: 5000
     value: "Shared content"
+    agent_owned: true
 
 agents:
   - name: test-agent

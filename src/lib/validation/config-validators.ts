@@ -346,6 +346,19 @@ export class MemoryBlockValidator {
     if (hasBucket) {
       BucketConfigValidator.validate(block.from_bucket);
     }
+
+    // agent_owned is required - no silent defaults
+    if (!('agent_owned' in block)) {
+      throw new Error(
+        `Memory block "${block.name}" missing required field 'agent_owned'\n` +
+        '  agent_owned: true  - agent can modify, YAML won\'t overwrite\n' +
+        '  agent_owned: false - YAML overwrites on every apply'
+      );
+    }
+
+    if (typeof block.agent_owned !== 'boolean') {
+      throw new Error(`Memory block "${block.name}" agent_owned must be true or false.`);
+    }
   }
 }
 

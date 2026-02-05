@@ -69,6 +69,32 @@ export LETTA_BASE_URL=http://localhost:8283
 # API key is optional for self-hosting
 ```
 
+### Minimal Config
+
+The minimum required fields for an agent:
+
+```yaml
+agents:
+  - name: my-agent                      # Required
+    description: "My AI assistant"      # Required
+    llm_config:                         # Required
+      model: "google_ai/gemini-2.5-pro"
+      context_window: 32000
+    system_prompt:                      # Required
+      value: "You are a helpful assistant."
+```
+
+Memory blocks require `agent_owned`:
+
+```yaml
+    memory_blocks:
+      - name: notes                     # Required
+        description: "Agent notes"      # Required
+        limit: 2000                     # Required
+        agent_owned: true               # Required (true or false)
+        value: "Initial notes"          # Required (or from_file)
+```
+
 ### Your First Fleet
 
 Create a file called `agents.yml`
@@ -81,6 +107,7 @@ shared_blocks:  # Memory blocks shared across agents
   - name: shared_guidelines
     description: "Shared operational guidelines for all agents"
     limit: 5000
+    agent_owned: true
     from_file: "memory-blocks/shared-guidelines.md"  # Load from file
 
 agents:
@@ -115,6 +142,7 @@ agents:
       - name: cloud_knowledge
         description: "Knowledge base from cloud storage"
         limit: 8000
+        agent_owned: true
         from_bucket:  # Load content from cloud storage
           provider: supabase
           bucket: test-bucket
@@ -591,6 +619,7 @@ const fleet = lettactl.createFleetConfig()
       name: 'user-knowledge',
       description: 'User-specific knowledge base',
       limit: 8000,
+      agent_owned: true,
       value: 'User 123 knowledge and preferences.'
     }]
   })
@@ -623,6 +652,7 @@ const fleet = lettactl.createFleetConfig()
       name: 'company-info',
       description: 'User company information',
       limit: 8000,
+      agent_owned: true,
       value: companyInfo
     }]
   })
@@ -644,11 +674,12 @@ for (const user of users) {
     description: `AI assistant for ${user.id}`,
     llm_config: { model: 'google_ai/gemini-2.5-pro', context_window: 32000 },
     system_prompt: { value: `You are an AI assistant for ${user.id}.` },
-    memory_blocks: [{ 
-      name: 'company-info', 
-      description: 'Company information', 
-      limit: 8000, 
-      value: user.info 
+    memory_blocks: [{
+      name: 'company-info',
+      description: 'Company information',
+      limit: 8000,
+      agent_owned: true,
+      value: user.info
     }]
   });
 }
@@ -795,6 +826,7 @@ memory_blocks:
   - name: user_preferences
     description: "What the user likes and dislikes"
     limit: 2000
+    agent_owned: true
     value: "User prefers short, direct answers."
 ```
 
@@ -804,28 +836,29 @@ memory_blocks:
   - name: company_knowledge
     description: "Company knowledge base"
     limit: 10000
+    agent_owned: true
     from_file: "memory-blocks/company-info.md"
 ```
 
-**Controlling Block Ownership:**
+**Controlling Block Ownership (required):**
 
-By default, memory blocks are agent-owned - the agent can modify them and those changes persist across applies. Use `agent_owned: false` when you want the YAML to be the source of truth:
+The `agent_owned` field is **required** on all memory blocks:
 
 ```yaml
 memory_blocks:
-  # Agent-owned (default): Agent can modify, changes preserved on re-apply
+  # Agent-owned: Agent can modify, changes preserved on re-apply
   - name: learned_preferences
     description: "User preferences the agent learns over time"
     limit: 2000
+    agent_owned: true  # Required - agent controls this block
     value: "No preferences yet"
-    # agent_owned: true (default, not needed)
 
   # YAML-owned: YAML value syncs to server on every apply
   - name: policies
     description: "Agent policies from config"
     limit: 2000
+    agent_owned: false  # Required - YAML controls this block
     value: "Always be helpful and concise."
-    agent_owned: false  # Value resets to YAML on every apply
 ```
 
 Use `agent_owned: false` for:
@@ -930,7 +963,7 @@ agents:
         description: "What this block stores"
         limit: 5000                     # Character limit
         version: "optional-tag"         # Optional: your version tag
-        agent_owned: true               # Optional: if false, value syncs from YAML on every apply
+        agent_owned: true               # Required: true = agent owns, false = YAML syncs on apply
         value: "Direct content"         # Option 1: inline
         from_file: "blocks/file.md"    # Option 2: from file
 
@@ -1076,6 +1109,9 @@ agents:
         path: prompts/agent-prompt.md
     memory_blocks:
       - name: knowledge_base
+        description: "Company knowledge base"
+        limit: 10000
+        agent_owned: true
         from_bucket:
           provider: supabase
           bucket: my-configs

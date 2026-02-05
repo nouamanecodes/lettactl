@@ -1,587 +1,518 @@
-# Updated Fleet Configuration
-# Every agent has at least one change from fleet.yml to test diff detection
-
 shared_blocks:
-  # Updated value
-  - name: e2e-shared-inline
-    description: Shared knowledge with inline value
-    limit: 3000
-    value: |
-      This is UPDATED shared knowledge.
-      The diff engine should detect this change.
+- name: e2e-shared-inline
+  description: Shared knowledge with inline value
+  limit: 3000
+  value: 'This is UPDATED shared knowledge.
 
-  # Updated limit
-  - name: e2e-shared-fromfile
-    description: Shared knowledge from file
-    limit: 2500
-    from_file: block-content.txt
+    The diff engine should detect this change.
 
-  # Updated version
-  - name: e2e-shared-versioned
-    description: Versioned shared block
-    limit: 2500
-    value: "Versioned content v2"
-    version: "2.0.0"
-
+    '
+  agent_owned: true
+- name: e2e-shared-fromfile
+  description: Shared knowledge from file
+  limit: 2500
+  from_file: block-content.txt
+  agent_owned: true
+- name: e2e-shared-versioned
+  description: Versioned shared block
+  limit: 2500
+  value: Versioned content v2
+  version: 2.0.0
+  agent_owned: true
 agents:
-  # ============================================================================
-  # BASIC CONFIGURATIONS - Updated
-  # ============================================================================
+- name: e2e-01-minimal
+  description: Minimal config - UPDATED
+  embedding: openai/text-embedding-3-small
+  system_prompt:
+    value: Minimal agent.
+  llm_config:
+    model: google_ai/gemini-2.5-pro
+    context_window: 32000
+- name: e2e-02-prompt-file
+  description: System prompt loaded from file
+  embedding: openai/text-embedding-3-small
+  system_prompt:
+    from_file: system-prompt.txt
+  llm_config:
+    model: google_ai/gemini-2.5-pro
+    context_window: 64000
+- name: e2e-03-no-base-prompt
+  description: Base Letta instructions disabled
+  embedding: openai/text-embedding-3-small
+  system_prompt:
+    value: 'UPDATED: You operate without Letta base instructions.
 
-  # 1: Updated description
-  - name: e2e-01-minimal
-    description: Minimal config - UPDATED
-    embedding: openai/text-embedding-3-small
-    system_prompt:
-      value: Minimal agent.
-    llm_config:
-      model: google_ai/gemini-2.5-pro
-      context_window: 32000
+      This is your complete system prompt v2.
 
-  # 2: Updated context window
-  - name: e2e-02-prompt-file
-    description: System prompt loaded from file
-    embedding: openai/text-embedding-3-small
-    system_prompt:
-      from_file: system-prompt.txt
-    llm_config:
-      model: google_ai/gemini-2.5-pro
-      context_window: 64000
+      '
+    disable_base_prompt: true
+  llm_config:
+    model: google_ai/gemini-2.5-pro
+    context_window: 32000
+- name: e2e-04-large-context
+  description: Maximum context window
+  embedding: openai/text-embedding-3-small
+  system_prompt:
+    value: High context agent.
+  llm_config:
+    model: google_ai/gemini-2.5-pro
+    context_window: 180000
+- name: e2e-05-block-single
+  description: Single memory block
+  embedding: openai/text-embedding-3-small
+  system_prompt:
+    value: Agent with one memory block.
+  llm_config:
+    model: google_ai/gemini-2.5-pro
+    context_window: 32000
+  memory_blocks:
+  - name: notes
+    description: General notes
+    limit: 2000
+    value: Updated notes content
+    agent_owned: true
+- name: e2e-06-blocks-multi
+  description: Multiple memory blocks
+  embedding: openai/text-embedding-3-small
+  system_prompt:
+    value: Agent with multiple memory blocks.
+  llm_config:
+    model: google_ai/gemini-2.5-pro
+    context_window: 64000
+  memory_blocks:
+  - name: user_profile
+    description: User information
+    limit: 2500
+    value: Unknown user
+    agent_owned: true
+  - name: preferences
+    description: User preferences
+    limit: 2000
+    value: No preferences set
+    agent_owned: true
+  - name: history
+    description: Interaction history
+    limit: 4000
+    value: New conversation
+    agent_owned: true
+  - name: new_block
+    description: Newly added block
+    limit: 1000
+    value: New block added in update
+    agent_owned: true
+- name: e2e-07-block-file
+  description: Memory block from file
+  embedding: openai/text-embedding-3-small
+  system_prompt:
+    value: Agent with block from file.
+  llm_config:
+    model: google_ai/gemini-2.5-pro
+    context_window: 32000
+  memory_blocks:
+  - name: file_content
+    description: UPDATED - Content loaded from file
+    limit: 2000
+    from_file: block-content.txt
+    agent_owned: true
+- name: e2e-08-block-versioned
+  description: Versioned memory block
+  embedding: openai/text-embedding-3-small
+  system_prompt:
+    value: Agent with versioned block.
+  llm_config:
+    model: google_ai/gemini-2.5-pro
+    context_window: 32000
+  memory_blocks:
+  - name: versioned_data
+    description: Data with version tracking
+    limit: 2000
+    value: Data v2
+    version: 2.0.0
+    agent_owned: true
+- name: e2e-09-shared-single
+  description: Single shared block reference
+  embedding: openai/text-embedding-3-small
+  system_prompt:
+    value: Agent with shared block - UPDATED.
+  llm_config:
+    model: google_ai/gemini-2.5-pro
+    context_window: 32000
+  shared_blocks:
+  - e2e-shared-inline
+- name: e2e-10-shared-multi
+  description: Multiple shared block references
+  embedding: openai/text-embedding-3-small
+  system_prompt:
+    value: Agent with multiple shared blocks.
+  llm_config:
+    model: google_ai/gemini-2.5-pro
+    context_window: 64000
+  shared_blocks:
+  - e2e-shared-inline
+  - e2e-shared-versioned
+- name: e2e-11-shared-and-memory
+  description: Both shared and memory blocks
+  embedding: openai/text-embedding-3-small
+  system_prompt:
+    value: Agent with shared and memory blocks.
+  llm_config:
+    model: google_ai/gemini-2.5-pro
+    context_window: 64000
+  shared_blocks:
+  - e2e-shared-inline
+  - e2e-shared-fromfile
+  memory_blocks:
+  - name: private_notes
+    description: Private agent notes
+    limit: 2000
+    value: Updated private data
+    agent_owned: true
+- name: e2e-12-folder-explicit
+  description: Folder with explicit file list
+  embedding: openai/text-embedding-3-small
+  system_prompt:
+    value: Agent with explicit folder files.
+  llm_config:
+    model: google_ai/gemini-2.5-pro
+    context_window: 32000
+  folders:
+  - name: e2e-docs-explicit
+    files:
+    - folder-files/doc1.txt
+    - folder-files/doc2.txt
+    - folder-files/data.json
+- name: e2e-13-folder-glob-txt
+  description: Folder with txt glob pattern - UPDATED
+  embedding: openai/text-embedding-3-small
+  system_prompt:
+    value: Agent with glob pattern folder - updated.
+  llm_config:
+    model: google_ai/gemini-2.5-pro
+    context_window: 32000
+  folders:
+  - name: e2e-docs-glob-txt
+    files:
+    - folder-files/*.txt
+- name: e2e-14-folder-glob-all
+  description: Folder with explicit files now
+  embedding: openai/text-embedding-3-small
+  system_prompt:
+    value: Agent with explicit files instead of glob.
+  llm_config:
+    model: google_ai/gemini-2.5-pro
+    context_window: 32000
+  folders:
+  - name: e2e-docs-glob-all
+    files:
+    - folder-files/doc1.txt
+- name: e2e-15-folders-multi
+  description: Single folder now
+  embedding: openai/text-embedding-3-small
+  system_prompt:
+    value: Agent with single folder now.
+  llm_config:
+    model: google_ai/gemini-2.5-pro
+    context_window: 64000
+  folders:
+  - name: e2e-docs-a
+    files:
+    - folder-files/doc1.txt
+    - folder-files/doc2.txt
+- name: e2e-16-tools-archival
+  description: Agent with archival search only
+  embedding: openai/text-embedding-3-small
+  system_prompt:
+    value: Agent with archival tools - search only.
+  llm_config:
+    model: google_ai/gemini-2.5-pro
+    context_window: 32000
+  tools:
+  - archival_memory_search
+- name: e2e-17-full-local
+  description: All local features - UPDATED
+  embedding: openai/text-embedding-3-small
+  system_prompt:
+    from_file: system-prompt.txt
+  llm_config:
+    model: google_ai/gemini-2.5-pro
+    context_window: 180000
+  shared_blocks:
+  - e2e-shared-inline
+  - e2e-shared-versioned
+  - e2e-shared-fromfile
+  memory_blocks:
+  - name: working_memory
+    description: Active working memory
+    limit: 5000
+    value: Updated - Ready
+    agent_owned: true
+  - name: learned_data
+    description: Learned information
+    limit: 3000
+    from_file: block-content.txt
+    agent_owned: true
+  folders:
+  - name: e2e-full-docs
+    files:
+    - folder-files/*.txt
+  tools:
+  - archival_memory_insert
+  - archival_memory_search
+- name: e2e-18-shares-with-09
+  description: Shares block with agent 09
+  embedding: openai/text-embedding-3-small
+  system_prompt:
+    value: Agent sharing block with e2e-09 - updated.
+  llm_config:
+    model: google_ai/gemini-2.5-pro
+    context_window: 48000
+  shared_blocks:
+  - e2e-shared-inline
+- name: e2e-19-shares-folder
+  description: References same folder pattern
+  embedding: openai/text-embedding-3-small
+  system_prompt:
+    value: Agent with expanded folder.
+  llm_config:
+    model: google_ai/gemini-2.5-pro
+    context_window: 32000
+  folders:
+  - name: e2e-docs-explicit
+    files:
+    - folder-files/doc1.txt
+    - folder-files/doc2.txt
+    - folder-files/data.json
+- name: e2e-20-kitchen-sink
+  description: Kitchen sink - UPDATED
+  embedding: openai/text-embedding-3-small
+  system_prompt:
+    value: 'UPDATED: You are the ultimate test agent.
 
-  # 3: Updated system prompt
-  - name: e2e-03-no-base-prompt
-    description: Base Letta instructions disabled
-    embedding: openai/text-embedding-3-small
-    system_prompt:
-      value: |
-        UPDATED: You operate without Letta base instructions.
-        This is your complete system prompt v2.
-      disable_base_prompt: true
-    llm_config:
-      model: google_ai/gemini-2.5-pro
-      context_window: 32000
+      Every feature is enabled and updated.
 
-  # 4: Reduced context window
-  - name: e2e-04-large-context
-    description: Maximum context window
-    embedding: openai/text-embedding-3-small
-    system_prompt:
-      value: High context agent.
-    llm_config:
-      model: google_ai/gemini-2.5-pro
-      context_window: 180000
+      Version 2 of the kitchen sink.
 
-  # ============================================================================
-  # MEMORY BLOCKS - Updated
-  # ============================================================================
-
-  # 5: Updated block value
-  - name: e2e-05-block-single
-    description: Single memory block
-    embedding: openai/text-embedding-3-small
-    system_prompt:
-      value: Agent with one memory block.
-    llm_config:
-      model: google_ai/gemini-2.5-pro
-      context_window: 32000
-    memory_blocks:
-      - name: notes
-        description: General notes
-        limit: 2000
-        value: "Updated notes content"
-
-  # 6: Updated block limits + added new block
-  - name: e2e-06-blocks-multi
-    description: Multiple memory blocks
-    embedding: openai/text-embedding-3-small
-    system_prompt:
-      value: Agent with multiple memory blocks.
-    llm_config:
-      model: google_ai/gemini-2.5-pro
-      context_window: 64000
-    memory_blocks:
-      - name: user_profile
-        description: User information
-        limit: 2500
-        value: "Unknown user"
-      - name: preferences
-        description: User preferences
-        limit: 2000
-        value: "No preferences set"
-      - name: history
-        description: Interaction history
-        limit: 4000
-        value: "New conversation"
-      - name: new_block
-        description: Newly added block
-        limit: 1000
-        value: "New block added in update"
-
-  # 7: Updated block description
-  - name: e2e-07-block-file
-    description: Memory block from file
-    embedding: openai/text-embedding-3-small
-    system_prompt:
-      value: Agent with block from file.
-    llm_config:
-      model: google_ai/gemini-2.5-pro
-      context_window: 32000
-    memory_blocks:
-      - name: file_content
-        description: UPDATED - Content loaded from file
-        limit: 2000
-        from_file: block-content.txt
-
-  # 8: Updated version tag
-  - name: e2e-08-block-versioned
+      '
+    disable_base_prompt: false
+  llm_config:
+    model: google_ai/gemini-2.5-pro
+    context_window: 200000
+  shared_blocks:
+  - e2e-shared-inline
+  - e2e-shared-fromfile
+  - e2e-shared-versioned
+  memory_blocks:
+  - name: core_memory
+    description: Core agent memory - updated
+    limit: 6000
+    value: Re-initialized v2
+    agent_owned: true
+  - name: file_memory
+    description: Memory from file
+    limit: 4000
+    from_file: block-content.txt
+    agent_owned: true
+  - name: versioned_memory
     description: Versioned memory block
-    embedding: openai/text-embedding-3-small
-    system_prompt:
-      value: Agent with versioned block.
-    llm_config:
-      model: google_ai/gemini-2.5-pro
-      context_window: 32000
-    memory_blocks:
-      - name: versioned_data
-        description: Data with version tracking
-        limit: 2000
-        value: "Data v2"
-        version: "2.0.0"
+    limit: 2500
+    value: v2 data
+    version: 2.0.0
+    agent_owned: true
+  - name: brand_new_block
+    description: Completely new block
+    limit: 1500
+    value: Added in update
+    agent_owned: true
+  folders:
+  - name: e2e-kitchen-docs
+    files:
+    - folder-files/*
+  - name: e2e-kitchen-extras
+    files:
+    - folder-files/doc1.txt
+  tools:
+  - archival_memory_insert
+  - archival_memory_search
+- name: e2e-21-folder-tools-auto
+  description: Tests file search tools auto-remove
+  embedding: openai/text-embedding-3-small
+  system_prompt:
+    value: Agent testing file search tool auto-management - folders removed.
+  llm_config:
+    model: google_ai/gemini-2.5-pro
+    context_window: 32000
+  tools:
+  - archival_memory_insert
+  - archival_memory_search
+- name: e2e-22-bucket-glob
+  description: Tests bucket glob file duplicate prevention
+  embedding: openai/text-embedding-3-small
+  system_prompt:
+    value: Agent with bucket glob files.
+  llm_config:
+    model: google_ai/gemini-2.5-pro
+    context_window: 32000
+  folders:
+  - name: e2e-bucket-test
+    files:
+    - from_bucket:
+        provider: supabase
+        bucket: test-bucket
+        path: '*.txt'
+- name: e2e-23-bucket-single
+  description: Tests single bucket file (no glob)
+  embedding: openai/text-embedding-3-small
+  system_prompt:
+    value: Agent with single bucket file.
+  llm_config:
+    model: google_ai/gemini-2.5-pro
+    context_window: 32000
+  folders:
+  - name: e2e-bucket-single
+    files:
+    - from_bucket:
+        provider: supabase
+        bucket: test-bucket
+        path: test-doc.txt
+- name: e2e-24-mixed-sources
+  description: Tests folder with both local and bucket files
+  embedding: openai/text-embedding-3-small
+  system_prompt:
+    value: Agent with mixed file sources.
+  llm_config:
+    model: google_ai/gemini-2.5-pro
+    context_window: 32000
+  folders:
+  - name: e2e-mixed-folder
+    files:
+    - folder-files/doc1.txt
+    - from_bucket:
+        provider: supabase
+        bucket: test-bucket
+        path: test-doc.txt
+- name: e2e-25-immutable-block
+  description: Tests agent_owned false block value sync
+  embedding: openai/text-embedding-3-small
+  system_prompt:
+    value: Agent with immutable block.
+  llm_config:
+    model: google_ai/gemini-2.5-pro
+    context_window: 32000
+  memory_blocks:
+  - name: policies
+    description: Agent policies that sync from YAML
+    limit: 2000
+    value: 'Policy version 2: Be helpful, concise, and professional.'
+    agent_owned: false
+  - name: learned_data
+    description: Data the agent learns (agent_owned by default)
+    limit: 2000
+    value: Initial state
+    agent_owned: true
+- name: e2e-26-empty-block
+  description: Block with minimal value - UPDATED
+  embedding: openai/text-embedding-3-small
+  system_prompt:
+    value: Agent with minimal block value - now populated.
+  llm_config:
+    model: google_ai/gemini-2.5-pro
+    context_window: 32000
+  memory_blocks:
+  - name: empty_notes
+    description: Notes block with minimal initial value
+    limit: 2000
+    value: Now has content!
+    agent_owned: false
+  - name: populated_notes
+    description: Notes block with value
+    limit: 2000
+    value: Updated content
+    agent_owned: true
+- name: e2e-27-block-removal
+  description: Agent with all blocks removed
+  embedding: openai/text-embedding-3-small
+  system_prompt:
+    value: Agent testing block removal - blocks removed.
+  llm_config:
+    model: google_ai/gemini-2.5-pro
+    context_window: 32000
+- name: e2e-28-special-chars
+  description: Special characters in prompts and blocks - UPDATED
+  embedding: openai/text-embedding-3-small
+  system_prompt:
+    value: "UPDATED agent with special characters: \"quotes\", 'apostrophes', & ampersands.\n\
+      More newlines and\ttabs included.\nBackslash: \\\\ and forward slash: //\nJSON-like:\
+      \ {\"key\": \"updated_value\", \"new\": true}\n"
+  llm_config:
+    model: google_ai/gemini-2.5-pro
+    context_window: 32000
+  memory_blocks:
+  - name: special_data
+    description: Block with special characters - updated
+    limit: 2500
+    value: 'UPDATED Line 1: "quoted text v2"
 
-  # ============================================================================
-  # SHARED BLOCKS - Updated (inherits shared block changes)
-  # ============================================================================
+      Line 2: ''single quotes''
 
-  # 9: System prompt updated
-  - name: e2e-09-shared-single
-    description: Single shared block reference
-    embedding: openai/text-embedding-3-small
-    system_prompt:
-      value: Agent with shared block - UPDATED.
-    llm_config:
-      model: google_ai/gemini-2.5-pro
-      context_window: 32000
-    shared_blocks:
-      - e2e-shared-inline
+      Line 3: key=updated&other=data
 
-  # 10: Removed one shared block
-  - name: e2e-10-shared-multi
-    description: Multiple shared block references
-    embedding: openai/text-embedding-3-small
-    system_prompt:
-      value: Agent with multiple shared blocks.
-    llm_config:
-      model: google_ai/gemini-2.5-pro
-      context_window: 64000
-    shared_blocks:
-      - e2e-shared-inline
-      - e2e-shared-versioned
+      Line 4: path/to/new/file.txt
 
-  # 11: Added another shared block
-  - name: e2e-11-shared-and-memory
-    description: Both shared and memory blocks
-    embedding: openai/text-embedding-3-small
-    system_prompt:
-      value: Agent with shared and memory blocks.
-    llm_config:
-      model: google_ai/gemini-2.5-pro
-      context_window: 64000
-    shared_blocks:
-      - e2e-shared-inline
-      - e2e-shared-fromfile
-    memory_blocks:
-      - name: private_notes
-        description: Private agent notes
-        limit: 2000
-        value: "Updated private data"
+      Line 5: C:\Windows\System32\updated
 
-  # ============================================================================
-  # FOLDERS - Updated
-  # ============================================================================
+      '
+    agent_owned: true
+- name: e2e-29-unicode-content
+  description: Unicode and international characters - UPDATED
+  embedding: openai/text-embedding-3-small
+  system_prompt:
+    value: 'UPDATED Multilingual agent: Hello, Bonjour, Hola, Guten Tag, Ciao
 
-  # 12: Added a file
-  - name: e2e-12-folder-explicit
-    description: Folder with explicit file list
-    embedding: openai/text-embedding-3-small
-    system_prompt:
-      value: Agent with explicit folder files.
-    llm_config:
-      model: google_ai/gemini-2.5-pro
-      context_window: 32000
-    folders:
-      - name: e2e-docs-explicit
-        files:
-          - folder-files/doc1.txt
-          - folder-files/doc2.txt
-          - folder-files/data.json
+      Japanese: こんにちは世界
 
-  # 13: Updated system prompt
-  - name: e2e-13-folder-glob-txt
-    description: Folder with txt glob pattern - UPDATED
-    embedding: openai/text-embedding-3-small
-    system_prompt:
-      value: Agent with glob pattern folder - updated.
-    llm_config:
-      model: google_ai/gemini-2.5-pro
-      context_window: 32000
-    folders:
-      - name: e2e-docs-glob-txt
-        files:
-          - "folder-files/*.txt"
+      Chinese: 你好世界
 
-  # 14: Changed to explicit files (no more glob)
-  - name: e2e-14-folder-glob-all
-    description: Folder with explicit files now
-    embedding: openai/text-embedding-3-small
-    system_prompt:
-      value: Agent with explicit files instead of glob.
-    llm_config:
-      model: google_ai/gemini-2.5-pro
-      context_window: 32000
-    folders:
-      - name: e2e-docs-glob-all
-        files:
-          - folder-files/doc1.txt
+      Arabic: مرحبا بالعالم
 
-  # 15: Removed one folder
-  - name: e2e-15-folders-multi
-    description: Single folder now
-    embedding: openai/text-embedding-3-small
-    system_prompt:
-      value: Agent with single folder now.
-    llm_config:
-      model: google_ai/gemini-2.5-pro
-      context_window: 64000
-    folders:
-      - name: e2e-docs-a
-        files:
-          - folder-files/doc1.txt
-          - folder-files/doc2.txt
+      Russian: Привет мир
 
-  # ============================================================================
-  # TOOLS - Updated
-  # ============================================================================
+      Greek: Γειά σου κόσμε
 
-  # 16: Removed archival_memory_insert
-  - name: e2e-16-tools-archival
-    description: Agent with archival search only
-    embedding: openai/text-embedding-3-small
-    system_prompt:
-      value: Agent with archival tools - search only.
-    llm_config:
-      model: google_ai/gemini-2.5-pro
-      context_window: 32000
-    tools:
-      - archival_memory_search
+      Korean: 안녕하세요
 
-  # ============================================================================
-  # FULL COMBINATIONS - Updated
-  # ============================================================================
+      '
+  llm_config:
+    model: google_ai/gemini-2.5-pro
+    context_window: 32000
+  memory_blocks:
+  - name: unicode_notes
+    description: Notes with unicode - updated
+    limit: 2500
+    value: 'Currency: € £ ¥ ₹ ₿
 
-  # 17: Multiple updates
-  - name: e2e-17-full-local
-    description: All local features - UPDATED
-    embedding: openai/text-embedding-3-small
-    system_prompt:
-      from_file: system-prompt.txt
-    llm_config:
-      model: google_ai/gemini-2.5-pro
-      context_window: 180000
-    shared_blocks:
-      - e2e-shared-inline
-      - e2e-shared-versioned
-      - e2e-shared-fromfile
-    memory_blocks:
-      - name: working_memory
-        description: Active working memory
-        limit: 5000
-        value: "Updated - Ready"
-      - name: learned_data
-        description: Learned information
-        limit: 3000
-        from_file: block-content.txt
-    folders:
-      - name: e2e-full-docs
-        files:
-          - "folder-files/*.txt"
-    tools:
-      - archival_memory_insert
-      - archival_memory_search
+      Math: ∑ ∏ √ ∞ ≠ ≤ ≥ ∈ ∉
 
-  # 18: Updated context
-  - name: e2e-18-shares-with-09
-    description: Shares block with agent 09
-    embedding: openai/text-embedding-3-small
-    system_prompt:
-      value: Agent sharing block with e2e-09 - updated.
-    llm_config:
-      model: google_ai/gemini-2.5-pro
-      context_window: 48000
-    shared_blocks:
-      - e2e-shared-inline
+      Arrows: → ← ↑ ↓ ↔ ⇒ ⇐
 
-  # 19: Added a file to folder
-  - name: e2e-19-shares-folder
-    description: References same folder pattern
-    embedding: openai/text-embedding-3-small
-    system_prompt:
-      value: Agent with expanded folder.
-    llm_config:
-      model: google_ai/gemini-2.5-pro
-      context_window: 32000
-    folders:
-      - name: e2e-docs-explicit
-        files:
-          - folder-files/doc1.txt
-          - folder-files/doc2.txt
-          - folder-files/data.json
+      Emoji: ✓ ✗ ★ ☆ ♠ ♣ ♥ ♦
 
-  # 20: Updated everything possible
-  - name: e2e-20-kitchen-sink
-    description: Kitchen sink - UPDATED
-    embedding: openai/text-embedding-3-small
-    system_prompt:
-      value: |
-        UPDATED: You are the ultimate test agent.
-        Every feature is enabled and updated.
-        Version 2 of the kitchen sink.
-      disable_base_prompt: false
-    llm_config:
-      model: google_ai/gemini-2.5-pro
-      context_window: 200000
-    shared_blocks:
-      - e2e-shared-inline
-      - e2e-shared-fromfile
-      - e2e-shared-versioned
-    memory_blocks:
-      - name: core_memory
-        description: Core agent memory - updated
-        limit: 6000
-        value: "Re-initialized v2"
-      - name: file_memory
-        description: Memory from file
-        limit: 4000
-        from_file: block-content.txt
-      - name: versioned_memory
-        description: Versioned memory block
-        limit: 2500
-        value: "v2 data"
-        version: "2.0.0"
-      - name: brand_new_block
-        description: Completely new block
-        limit: 1500
-        value: "Added in update"
-    folders:
-      - name: e2e-kitchen-docs
-        files:
-          - "folder-files/*"
-      - name: e2e-kitchen-extras
-        files:
-          - folder-files/doc1.txt
-    tools:
-      - archival_memory_insert
-      - archival_memory_search
-
-  # ============================================================================
-  # FILE SEARCH TOOLS AUTO-MANAGEMENT
-  # ============================================================================
-
-  # 21: Folders REMOVED - tests auto-removal of file search tools
-  # When folders are removed, grep_files and semantic_search_files should auto-remove
-  # The explicit archival tools should be PRESERVED
-  - name: e2e-21-folder-tools-auto
-    description: Tests file search tools auto-remove
-    embedding: openai/text-embedding-3-small
-    system_prompt:
-      value: Agent testing file search tool auto-management - folders removed.
-    llm_config:
-      model: google_ai/gemini-2.5-pro
-      context_window: 32000
-    tools:
-      - archival_memory_insert
-      - archival_memory_search
-
-  # ============================================================================
-  # BUCKET FILES - Duplicate Prevention (#98)
-  # ============================================================================
-
-  # 22: Same bucket glob files - re-apply should show NO changes (not re-upload)
-  - name: e2e-22-bucket-glob
-    description: Tests bucket glob file duplicate prevention
-    embedding: openai/text-embedding-3-small
-    system_prompt:
-      value: Agent with bucket glob files.
-    llm_config:
-      model: google_ai/gemini-2.5-pro
-      context_window: 32000
-    folders:
-      - name: e2e-bucket-test
-        files:
-          - from_bucket:
-              provider: supabase
-              bucket: test-bucket
-              path: "*.txt"
-
-  # 23: Same single bucket file - should show NO changes
-  - name: e2e-23-bucket-single
-    description: Tests single bucket file (no glob)
-    embedding: openai/text-embedding-3-small
-    system_prompt:
-      value: Agent with single bucket file.
-    llm_config:
-      model: google_ai/gemini-2.5-pro
-      context_window: 32000
-    folders:
-      - name: e2e-bucket-single
-        files:
-          - from_bucket:
-              provider: supabase
-              bucket: test-bucket
-              path: test-doc.txt
-
-  # 24: Same mixed sources - should show NO changes
-  - name: e2e-24-mixed-sources
-    description: Tests folder with both local and bucket files
-    embedding: openai/text-embedding-3-small
-    system_prompt:
-      value: Agent with mixed file sources.
-    llm_config:
-      model: google_ai/gemini-2.5-pro
-      context_window: 32000
-    folders:
-      - name: e2e-mixed-folder
-        files:
-          - folder-files/doc1.txt
-          - from_bucket:
-              provider: supabase
-              bucket: test-bucket
-              path: test-doc.txt
-
-  # ============================================================================
-  # YAML-OWNED BLOCKS - Value Sync (#101)
-  # ============================================================================
-
-  # 25: Updated policy value - should sync to server because agent_owned: false
-  # The learned_data block should NOT sync because agent_owned: true (default)
-  - name: e2e-25-immutable-block
-    description: Tests agent_owned false block value sync
-    embedding: openai/text-embedding-3-small
-    system_prompt:
-      value: Agent with immutable block.
-    llm_config:
-      model: google_ai/gemini-2.5-pro
-      context_window: 32000
-    memory_blocks:
-      - name: policies
-        description: Agent policies that sync from YAML
-        limit: 2000
-        value: "Policy version 2: Be helpful, concise, and professional."
-        agent_owned: false
-      - name: learned_data
-        description: Data the agent learns (agent_owned by default)
-        limit: 2000
-        value: "Initial state"
-
-  # ============================================================================
-  # EDGE CASES - Updated
-  # ============================================================================
-
-  # 26: Minimal block now has value, populated block updated
-  - name: e2e-26-empty-block
-    description: Block with minimal value - UPDATED
-    embedding: openai/text-embedding-3-small
-    system_prompt:
-      value: Agent with minimal block value - now populated.
-    llm_config:
-      model: google_ai/gemini-2.5-pro
-      context_window: 32000
-    memory_blocks:
-      - name: empty_notes
-        description: Notes block with minimal initial value
-        limit: 2000
-        value: "Now has content!"
-        agent_owned: false
-      - name: populated_notes
-        description: Notes block with value
-        limit: 2000
-        value: "Updated content"
-
-  # 27: ALL BLOCKS REMOVED - tests complete block removal
-  - name: e2e-27-block-removal
-    description: Agent with all blocks removed
-    embedding: openai/text-embedding-3-small
-    system_prompt:
-      value: Agent testing block removal - blocks removed.
-    llm_config:
-      model: google_ai/gemini-2.5-pro
-      context_window: 32000
-    # NO memory_blocks - they've all been removed
-
-  # 28: Updated special characters
-  - name: e2e-28-special-chars
-    description: Special characters in prompts and blocks - UPDATED
-    embedding: openai/text-embedding-3-small
-    system_prompt:
-      value: |
-        UPDATED agent with special characters: "quotes", 'apostrophes', & ampersands.
-        More newlines and	tabs included.
-        Backslash: \\ and forward slash: //
-        JSON-like: {"key": "updated_value", "new": true}
-    llm_config:
-      model: google_ai/gemini-2.5-pro
-      context_window: 32000
-    memory_blocks:
-      - name: special_data
-        description: Block with special characters - updated
-        limit: 2500
-        value: |
-          UPDATED Line 1: "quoted text v2"
-          Line 2: 'single quotes'
-          Line 3: key=updated&other=data
-          Line 4: path/to/new/file.txt
-          Line 5: C:\Windows\System32\updated
-
-  # 29: Updated unicode content
-  - name: e2e-29-unicode-content
-    description: Unicode and international characters - UPDATED
-    embedding: openai/text-embedding-3-small
-    system_prompt:
-      value: |
-        UPDATED Multilingual agent: Hello, Bonjour, Hola, Guten Tag, Ciao
-        Japanese: こんにちは世界
-        Chinese: 你好世界
-        Arabic: مرحبا بالعالم
-        Russian: Привет мир
-        Greek: Γειά σου κόσμε
-        Korean: 안녕하세요
-    llm_config:
-      model: google_ai/gemini-2.5-pro
-      context_window: 32000
-    memory_blocks:
-      - name: unicode_notes
-        description: Notes with unicode - updated
-        limit: 2500
-        value: |
-          Currency: € £ ¥ ₹ ₿
-          Math: ∑ ∏ √ ∞ ≠ ≤ ≥ ∈ ∉
-          Arrows: → ← ↑ ↓ ↔ ⇒ ⇐
-          Emoji: ✓ ✗ ★ ☆ ♠ ♣ ♥ ♦
-
-  # 30: Cleanup test - same config (used for cleanup command testing)
-  - name: e2e-30-cleanup-test
-    description: Agent for cleanup command testing
-    embedding: openai/text-embedding-3-small
-    system_prompt:
-      value: Agent used for cleanup tests.
-    llm_config:
-      model: google_ai/gemini-2.5-pro
-      context_window: 32000
-    memory_blocks:
-      - name: cleanup_block
-        description: Block that will become orphaned
-        limit: 1000
-        value: "Orphan me"
-    folders:
-      - name: e2e-cleanup-folder
-        files:
-          - folder-files/doc1.txt
+      '
+    agent_owned: true
+- name: e2e-30-cleanup-test
+  description: Agent for cleanup command testing
+  embedding: openai/text-embedding-3-small
+  system_prompt:
+    value: Agent used for cleanup tests.
+  llm_config:
+    model: google_ai/gemini-2.5-pro
+    context_window: 32000
+  memory_blocks:
+  - name: cleanup_block
+    description: Block that will become orphaned
+    limit: 1000
+    value: Orphan me
+    agent_owned: true
+  folders:
+  - name: e2e-cleanup-folder
+    files:
+    - folder-files/doc1.txt
