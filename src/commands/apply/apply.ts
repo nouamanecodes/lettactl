@@ -55,7 +55,15 @@ export async function applyCommand(options: ApplyOptions, command: any): Promise
     parseSpinner.succeed(`Parsed ${options.file} (${config.agents.length} agents)`);
 
     // Validate embedding configuration for self-hosted environments
-    const isSelfHosted = !process.env.LETTA_BASE_URL?.includes('letta.com');
+    let isSelfHosted = true;
+    if (process.env.LETTA_BASE_URL) {
+      try {
+        const host = new URL(process.env.LETTA_BASE_URL).hostname;
+        isSelfHosted = !host.endsWith('letta.com') && host !== 'letta.com';
+      } catch {
+        // Invalid URL, treat as self-hosted
+      }
+    }
     if (isSelfHosted) {
       const agentsWithoutEmbedding = config.agents.filter((agent: any) => !agent.embedding && !agent.embedding_config);
       if (agentsWithoutEmbedding.length > 0) {
