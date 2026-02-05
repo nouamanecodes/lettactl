@@ -59,7 +59,8 @@ export async function applyCommand(options: ApplyOptions, command: any): Promise
     if (process.env.LETTA_BASE_URL) {
       try {
         const host = new URL(process.env.LETTA_BASE_URL).hostname;
-        isSelfHosted = !host.endsWith('letta.com') && host !== 'letta.com';
+        // Must be exactly letta.com or a subdomain like api.letta.com
+        isSelfHosted = host !== 'letta.com' && !host.endsWith('.letta.com');
       } catch {
         // Invalid URL, treat as self-hosted
       }
