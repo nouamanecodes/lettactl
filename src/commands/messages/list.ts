@@ -56,13 +56,13 @@ export async function listMessagesCommand(
     }
 
     // Format messages
-    const systemCount = totalCount - messages.length;
+    const hiddenCount = totalCount - messages.length;
     let limitNote = effectiveLimit && totalCount >= effectiveLimit
-      ? `(showing last ${effectiveLimit}, use --all to see full history)`
+      ? `(showing last ${messages.length}, use --all to see full history)`
       : '';
-    if (systemCount > 0) {
-      const systemNote = `(${systemCount} system message${systemCount > 1 ? 's' : ''} hidden, use --system to show)`;
-      limitNote = limitNote ? `${limitNote} ${systemNote}` : systemNote;
+    if (hiddenCount > 0) {
+      const hiddenNote = `(${hiddenCount} internal message${hiddenCount > 1 ? 's' : ''} hidden, use --system to show)`;
+      limitNote = limitNote ? `${limitNote} ${hiddenNote}` : hiddenNote;
     }
 
     // Map to display data
