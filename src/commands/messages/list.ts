@@ -43,10 +43,11 @@ export async function listMessagesCommand(
       return;
     }
 
-    // Filter out system messages unless --system flag
+    // Filter out system and reasoning messages unless --system flag
     const totalCount = messages.length;
     if (!options.system) {
-      messages = messages.filter((m: any) => (m.message_type || m.role) !== 'system_message');
+      const hiddenTypes = ['system_message', 'reasoning_message'];
+      messages = messages.filter((m: any) => !hiddenTypes.includes(m.message_type || m.role));
     }
 
     if (messages.length === 0) {
