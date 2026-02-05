@@ -46,7 +46,7 @@ export async function listMessagesCommand(
     // Filter out system and reasoning messages unless --system flag
     const totalCount = messages.length;
     if (!options.system) {
-      const hiddenTypes = ['system_message', 'reasoning_message'];
+      const hiddenTypes = ['system_message', 'reasoning_message', 'tool_call_message', 'tool_return_message'];
       messages = messages.filter((m: any) => !hiddenTypes.includes(m.message_type || m.role));
     }
 
