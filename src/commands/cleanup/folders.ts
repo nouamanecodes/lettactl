@@ -2,8 +2,9 @@ import { LettaClientWrapper } from '../../lib/client/letta-client';
 import { AgentResolver } from '../../lib/client/agent-resolver';
 import { createSpinner } from '../../lib/ux/spinner';
 import { normalizeToArray, computeAgentCounts } from '../../lib/resources/resource-usage';
-import { log, warn, output } from '../../lib/shared/logger';
+import { output } from '../../lib/shared/logger';
 import { displayOrphanedResources } from '../../lib/ux/display';
+import { deleteWithProgress } from './helpers';
 
 export async function cleanupOrphanedFolders(
   client: LettaClientWrapper,
@@ -51,21 +52,18 @@ export async function cleanupOrphanedFolders(
     output(displayOrphanedResources('Folders', items, `containing ${totalFiles} files`));
 
     if (!isDryRun) {
-      const deleteSpinner = createSpinner(`Deleting ${orphanedFolders.length} orphaned folders...`, useSpinner).start();
-
-      let deleted = 0;
-      for (const folder of orphanedFolders) {
-        try {
-          await client.deleteFolder(folder.id);
-          deleted++;
-          if (isVerbose) log(`Deleted folder: ${folder.name || folder.id}`);
-        } catch (err: any) {
-          warn(`Failed to delete folder ${folder.name || folder.id}: ${err.message}`);
-        }
-      }
-
-      deleteSpinner.succeed(`Deleted ${deleted} orphaned folders (and their files)`);
-      return deleted;
+      const items = orphanedFolders.map((folder: any) => ({
+        id: folder.id,
+        name: folder.name || folder.id
+      }));
+      return await deleteWithProgress({
+        items,
+        resourceType: 'folders',
+        deleteFn: (id) => client.deleteFolder(id),
+        useSpinner,
+        verbose: isVerbose,
+        successSuffix: '(and their files)'
+      });
     }
 
     return orphanedFolders.length;

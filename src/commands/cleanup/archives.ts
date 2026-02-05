@@ -2,8 +2,9 @@ import { LettaClientWrapper } from '../../lib/client/letta-client';
 import { AgentResolver } from '../../lib/client/agent-resolver';
 import { createSpinner } from '../../lib/ux/spinner';
 import { computeAgentCounts } from '../../lib/resources/resource-usage';
-import { log, warn, output } from '../../lib/shared/logger';
+import { output } from '../../lib/shared/logger';
 import { displayOrphanedResources } from '../../lib/ux/display';
+import { deleteWithProgress } from './helpers';
 
 export async function cleanupOrphanedArchives(
   client: LettaClientWrapper,
@@ -37,21 +38,17 @@ export async function cleanupOrphanedArchives(
     output(displayOrphanedResources('Archives', items));
 
     if (!isDryRun) {
-      const deleteSpinner = createSpinner(`Deleting ${orphanedArchives.length} orphaned archives...`, useSpinner).start();
-
-      let deleted = 0;
-      for (const archive of orphanedArchives) {
-        try {
-          await client.deleteArchive(archive.id);
-          deleted++;
-          if (isVerbose) log(`Deleted archive: ${archive.name || archive.id}`);
-        } catch (err: any) {
-          warn(`Failed to delete archive ${archive.name || archive.id}: ${err.message}`);
-        }
-      }
-
-      deleteSpinner.succeed(`Deleted ${deleted} orphaned archives`);
-      return deleted;
+      const items = orphanedArchives.map((archive: any) => ({
+        id: archive.id,
+        name: archive.name || archive.id
+      }));
+      return await deleteWithProgress({
+        items,
+        resourceType: 'archives',
+        deleteFn: (id) => client.deleteArchive(id),
+        useSpinner,
+        verbose: isVerbose
+      });
     }
 
     return orphanedArchives.length;

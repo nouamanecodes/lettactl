@@ -1,7 +1,8 @@
 import { LettaClientWrapper } from '../../lib/client/letta-client';
 import { createSpinner } from '../../lib/ux/spinner';
-import { log, warn, output } from '../../lib/shared/logger';
+import { output } from '../../lib/shared/logger';
 import { displayOrphanedResources } from '../../lib/ux/display';
+import { deleteWithProgress } from './helpers';
 
 export async function cleanupOrphanedBlocks(
   client: LettaClientWrapper,
@@ -30,21 +31,17 @@ export async function cleanupOrphanedBlocks(
     output(displayOrphanedResources('Blocks', items));
 
     if (!isDryRun) {
-      const deleteSpinner = createSpinner(`Deleting ${orphanedBlocks.length} orphaned blocks...`, useSpinner).start();
-
-      let deleted = 0;
-      for (const block of orphanedBlocks) {
-        try {
-          await client.deleteBlock(block.id);
-          deleted++;
-          if (isVerbose) log(`Deleted block: ${block.label || block.id}`);
-        } catch (err: any) {
-          warn(`Failed to delete block ${block.label || block.id}: ${err.message}`);
-        }
-      }
-
-      deleteSpinner.succeed(`Deleted ${deleted} orphaned blocks`);
-      return deleted;
+      const items = orphanedBlocks.map((block: any) => ({
+        id: block.id,
+        name: block.label || block.id
+      }));
+      return await deleteWithProgress({
+        items,
+        resourceType: 'blocks',
+        deleteFn: (id) => client.deleteBlock(id),
+        useSpinner,
+        verbose: isVerbose
+      });
     }
 
     return orphanedBlocks.length;
