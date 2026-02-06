@@ -266,7 +266,8 @@ export async function applyCommand(options: ApplyOptions, command: any): Promise
             files: folder.files,
             fileContentHashes: folderContentHashes.get(folder.name) || {}
           })),
-          sharedBlocks: agent.shared_blocks || []
+          sharedBlocks: agent.shared_blocks || [],
+          tags: agent.tags || []
         };
 
         // Check if agent exists

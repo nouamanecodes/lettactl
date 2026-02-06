@@ -1,0 +1,27 @@
+agents:
+- name: e2e-49-tags-a
+  description: Tagged agent A
+  tags: ["tenant:acme", "role:support"]
+  embedding: openai/text-embedding-3-small
+  llm_config:
+    model: google_ai/gemini-2.0-flash-lite
+    context_window: 32000
+  system_prompt:
+    value: "You are a support agent for Acme Corp."
+- name: e2e-49-tags-b
+  description: Tagged agent B
+  tags: ["tenant:acme", "role:research"]
+  embedding: openai/text-embedding-3-small
+  llm_config:
+    model: google_ai/gemini-2.0-flash-lite
+    context_window: 32000
+  system_prompt:
+    value: "You are a research agent for Acme Corp."
+- name: e2e-49-tags-c
+  description: Untagged agent C
+  embedding: openai/text-embedding-3-small
+  llm_config:
+    model: google_ai/gemini-2.0-flash-lite
+    context_window: 32000
+  system_prompt:
+    value: "You are an untagged agent."

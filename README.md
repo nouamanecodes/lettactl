@@ -158,6 +158,93 @@ lettactl apply -f agents.yml  # Deploy all agents and shared resources
 
 That's it! Your entire fleet is now running with shared resources and cloud storage.
 
+## Multi-Tenancy with Tags
+
+Tags let you organize and filter agents for multi-tenant applications. Apply tags in your YAML and filter with `--tags` on the CLI.
+
+### B2B: One Tenant = One Set of Agents
+
+Tag each tenant's agents and filter when querying:
+
+```yaml
+agents:
+- name: acme-support
+  description: Support agent for Acme Corp
+  tags: ["tenant:acme", "role:support"]
+  # ... llm_config, system_prompt, etc.
+
+- name: acme-research
+  description: Research agent for Acme Corp
+  tags: ["tenant:acme", "role:research"]
+  # ... llm_config, system_prompt, etc.
+
+- name: globex-support
+  description: Support agent for Globex
+  tags: ["tenant:globex", "role:support"]
+  # ...
+```
+
+```bash
+# Get all agents for a specific tenant
+lettactl get agents --tags "tenant:acme"
+
+# Get support agents across all tenants
+lettactl get agents --tags "role:support"
+```
+
+Or via the SDK:
+
+```typescript
+const ctl = new LettaCtl();
+const fleet = ctl.createFleetConfig()
+  .addAgent({
+    name: 'acme-support',
+    description: 'Support agent for Acme Corp',
+    tags: ['tenant:acme', 'role:support'],
+    llm_config: { model: 'openai/gpt-4o', context_window: 128000 },
+    system_prompt: { value: 'You are a support agent for Acme Corp.' }
+  })
+  .build();
+```
+
+### B2B2C: M Users × N Clients × Y Agents
+
+For platforms where your users each have their own clients, use composite tags:
+
+```yaml
+agents:
+- name: user-42-client-7-support
+  description: Support agent
+  tags: ["user:42", "client:7", "role:support"]
+  # ...
+
+- name: user-42-client-7-research
+  description: Research agent
+  tags: ["user:42", "client:7", "role:research"]
+  # ...
+```
+
+```bash
+# All agents for user 42
+lettactl get agents --tags "user:42"
+
+# All agents for a specific client of user 42
+lettactl get agents --tags "user:42,client:7"
+
+# All support agents across the platform
+lettactl get agents --tags "role:support"
+```
+
+### Key Considerations
+
+| Aspect | How It Works |
+|--------|-------------|
+| **Scope** | Tags apply to agents only — tools, blocks, and folders are already scoped through the agent relationship |
+| **Filtering** | `--tags` uses AND logic: `--tags "a,b"` returns agents with both tags |
+| **Naming** | Use `key:value` format for structured filtering |
+| **Shared resources** | Use `shared_blocks` and `shared_folders` for resources shared across the entire fleet |
+| **App layer** | Your application is responsible for generating the correct YAML or SDK calls per tenant |
+
 ## Commands
 
 ### Deploy Configuration
@@ -390,6 +477,8 @@ agents:
 ```bash
 # List resources
 lettactl get agents                    # List all agents
+lettactl get agents --tags "tenant:user-123"  # Filter by tags
+lettactl get agents --tags "tenant:user-123,role:support"  # Multiple tags (AND)
 lettactl get blocks                    # List all memory blocks
 lettactl get archives                  # List all archives (archival memory stores)
 lettactl get tools                     # List all tools
@@ -634,65 +723,6 @@ const fleet = lettactl.createFleetConfig()
 await lettactl.deployFleet(fleet);  // Deploy entire fleet
 ```
 
-## Multi-Tenant SaaS Example
-
-Create agents dynamically for different users:
-
-```typescript
-const lettactl = new LettaCtl();
-
-// Single user onboarding
-const userId = 'acme-corp';
-const companyInfo = 'Acme Corp is a B2B software company specializing in CRM solutions.';
-
-const fleet = lettactl.createFleetConfig()
-  .addAgent({
-    name: `${userId}-assistant`,
-    description: `AI assistant for ${userId}`,
-    llm_config: { model: 'google_ai/gemini-2.5-pro', context_window: 32000 },
-    system_prompt: { 
-      value: `You are an AI assistant for ${userId}. Help with tasks and answer questions.`,
-      disable_base_prompt: false  // Optional: control base prompt combination
-    },
-    memory_blocks: [{
-      name: 'company-info',
-      description: 'User company information',
-      limit: 8000,
-      agent_owned: true,
-      value: companyInfo
-    }]
-  })
-  .build();
-
-await lettactl.deployFleet(fleet);
-
-// Batch user onboarding
-const users = [
-  { id: 'startup-1', info: 'Tech startup focused on AI tools' },
-  { id: 'enterprise-2', info: 'Large enterprise with complex workflows' },
-  { id: 'agency-3', info: 'Marketing agency serving B2B users' }
-];
-
-const batchFleet = lettactl.createFleetConfig();
-for (const user of users) {
-  batchFleet.addAgent({
-    name: `${user.id}-assistant`,
-    description: `AI assistant for ${user.id}`,
-    llm_config: { model: 'google_ai/gemini-2.5-pro', context_window: 32000 },
-    system_prompt: { value: `You are an AI assistant for ${user.id}.` },
-    memory_blocks: [{
-      name: 'company-info',
-      description: 'Company information',
-      limit: 8000,
-      agent_owned: true,
-      value: user.info
-    }]
-  });
-}
-
-await lettactl.deployFleet(batchFleet.build());
-```
-
 ### Agent Deletion
 
 Delete agents programmatically with full resource cleanup:
@@ -931,6 +961,7 @@ agents:
   - name: agent-name                    # Required: unique identifier
     description: "What this agent does" # Required: human description
     reasoning: true                     # Optional: enable reasoning (default: true)
+    tags: ["tenant:user-123", "role:support"]  # Optional: tags for filtering/multi-tenancy
 
     # LLM configuration (required, should be first)
     llm_config:

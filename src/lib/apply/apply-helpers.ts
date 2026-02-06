@@ -376,6 +376,10 @@ export async function createNewAgent(
       reasoning: agent.reasoning ?? DEFAULT_REASONING
     };
 
+    if (agent.tags && agent.tags.length > 0) {
+      createPayload.tags = agent.tags;
+    }
+
     // Handle embedding vs embedding_config (mutually exclusive)
     if (agent.embedding_config) {
       createPayload.embedding_config = agent.embedding_config;

@@ -18,8 +18,13 @@ export class LettaClientWrapper {
     this.client = new LettaClient(config);
   }
 
-  async listAgents() {
-    return await this.client.agents.list();
+  async listAgents(options?: { tags?: string[] }) {
+    const params: any = {};
+    if (options?.tags && options.tags.length > 0) {
+      params.tags = options.tags;
+      params.match_all_tags = true;
+    }
+    return await this.client.agents.list(params);
   }
 
   async getAgent(agentId: string) {

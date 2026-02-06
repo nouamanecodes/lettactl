@@ -142,7 +142,7 @@ export async function applyTemplateMode(
         id: existingAgent.id,
         name: existingAgent.name,
         baseName: existingAgent.name,
-        configHashes: { overall: '', systemPrompt: '', tools: '', model: '', memoryBlocks: '', folders: '', sharedBlocks: '', archives: '' },
+        configHashes: { overall: '', systemPrompt: '', tools: '', model: '', memoryBlocks: '', folders: '', sharedBlocks: '', archives: '', tags: '' },
         version: 'latest',
         lastUpdated: existingAgent.updated_at || new Date().toISOString()
       };

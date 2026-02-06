@@ -46,6 +46,7 @@ export interface AgentConfig {
   embedding_config?: Record<string, any>;
   first_message?: string; // Message sent to agent on first creation for auto-calibration
   reasoning?: boolean; // Enable reasoning for models that support it (default: true)
+  tags?: string[]; // Tags for filtering and multi-tenancy (e.g., ["tenant:user-123", "role:support"])
 }
 
 export interface McpToolConfig {

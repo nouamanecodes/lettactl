@@ -26,6 +26,20 @@ describe('FleetConfigBuilder', () => {
     expect(config.agents[0].shared_folders).toContain('docs');
   });
 
+  it('builds config with agent tags', () => {
+    const config = new FleetConfigBuilder()
+      .addAgent({
+        name: 'agent',
+        description: 'd',
+        llm_config: { model: 'm', context_window: 1000 },
+        system_prompt: { value: 'p' },
+        tags: ['tenant:user-123', 'role:support']
+      })
+      .build();
+
+    expect(config.agents[0].tags).toEqual(['tenant:user-123', 'role:support']);
+  });
+
   it('starts with empty config', () => {
     const config = new FleetConfigBuilder().build();
     expect(config.agents).toEqual([]);

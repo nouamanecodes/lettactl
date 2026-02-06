@@ -153,6 +153,10 @@ export class AgentValidator {
     if (agent.shared_folders) {
       this.validateSharedFolderReferences(agent.shared_folders);
     }
+
+    if (agent.tags) {
+      this.validateTags(agent.tags);
+    }
   }
   
   private static validateStructure(agent: any): void {
@@ -201,7 +205,7 @@ export class AgentValidator {
       'name', 'description', 'system_prompt', 'llm_config',
       'tools', 'mcp_tools', 'memory_blocks', 'archives', 'folders',
       'embedding', 'embedding_config', 'shared_blocks', 'shared_folders',
-      'first_message', 'reasoning'
+      'first_message', 'reasoning', 'tags'
     ];
     
     const unknownFields = Object.keys(agent).filter(field => !allowedFields.includes(field));
@@ -247,6 +251,21 @@ export class AgentValidator {
     sharedFolders.forEach((folderName, index) => {
       if (!folderName || typeof folderName !== 'string' || folderName.trim() === '') {
         throw new Error(`Shared folder reference ${index + 1} must be a non-empty string (folder name).`);
+      }
+    });
+  }
+
+  private static validateTags(tags: any): void {
+    if (!Array.isArray(tags)) {
+      throw new Error('Agent tags must be an array of strings.');
+    }
+
+    tags.forEach((tag, index) => {
+      if (!tag || typeof tag !== 'string' || tag.trim() === '') {
+        throw new Error(`Tag ${index + 1} must be a non-empty string.`);
+      }
+      if (tag.includes(',')) {
+        throw new Error(`Tag "${tag}" must not contain commas (commas are used as delimiters in CLI filters).`);
       }
     });
   }

@@ -45,11 +45,12 @@ export class AgentManager {
           overall: '',              // Will be populated during comparison
           systemPrompt: generateContentHash(agent.system),
           tools: '',
-          model: '', 
+          model: '',
           memoryBlocks: '',
           folders: '',
           sharedBlocks: '',
-          archives: ''
+          archives: '',
+          tags: ''
         };
         const { baseName, version } = this.parseVersionFromName(agent.name);
 
@@ -87,6 +88,7 @@ export class AgentManager {
     folders?: Array<{name: string; files: string[]; fileContentHashes?: Record<string, string>}>;
     archives?: Array<{name: string; description?: string; embedding?: string}>;
     sharedBlocks?: string[];
+    tags?: string[];
   }): AgentConfigHashes {
     
     // System prompt hash
@@ -145,6 +147,9 @@ export class AgentManager {
       .sort((a, b) => a.name.localeCompare(b.name));
     const archivesHash = generateContentHash(JSON.stringify(normalizedArchives));
     
+    // Tags hash
+    const tagsHash = generateContentHash(JSON.stringify([...(config.tags || [])].sort()));
+
     // Overall hash combining all components
     const overallHash = generateContentHash(JSON.stringify({
       systemPrompt: systemPromptHash,
@@ -153,7 +158,8 @@ export class AgentManager {
       memoryBlocks: memoryBlocksHash,
       folders: foldersHash,
       sharedBlocks: sharedBlocksHash,
-      archives: archivesHash
+      archives: archivesHash,
+      tags: tagsHash
     }));
     
     return {
@@ -164,7 +170,8 @@ export class AgentManager {
       memoryBlocks: memoryBlocksHash,
       folders: foldersHash,
       sharedBlocks: sharedBlocksHash,
-      archives: archivesHash
+      archives: archivesHash,
+      tags: tagsHash
     };
   }
 
@@ -172,7 +179,7 @@ export class AgentManager {
    * Determines if an agent needs to be created/updated based on complete configuration
    */
   async getOrCreateAgentName(
-    baseName: string, 
+    baseName: string,
     agentConfig: {
       systemPrompt: string;
       tools: string[];
@@ -186,6 +193,7 @@ export class AgentManager {
       folders?: Array<{name: string; files: string[]}>;
       archives?: Array<{name: string; description?: string; embedding?: string}>;
       sharedBlocks?: string[];
+      tags?: string[];
     },
     verbose: boolean = false
   ): Promise<{ agentName: string; shouldCreate: boolean; existingAgent?: AgentVersion }> {
@@ -231,6 +239,7 @@ export class AgentManager {
     folders?: Array<{name: string; files: string[]}>;
     archives?: Array<{name: string; description?: string; embedding?: string}>;
     sharedBlocks?: string[];
+    tags?: string[];
   }): {
     hasChanges: boolean;
     changedComponents: string[];
@@ -261,6 +270,9 @@ export class AgentManager {
     if (existing.configHashes.archives !== newHashes.archives) {
       changedComponents.push('archives');
     }
+    if (existing.configHashes.tags !== newHashes.tags) {
+      changedComponents.push('tags');
+    }
 
     return {
       hasChanges: changedComponents.length > 0,
@@ -283,6 +295,7 @@ export class AgentManager {
     folders?: Array<{name: string; files: string[]}>;
     archives?: Array<{name: string; description?: string; embedding?: string}>;
     sharedBlocks?: string[];
+    tags?: string[];
   }, agentId: string): void {
     const configHashes = this.generateAgentConfigHashes(agentConfig);
     const { baseName, version } = this.parseVersionFromName(agentName);

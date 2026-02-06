@@ -7,6 +7,7 @@ export interface AgentConfigHashes {
   folders: string;           // Folders hash
   sharedBlocks: string;      // Shared blocks hash
   archives: string;          // Archives hash
+  tags: string;              // Tags hash
 }
 
 export interface AgentVersion {

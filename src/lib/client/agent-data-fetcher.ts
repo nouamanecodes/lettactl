@@ -38,8 +38,8 @@ export class AgentDataFetcher {
   /**
    * Fetch all agents with specified detail level
    */
-  async fetchAllAgents(detailLevel: DetailLevel = 'standard'): Promise<AgentDisplayData[]> {
-    const agents = await this.client.listAgents();
+  async fetchAllAgents(detailLevel: DetailLevel = 'standard', options?: { tags?: string[] }): Promise<AgentDisplayData[]> {
+    const agents = await this.client.listAgents(options);
     const agentList = normalizeResponse(agents);
 
     if (detailLevel === 'minimal') {
