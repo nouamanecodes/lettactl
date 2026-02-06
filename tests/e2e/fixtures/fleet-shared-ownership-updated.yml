@@ -1,0 +1,17 @@
+shared_blocks:
+- name: e2e-ownership-shared
+  description: Updated shared block for ownership test
+  limit: 2000
+  value: 'UPDATED_VALUE_V2'
+  agent_owned: true
+agents:
+- name: e2e-47-shared-ownership
+  description: Tests shared blocks are always agent_owned
+  embedding: openai/text-embedding-3-small
+  system_prompt:
+    value: You are a helpful assistant.
+  llm_config:
+    model: google_ai/gemini-2.0-flash-lite
+    context_window: 32000
+  shared_blocks:
+  - e2e-ownership-shared

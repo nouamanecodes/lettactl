@@ -26,7 +26,7 @@ export interface SharedBlock {
   value?: string;
   from_file?: string;
   version?: string; // Optional user-defined version tag
-  agent_owned?: boolean; // Default: true. If false, value syncs from YAML on every apply
+  agent_owned?: boolean; // Ignored for shared blocks - always agent_owned
 }
 
 export interface AgentConfig {

@@ -21,9 +21,11 @@ describe('ResourceClassifier', () => {
   });
 
   describe('isSharedBlock', () => {
-    it('identifies shared vs non-shared blocks', () => {
-      expect(classifier.isSharedBlock({ label: 'shared_block' })).toBe(true);
-      expect(classifier.isSharedBlock({ label: 'agent_memory' })).toBe(false);
+    it('identifies shared blocks by agent count', () => {
+      expect(classifier.isSharedBlock({ label: 'any_block', agentCount: 2 })).toBe(true);
+      expect(classifier.isSharedBlock({ label: 'any_block', agentCount: 1 })).toBe(false);
+      expect(classifier.isSharedBlock({ label: 'any_block', agentCount: 0 })).toBe(false);
+      expect(classifier.isSharedBlock({ label: 'shared_block' })).toBe(false); // No naming convention
       expect(classifier.isSharedBlock({})).toBe(false);
     });
   });
@@ -41,7 +43,7 @@ describe('ResourceClassifier', () => {
     it('filters blocks by agent name, excluding shared', () => {
       const blocks = [
         { label: 'test-agent_memory' },
-        { label: 'shared_block' },
+        { label: 'company_knowledge', agentCount: 3 },
         { label: 'other-agent_memory' }
       ];
 
