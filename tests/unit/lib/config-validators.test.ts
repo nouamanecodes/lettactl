@@ -77,6 +77,46 @@ describe('FleetConfigValidator - duplicate folder names', () => {
   });
 });
 
+describe('AgentValidator - tags', () => {
+  const baseAgent = (name: string, tags?: any) => ({
+    name,
+    description: 'd',
+    llm_config: { model: 'm', context_window: 1000 },
+    system_prompt: { value: 'p' },
+    tags
+  });
+
+  it('accepts valid tags', () => {
+    expect(() => FleetConfigValidator.validate({
+      agents: [baseAgent('agent-a', ['tenant:user-123', 'role:support'])]
+    })).not.toThrow();
+  });
+
+  it('accepts agents without tags', () => {
+    expect(() => FleetConfigValidator.validate({
+      agents: [baseAgent('agent-a')]
+    })).not.toThrow();
+  });
+
+  it('rejects non-array tags', () => {
+    expect(() => FleetConfigValidator.validate({
+      agents: [baseAgent('agent-a', 'not-array')]
+    })).toThrow('tags must be an array');
+  });
+
+  it('rejects empty string tags', () => {
+    expect(() => FleetConfigValidator.validate({
+      agents: [baseAgent('agent-a', ['valid', ''])]
+    })).toThrow('Tag 2 must be a non-empty string');
+  });
+
+  it('rejects tags containing commas', () => {
+    expect(() => FleetConfigValidator.validate({
+      agents: [baseAgent('agent-a', ['valid:tag', 'bad,tag'])]
+    })).toThrow('must not contain commas');
+  });
+});
+
 describe('McpToolsValidator', () => {
   it('accepts tools: all', () => {
     expect(() => McpToolsValidator.validate([

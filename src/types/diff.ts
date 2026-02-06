@@ -48,6 +48,7 @@ export interface AgentUpdateOperations {
     embeddingConfig?: FieldChange<Record<string, any> | null>;
     contextWindow?: FieldChange<number>;
     reasoning?: FieldChange<boolean>;
+    tags?: FieldChange<string[]>;
   };
 
   // Resource management operations

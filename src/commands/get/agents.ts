@@ -25,7 +25,12 @@ export async function getAgents(
   try {
     spinner.text = 'Fetching agent details...';
 
-    const agents = await fetcher.fetchAllAgents(detailLevel);
+    // Parse tags filter
+    const tagFilter = options?.tags
+      ? options.tags.split(',').map(t => t.trim()).filter(Boolean)
+      : undefined;
+
+    const agents = await fetcher.fetchAllAgents(detailLevel, tagFilter ? { tags: tagFilter } : undefined);
 
     spinner.stop();
 

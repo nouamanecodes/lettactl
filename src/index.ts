@@ -120,6 +120,7 @@ program
   .option('--short', 'truncate block values to 300 characters (use with: get blocks <agent>)')
   .option('--full', 'show full archival entry text (use with: get archival <agent>)')
   .option('--query <text>', 'search archival memory by semantic similarity')
+  .option('--tags <tags>', 'filter agents by tags (comma-separated)')
   .action(getCommand);
 
 // Describe command - detailed agent info

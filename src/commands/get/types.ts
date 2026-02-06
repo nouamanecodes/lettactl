@@ -8,4 +8,5 @@ export interface GetOptions {
   short?: boolean;
   full?: boolean;
   query?: string;
+  tags?: string;
 }

@@ -50,6 +50,7 @@ export class DiffEngine {
       folders?: Array<{name: string; files: string[]; fileContentHashes?: Record<string, string>}>;
       archives?: Array<{name: string; description?: string; embedding?: string; embedding_config?: Record<string, any>}>;
       sharedBlocks?: string[];
+      tags?: string[];
     },
     toolRegistry: Map<string, string>,
     folderRegistry: Map<string, string>,
@@ -147,6 +148,13 @@ export class DiffEngine {
     const currentReasoning = (currentAgent as any).reasoning ?? DEFAULT_REASONING;
     if (currentReasoning !== desiredReasoning) {
       fieldUpdates.reasoning = { from: currentReasoning, to: desiredReasoning };
+      operations.operationCount++;
+    }
+
+    const currentTags = [...((currentAgent as any).tags || [])].sort();
+    const desiredTags = [...(desiredConfig.tags || [])].sort();
+    if (JSON.stringify(currentTags) !== JSON.stringify(desiredTags)) {
+      fieldUpdates.tags = { from: currentTags, to: desiredTags };
       operations.operationCount++;
     }
 

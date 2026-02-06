@@ -63,6 +63,9 @@ export class DiffApplier {
       if (fields.reasoning !== undefined) {
         apiFields.reasoning = fields.reasoning.to;
       }
+      if (fields.tags !== undefined) {
+        apiFields.tags = fields.tags.to;
+      }
 
       await this.client.updateAgent(agentId, apiFields);
     }
