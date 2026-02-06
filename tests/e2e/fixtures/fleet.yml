@@ -1,3 +1,8 @@
+shared_folders:
+- name: e2e-docs-explicit
+  files:
+  - folder-files/doc1.txt
+  - folder-files/doc2.txt
 shared_blocks:
 - name: e2e-shared-inline
   description: Shared knowledge with inline value
@@ -170,11 +175,8 @@ agents:
   llm_config:
     model: google_ai/gemini-2.5-pro
     context_window: 32000
-  folders:
-  - name: e2e-docs-explicit
-    files:
-    - folder-files/doc1.txt
-    - folder-files/doc2.txt
+  shared_folders:
+  - e2e-docs-explicit
 - name: e2e-13-folder-glob-txt
   description: Folder with txt glob pattern
   embedding: openai/text-embedding-3-small
@@ -272,11 +274,8 @@ agents:
   llm_config:
     model: google_ai/gemini-2.5-pro
     context_window: 32000
-  folders:
-  - name: e2e-docs-explicit
-    files:
-    - folder-files/doc1.txt
-    - folder-files/doc2.txt
+  shared_folders:
+  - e2e-docs-explicit
 - name: e2e-20-kitchen-sink
   description: Every possible option enabled
   embedding: openai/text-embedding-3-small

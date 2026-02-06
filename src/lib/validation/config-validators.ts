@@ -73,6 +73,32 @@ export class FleetConfigValidator {
         throw new Error(`Agent ${index + 1}: ${err.message}`);
       }
     });
+
+    // Check for duplicate inline folder names across agents
+    const folderOwners = new Map<string, string[]>();
+    for (const agent of agents) {
+      if (agent.folders) {
+        for (const folder of agent.folders) {
+          const owners = folderOwners.get(folder.name) || [];
+          owners.push(agent.name);
+          folderOwners.set(folder.name, owners);
+        }
+      }
+    }
+
+    for (const [folderName, owners] of folderOwners) {
+      if (owners.length > 1) {
+        throw new Error(
+          `Folder "${folderName}" defined on multiple agents (${owners.join(', ')}).\n` +
+          `Use shared_folders to share a folder across agents:\n\n` +
+          `shared_folders:\n` +
+          `  - name: ${folderName}\n` +
+          `    files: [...]\n\n` +
+          `agents:\n` +
+          owners.map(o => `  - name: ${o}\n    shared_folders:\n      - ${folderName}`).join('\n')
+        );
+      }
+    }
   }
 }
 
