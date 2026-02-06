@@ -1,4 +1,4 @@
-import { ArchiveValidator, McpToolsValidator } from '../../../src/lib/validation/config-validators';
+import { ArchiveValidator, McpToolsValidator, SharedFolderValidator } from '../../../src/lib/validation/config-validators';
 
 describe('ArchiveValidator', () => {
   it('rejects more than one archive per agent', () => {
@@ -12,6 +12,31 @@ describe('ArchiveValidator', () => {
     expect(() => ArchiveValidator.validate([
       { name: 'a', description: 'test archive' }
     ])).not.toThrow();
+  });
+});
+
+describe('SharedFolderValidator', () => {
+  it('accepts valid shared folders', () => {
+    expect(() => SharedFolderValidator.validate([
+      { name: 'docs', files: ['files/doc1.txt'] }
+    ])).not.toThrow();
+  });
+
+  it('rejects duplicate folder names', () => {
+    expect(() => SharedFolderValidator.validate([
+      { name: 'docs', files: ['a.txt'] },
+      { name: 'docs', files: ['b.txt'] }
+    ])).toThrow('Duplicate shared folder name');
+  });
+
+  it('rejects folders without files', () => {
+    expect(() => SharedFolderValidator.validate([
+      { name: 'docs' } as any
+    ])).toThrow('must have a files array');
+  });
+
+  it('rejects non-array input', () => {
+    expect(() => SharedFolderValidator.validate({} as any)).toThrow('Shared folders must be an array.');
   });
 });
 

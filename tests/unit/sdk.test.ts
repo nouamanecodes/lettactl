@@ -15,6 +15,17 @@ describe('FleetConfigBuilder', () => {
     expect(config.agents[0].shared_blocks).toContain('shared');
   });
 
+  it('builds config with shared folders', () => {
+    const config = new FleetConfigBuilder()
+      .addSharedFolder({ name: 'docs', files: ['files/doc1.txt', 'files/doc2.txt'] })
+      .addAgent({ name: 'agent', description: 'd', llm_config: { model: 'm', context_window: 1000 }, system_prompt: { value: 'p' }, shared_folders: ['docs'] })
+      .build();
+
+    expect(config.shared_folders).toHaveLength(1);
+    expect(config.shared_folders![0].name).toBe('docs');
+    expect(config.agents[0].shared_folders).toContain('docs');
+  });
+
   it('starts with empty config', () => {
     const config = new FleetConfigBuilder().build();
     expect(config.agents).toEqual([]);

@@ -16,9 +16,13 @@ export class FleetConfigValidator {
     if (config.shared_blocks) {
       SharedBlockValidator.validate(config.shared_blocks);
     }
-    
+
+    if (config.shared_folders) {
+      SharedFolderValidator.validate(config.shared_folders);
+    }
+
     if (config.agents) {
-      this.validateAgents(config.agents);
+      this.validateAgents(config.agents, config);
     }
   }
   
@@ -50,7 +54,7 @@ export class FleetConfigValidator {
     }
   }
   
-  private static validateAgents(agents: any[]): void {
+  private static validateAgents(agents: any[], config?: any): void {
     // Check for duplicate agent names
     const agentNames = new Set<string>();
     
@@ -119,6 +123,10 @@ export class AgentValidator {
     if (agent.shared_blocks) {
       this.validateSharedBlockReferences(agent.shared_blocks);
     }
+
+    if (agent.shared_folders) {
+      this.validateSharedFolderReferences(agent.shared_folders);
+    }
   }
   
   private static validateStructure(agent: any): void {
@@ -166,7 +174,7 @@ export class AgentValidator {
     const allowedFields = [
       'name', 'description', 'system_prompt', 'llm_config',
       'tools', 'mcp_tools', 'memory_blocks', 'archives', 'folders',
-      'embedding', 'embedding_config', 'shared_blocks',
+      'embedding', 'embedding_config', 'shared_blocks', 'shared_folders',
       'first_message', 'reasoning'
     ];
     
@@ -197,10 +205,22 @@ export class AgentValidator {
     if (!Array.isArray(sharedBlocks)) {
       throw new Error('Agent shared_blocks must be an array.');
     }
-    
+
     sharedBlocks.forEach((blockName, index) => {
       if (!blockName || typeof blockName !== 'string' || blockName.trim() === '') {
         throw new Error(`Shared block reference ${index + 1} must be a non-empty string (block name).`);
+      }
+    });
+  }
+
+  private static validateSharedFolderReferences(sharedFolders: any): void {
+    if (!Array.isArray(sharedFolders)) {
+      throw new Error('Agent shared_folders must be an array.');
+    }
+
+    sharedFolders.forEach((folderName, index) => {
+      if (!folderName || typeof folderName !== 'string' || folderName.trim() === '') {
+        throw new Error(`Shared folder reference ${index + 1} must be a non-empty string (folder name).`);
       }
     });
   }
@@ -567,6 +587,45 @@ export class SharedBlockValidator {
         }
       } catch (err: any) {
         throw new Error(`Shared block ${index + 1}: ${err.message}`);
+      }
+    });
+  }
+}
+
+/**
+ * Validator for shared folders configuration
+ */
+export class SharedFolderValidator {
+  static validate(folders: any): void {
+    if (!Array.isArray(folders)) {
+      throw new Error('Shared folders must be an array.');
+    }
+
+    const folderNames = new Set<string>();
+
+    folders.forEach((folder, index) => {
+      try {
+        if (!folder || typeof folder !== 'object') {
+          throw new Error('Shared folder must be an object.');
+        }
+
+        if (!folder.name || typeof folder.name !== 'string' || folder.name.trim() === '') {
+          throw new Error('Shared folder must have a non-empty name.');
+        }
+
+        if (folderNames.has(folder.name)) {
+          throw new Error(`Duplicate shared folder name "${folder.name}".`);
+        }
+        folderNames.add(folder.name);
+
+        if (!folder.files || !Array.isArray(folder.files)) {
+          throw new Error(`Shared folder "${folder.name}" must have a files array.`);
+        }
+
+        // Reuse FoldersValidator logic for file entries
+        FoldersValidator.validate([folder]);
+      } catch (err: any) {
+        throw new Error(`Shared folder ${index + 1}: ${err.message}`);
       }
     });
   }

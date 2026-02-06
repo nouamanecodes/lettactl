@@ -52,7 +52,7 @@ export async function deleteAgentWithCleanup(
     for (const folder of folders) {
       // Check if folder is shared or used by other agents
       const isShared = classifier.isSharedFolder(folder);
-      const usedByOthers = await classifier.isFolderUsedByOtherAgents(folder.id, agent.id, allAgents);
+      const usedByOthers = await classifier.isFolderUsedByOtherAgents(folder.id, agent.id);
 
       if (isShared) {
         if (verbose) output(`  Keeping shared folder: ${folder.name || folder.id}`);

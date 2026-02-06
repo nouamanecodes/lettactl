@@ -2,7 +2,7 @@ import * as yaml from 'js-yaml';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as crypto from 'crypto';
-import { FleetConfig, FolderConfig, FolderFileConfig } from '../../types/fleet-config';
+import { FleetConfig, FolderConfig, FolderFileConfig, SharedFolderConfig } from '../../types/fleet-config';
 import { StorageBackendManager, SupabaseStorageBackend, BucketConfig } from '../storage/storage-backend';
 import { FleetConfigValidator } from '../validation/config-validators';
 import { isBuiltinTool, formatBuiltinToolWarning, CORE_MEMORY_TOOLS } from '../tools/builtin-tools';
@@ -48,6 +48,9 @@ export class FleetParser {
   async resolveConfig(config: FleetConfig): Promise<FleetConfig> {
     // Validate configuration before processing
     FleetConfigValidator.validate(config);
+
+    // Expand shared_folders references into agent folder configs
+    this.expandSharedFolders(config);
 
     // Auto-expand folders that reference "files" directory
     this.expandFileFolders(config);
@@ -143,6 +146,25 @@ export class FleetParser {
       prompt.value = baseInstructions + '\n\n' + userPrompt;
     } else {
       prompt.value = userPrompt;
+    }
+  }
+
+  private expandSharedFolders(config: FleetConfig): void {
+    const sharedFolderMap = new Map<string, SharedFolderConfig>(
+      (config.shared_folders || []).map(f => [f.name, f])
+    );
+
+    for (const agent of config.agents) {
+      if (agent.shared_folders) {
+        if (!agent.folders) agent.folders = [];
+        for (const folderName of agent.shared_folders) {
+          const sharedFolder = sharedFolderMap.get(folderName);
+          if (!sharedFolder) {
+            throw new Error(`Agent "${agent.name}" references unknown shared_folder "${folderName}"`);
+          }
+          agent.folders.push({ name: sharedFolder.name, files: [...sharedFolder.files] });
+        }
+      }
     }
   }
 

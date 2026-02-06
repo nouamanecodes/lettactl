@@ -1,6 +1,7 @@
 export interface FleetConfig {
   root_path?: string;
   shared_blocks?: SharedBlock[];
+  shared_folders?: SharedFolderConfig[];
   mcp_servers?: McpServerConfig[];
   agents: AgentConfig[];
 }
@@ -40,6 +41,7 @@ export interface AgentConfig {
   memory_blocks?: MemoryBlock[];
   archives?: ArchiveConfig[];
   folders?: FolderConfig[];
+  shared_folders?: string[];
   embedding?: string;
   embedding_config?: Record<string, any>;
   first_message?: string; // Message sent to agent on first creation for auto-calibration
@@ -69,6 +71,11 @@ export interface FromBucketConfig {
 export type FolderFileConfig = string | { from_bucket: FromBucketConfig };
 
 export interface FolderConfig {
+  name: string;
+  files: FolderFileConfig[];
+}
+
+export interface SharedFolderConfig {
   name: string;
   files: FolderFileConfig[];
 }

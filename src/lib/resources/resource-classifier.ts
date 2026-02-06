@@ -9,12 +9,15 @@ export class ResourceClassifier {
   }
 
   /**
-   * Determines if a folder is shared based on naming conventions
+   * Determines if a folder is shared based on connected agent count
    */
   isSharedFolder(folder: any): boolean {
     if (!folder.name) return false;
-    
-    return folder.name.includes('shared');
+
+    // Use agent count if available (from server-side data)
+    if (folder.agentCount !== undefined) return folder.agentCount > 1;
+
+    return false;
   }
 
   /**
@@ -30,26 +33,15 @@ export class ResourceClassifier {
   }
 
   /**
-   * Checks if a folder is used by other agents
+   * Checks if a folder is used by other agents (single API call)
    */
-  async isFolderUsedByOtherAgents(folderId: string, excludeAgentId: string, allAgents: any[]): Promise<boolean> {
-    const otherAgents = allAgents.filter((a: any) => a.id !== excludeAgentId);
-    
-    for (const otherAgent of otherAgents) {
-      try {
-        const otherDetails = await this.client.getAgent(otherAgent.id);
-        const otherFolders = (otherDetails as any).folders;
-        
-        if (otherFolders && otherFolders.find((f: any) => f.id === folderId)) {
-          return true;
-        }
-      } catch (error) {
-        // Continue if we can't get agent details
-        continue;
-      }
+  async isFolderUsedByOtherAgents(folderId: string, excludeAgentId: string): Promise<boolean> {
+    try {
+      const agentIds = await this.client.listFolderAgents(folderId);
+      return agentIds.some((id: string) => id !== excludeAgentId);
+    } catch (error) {
+      return false;
     }
-    
-    return false;
   }
 
   /**
