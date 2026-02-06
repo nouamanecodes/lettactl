@@ -44,19 +44,16 @@ describe('BlockManager', () => {
       });
     });
 
-    it('updates existing block when content changes and agent_owned is false', async () => {
+    it('never updates shared blocks even with agent_owned false', async () => {
       mockClient.listBlocks.mockResolvedValue([
         { id: 'id-1', label: 'test', value: 'old-val', description: 'desc', limit: 1000 }
       ] as any);
-      mockClient.updateBlock.mockResolvedValue({ id: 'id-1' } as any);
       await manager.loadExistingBlocks();
 
       const result = await manager.getOrCreateSharedBlock({ name: 'test', description: 'new-desc', limit: 2000, value: 'new-val', agent_owned: false });
 
       expect(result).toBe('id-1');
-      expect(mockClient.updateBlock).toHaveBeenCalledWith('id-1', {
-        value: 'new-val', description: 'new-desc', limit: 2000
-      });
+      expect(mockClient.updateBlock).not.toHaveBeenCalled();
     });
 
     it('returns existing block when agent_owned is true even if content changes', async () => {

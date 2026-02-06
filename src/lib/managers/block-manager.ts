@@ -31,7 +31,6 @@ export class BlockManager {
     for (const block of blockList) {
       if (block.label && block.value) {
         const contentHash = generateContentHash(block.value);
-        const isShared = block.label.startsWith('shared_');
 
         const blockInfo: BlockInfo = {
           id: block.id,
@@ -40,10 +39,11 @@ export class BlockManager {
           value: block.value,
           limit: block.limit || 0,
           contentHash,
-          isShared
+          isShared: false
         };
 
-        this.blockRegistry.set(this.getBlockKey(block.label, isShared), blockInfo);
+        // Store under plain label - shared detection happens via config, not naming
+        this.blockRegistry.set(block.label, blockInfo);
       }
     }
   }
@@ -61,41 +61,21 @@ export class BlockManager {
    * Gets or creates a shared block, updating in-place if content changed
    */
   async getOrCreateSharedBlock(blockConfig: any): Promise<string> {
-    const blockKey = this.getBlockKey(blockConfig.name, true);
+    const sharedKey = this.getBlockKey(blockConfig.name, true);
     const contentHash = generateContentHash(blockConfig.value);
-    const isAgentOwned = blockConfig.agent_owned !== false;
 
-    // Check both shared and non-shared keys
-    let existing = this.blockRegistry.get(blockKey);
+    // Check shared key first, then plain label
+    let existing = this.blockRegistry.get(sharedKey);
     if (!existing) {
-      existing = this.blockRegistry.get(this.getBlockKey(blockConfig.name, false));
+      existing = this.blockRegistry.get(blockConfig.name);
     }
 
     if (existing) {
-      if (isAgentOwned) {
-        log(`Using existing shared block: ${existing.label}`);
-        return existing.id;
-      }
-
-      if (existing.contentHash === contentHash) {
-        log(`Using existing shared block: ${existing.label}`);
-        return existing.id;
-      }
-
-      // Content changed - update in-place when agent_owned is false
-      log(`Updating shared block: ${existing.label}`);
-      await this.client.updateBlock(existing.id, {
-        value: blockConfig.value,
-        description: blockConfig.description,
-        limit: blockConfig.limit
-      });
-
-      // Update registry
-      existing.value = blockConfig.value;
-      existing.contentHash = contentHash;
-      existing.description = blockConfig.description;
-      existing.limit = blockConfig.limit;
-
+      // Shared blocks are always agent_owned - never overwrite
+      log(`Using existing shared block: ${existing.label}`);
+      // Also register under shared key for future lookups
+      existing.isShared = true;
+      this.blockRegistry.set(sharedKey, existing);
       return existing.id;
     }
 
@@ -118,7 +98,7 @@ export class BlockManager {
       isShared: true
     };
 
-    this.blockRegistry.set(blockKey, blockInfo);
+    this.blockRegistry.set(sharedKey, blockInfo);
     return newBlock.id;
   }
 

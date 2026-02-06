@@ -986,6 +986,8 @@ agents:
 
 ### Shared Blocks Schema
 
+Shared blocks are always agent_owned - their values are only set on initial creation. Once created, lettactl will never overwrite the block content on subsequent applies. This prevents accidentally wiping shared state that multiple agents depend on.
+
 ```yaml
 shared_blocks:
   - name: block_name

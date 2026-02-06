@@ -18,12 +18,15 @@ export class ResourceClassifier {
   }
 
   /**
-   * Determines if a memory block is shared based on naming conventions
+   * Determines if a memory block is shared based on connected agent count
    */
   isSharedBlock(block: any): boolean {
     if (!block.label) return false;
-    
-    return block.label.startsWith('shared_');
+
+    // Use agent count if available (from server-side filtering)
+    if (block.agentCount !== undefined) return block.agentCount > 1;
+
+    return false;
   }
 
   /**
@@ -97,15 +100,15 @@ export class ResourceClassifier {
    */
   getAgentSpecificBlocks(allBlocks: any[], agentName: string): any[] {
     const blockList = normalizeResponse(allBlocks);
-    
+
     return blockList.filter((block: any) => {
       if (!block.label) return false;
-      
-      // Never delete shared blocks
+
+      // Never delete shared blocks (connected to multiple agents)
       if (this.isSharedBlock(block)) return false;
-      
+
       // Look for blocks that contain the agent name
-      return block.label.includes(agentName) || 
+      return block.label.includes(agentName) ||
              block.label.includes('_' + agentName) ||
              block.label.includes(agentName + '_');
     });

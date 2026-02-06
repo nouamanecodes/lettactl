@@ -4,6 +4,7 @@
  */
 
 import { BucketConfigValidator } from '../storage/bucket-config-validator';
+import { warn } from '../shared/logger';
 
 /**
  * Main orchestrator for fleet configuration validation
@@ -555,10 +556,15 @@ export class SharedBlockValidator {
     if (!Array.isArray(blocks)) {
       throw new Error('Shared blocks must be an array.');
     }
-    
+
     blocks.forEach((block, index) => {
       try {
         MemoryBlockValidator['validateBlock'](block); // Reuse memory block validation
+
+        // Shared blocks are always agent_owned - warn if explicitly set
+        if ('agent_owned' in block) {
+          warn(`Shared block "${block.name}": agent_owned is ignored for shared blocks (always agent_owned)`);
+        }
       } catch (err: any) {
         throw new Error(`Shared block ${index + 1}: ${err.message}`);
       }
