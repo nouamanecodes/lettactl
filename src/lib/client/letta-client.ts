@@ -137,6 +137,11 @@ export class LettaClientWrapper {
     return await this.client.agents.archives.detach(archiveId, { agent_id: agentId });
   }
 
+  async listFolderAgents(folderId: string): Promise<string[]> {
+    const response = await this.client.folders.agents.list(folderId);
+    return Array.isArray(response) ? response : (response as any).agent_ids || [];
+  }
+
   async deleteFolder(folderId: string) {
     return await this.client.folders.delete(folderId);
   }

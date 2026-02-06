@@ -1,6 +1,6 @@
 import { FleetParser } from './lib/apply/fleet-parser';
 import { SupabaseStorageBackend } from './lib/storage/storage-backend';
-import { FleetConfig, AgentConfig } from './types/fleet-config';
+import { FleetConfig, AgentConfig, SharedFolderConfig } from './types/fleet-config';
 import { FleetConfigValidator } from './lib/validation/config-validators';
 import { applyCommand } from './commands/apply';
 import { DeployResult } from './commands/apply/types';
@@ -211,6 +211,14 @@ export class FleetConfigBuilder {
       this.config.shared_blocks = [];
     }
     this.config.shared_blocks.push(block);
+    return this;
+  }
+
+  addSharedFolder(folder: SharedFolderConfig): this {
+    if (!this.config.shared_folders) {
+      this.config.shared_folders = [];
+    }
+    this.config.shared_folders.push(folder);
     return this;
   }
 

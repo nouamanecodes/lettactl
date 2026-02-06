@@ -1,0 +1,27 @@
+shared_folders:
+- name: e2e-shared-docs
+  files:
+  - folder-files/doc1.txt
+
+agents:
+- name: e2e-48-shared-folder-a
+  description: First agent using shared folder
+  embedding: openai/text-embedding-3-small
+  system_prompt:
+    value: You are a helpful assistant with access to shared documents.
+  llm_config:
+    model: google_ai/gemini-2.0-flash-lite
+    context_window: 32000
+  shared_folders:
+  - e2e-shared-docs
+
+- name: e2e-48-shared-folder-b
+  description: Second agent using same shared folder
+  embedding: openai/text-embedding-3-small
+  system_prompt:
+    value: You are a helpful assistant with access to shared documents.
+  llm_config:
+    model: google_ai/gemini-2.0-flash-lite
+    context_window: 32000
+  shared_folders:
+  - e2e-shared-docs

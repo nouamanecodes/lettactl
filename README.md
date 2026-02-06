@@ -602,19 +602,25 @@ const fleet = lettactl.createFleetConfig()
     limit: 5000,
     value: 'Common guidelines for all user agents.'
   })
+  .addSharedFolder({  // Shared folder across agents
+    name: 'company-docs',
+    files: ['docs/handbook.pdf', 'docs/policies.pdf']
+  })
   .addAgent({  // Simple document-focused agent
     name: 'user-123-document-assistant',
     description: 'Document assistant for user 123',
     llm_config: { model: 'google_ai/gemini-2.5-pro', context_window: 32000 },
     system_prompt: { value: 'You analyze documents for user 123.' },
-    folders: [{ name: 'documents', files: ['files/*'] }]  // Auto-discover files
+    shared_folders: ['company-docs'],  // Shared docs, no duplicate uploads
+    folders: [{ name: 'user-docs', files: ['files/*'] }]  // Agent-specific files
   })
   .addAgent({  // Cloud-powered agent with shared memory
-    name: 'user-123-cloud-assistant', 
+    name: 'user-123-cloud-assistant',
     description: 'Cloud assistant for user 123',
     llm_config: { model: 'google_ai/gemini-2.5-pro', context_window: 32000 },
     system_prompt: { value: 'You are a cloud-powered assistant for user 123.' },
     shared_blocks: ['shared-guidelines'],  // Use shared memory
+    shared_folders: ['company-docs'],  // Same shared docs
     memory_blocks: [{
       name: 'user-knowledge',
       description: 'User-specific knowledge base',
@@ -974,13 +980,17 @@ agents:
         description: "Long-term knowledge base"
         embedding: "letta/letta-free"
     
-    # File attachments (optional)
+    # Shared folders (optional) - references top-level shared_folders
+    shared_folders:
+      - shared_folder_name
+
+    # Agent-specific file attachments (optional)
     folders:
       - name: folder_name
         files:
           - "files/*"                   # Auto-discover files
           - "files/specific-file.pdf"   # Specific files
-    
+
     embedding: "openai/text-embedding-3-small"       # Optional: embedding model
 ```
 
@@ -996,6 +1006,30 @@ shared_blocks:
     version: "optional-tag"             # Optional: your version tag
     value: "Content here"               # Option 1: inline
     from_file: "shared/file.md"        # Option 2: from file
+```
+
+### Shared Folders Schema
+
+Define folders once at the top level and reference them by name across agents. Files are uploaded once and attached to all referencing agents - no duplicate uploads.
+
+```yaml
+shared_folders:
+  - name: company-docs
+    files:
+      - docs/handbook.pdf
+      - docs/policies.pdf
+      - from_bucket:
+          provider: supabase
+          bucket: my-bucket
+          path: docs/*.pdf
+
+agents:
+  - name: agent-a
+    shared_folders:
+      - company-docs
+  - name: agent-b
+    shared_folders:
+      - company-docs
 ```
 
 ### MCP Servers Schema

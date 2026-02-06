@@ -115,6 +115,59 @@ agents:
       );
     });
 
+    it('should expand shared folder references into agent folders', async () => {
+      const yamlContent = `
+shared_folders:
+  - name: company-docs
+    files:
+      - docs/handbook.pdf
+      - docs/policies.pdf
+
+agents:
+  - name: test-agent
+    description: "Test agent"
+    llm_config:
+      model: "google_ai/gemini-2.5-pro"
+      context_window: 32000
+    system_prompt:
+      value: "Test prompt"
+    shared_folders:
+      - company-docs
+`;
+      const configPath = '/test/path/fleet.yaml';
+
+      mockedFs.existsSync.mockReturnValue(true);
+      mockedFs.readFileSync.mockReturnValue(yamlContent);
+
+      const config = await parser.parseFleetConfig(configPath);
+
+      expect(config.shared_folders).toHaveLength(1);
+      expect(config.agents[0].folders).toHaveLength(1);
+      expect(config.agents[0].folders![0].name).toBe('company-docs');
+      expect(config.agents[0].folders![0].files).toEqual(['docs/handbook.pdf', 'docs/policies.pdf']);
+    });
+
+    it('should throw on unknown shared folder reference', async () => {
+      const yamlContent = `
+agents:
+  - name: test-agent
+    description: "Test agent"
+    llm_config:
+      model: "google_ai/gemini-2.5-pro"
+      context_window: 32000
+    system_prompt:
+      value: "Test prompt"
+    shared_folders:
+      - nonexistent-folder
+`;
+      const configPath = '/test/path/fleet.yaml';
+
+      mockedFs.existsSync.mockReturnValue(true);
+      mockedFs.readFileSync.mockReturnValue(yamlContent);
+
+      await expect(parser.parseFleetConfig(configPath)).rejects.toThrow('unknown shared_folder');
+    });
+
     it('should handle tool auto-discovery', async () => {
       mockedFs.readdirSync.mockReturnValue(['tool1.py', 'tool2.py', 'readme.txt'] as any);
 

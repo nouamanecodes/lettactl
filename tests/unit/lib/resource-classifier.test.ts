@@ -13,9 +13,11 @@ describe('ResourceClassifier', () => {
   });
 
   describe('isSharedFolder', () => {
-    it('identifies shared vs non-shared folders', () => {
-      expect(classifier.isSharedFolder({ name: 'shared-docs' })).toBe(true);
-      expect(classifier.isSharedFolder({ name: 'private-docs' })).toBe(false);
+    it('identifies shared folders by agent count', () => {
+      expect(classifier.isSharedFolder({ name: 'any-folder', agentCount: 2 })).toBe(true);
+      expect(classifier.isSharedFolder({ name: 'any-folder', agentCount: 1 })).toBe(false);
+      expect(classifier.isSharedFolder({ name: 'any-folder', agentCount: 0 })).toBe(false);
+      expect(classifier.isSharedFolder({ name: 'shared-docs' })).toBe(false); // No naming convention
       expect(classifier.isSharedFolder({})).toBe(false);
     });
   });
@@ -31,11 +33,18 @@ describe('ResourceClassifier', () => {
   });
 
   describe('isFolderUsedByOtherAgents', () => {
-    it('checks if folder is used by other agents', async () => {
-      mockClient.getAgent.mockResolvedValueOnce({ folders: [{ id: 'folder-1' }] } as any);
+    it('checks if folder is used by other agents via API', async () => {
+      mockClient.listFolderAgents = jest.fn().mockResolvedValueOnce(['agent-1', 'agent-2']);
 
-      const result = await classifier.isFolderUsedByOtherAgents('folder-1', 'agent-1', [{ id: 'agent-1' }, { id: 'agent-2' }]);
+      const result = await classifier.isFolderUsedByOtherAgents('folder-1', 'agent-1');
       expect(result).toBe(true);
+    });
+
+    it('returns false when folder only used by excluded agent', async () => {
+      mockClient.listFolderAgents = jest.fn().mockResolvedValueOnce(['agent-1']);
+
+      const result = await classifier.isFolderUsedByOtherAgents('folder-1', 'agent-1');
+      expect(result).toBe(false);
     });
   });
 
