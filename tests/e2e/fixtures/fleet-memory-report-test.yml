@@ -1,0 +1,36 @@
+agents:
+- name: e2e-50-report-a
+  description: Memory report test agent
+  embedding: openai/text-embedding-3-small
+  llm_config:
+    model: google_ai/gemini-2.0-flash-lite
+    context_window: 32000
+  system_prompt:
+    value: You are a helpful assistant.
+  memory_blocks:
+  - name: client_info
+    description: Clean, well-organized client info
+    limit: 2000
+    value: |
+      # Client: Acme Corp
+      - Industry: SaaS
+      - Plan: Enterprise
+      - Primary contact: Jane Smith (jane@acme.com)
+      - Account since: 2024-01-15
+    agent_owned: false
+  - name: conversation_notes
+    description: Polluted block with stale and mixed content
+    limit: 1000
+    value: |
+      TODO: ask about Q2 roadmap
+      Meeting notes 2024-03-01: discussed pricing, client wants discount
+      IMPORTANT: old API key was rotated, ignore ref abc-123
+      Bug: user reported 404 on /dashboard — FIXED 2024-04 but leaving note here
+      Random thought: maybe we should track feature requests somewhere else
+      Client asked about competitor X pricing on 2024-02-10 — no block for this
+      Note to self: this block is getting messy, should split into meeting-notes and action-items
+      Pricing: $99/mo enterprise — WAIT this changed to $149/mo in Jan 2025
+      Old onboarding checklist (probably outdated):
+      1. Send welcome email 2. Schedule kickoff 3. Share docs folder
+      Duplicate: client is on Enterprise plan (already in client_info block)
+    agent_owned: false

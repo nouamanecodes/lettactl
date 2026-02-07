@@ -245,6 +245,42 @@ lettactl get agents --tags "role:support"
 | **Shared resources** | Use `shared_blocks` and `shared_folders` for resources shared across the entire fleet |
 | **App layer** | Your application is responsible for generating the correct YAML or SDK calls per tenant |
 
+## Memory Reports
+
+Monitor memory block usage across your fleet and let agents self-diagnose their own memory health.
+
+### Usage Report (API only, instant)
+
+```bash
+lettactl report memory my-agent              # single agent
+lettactl report memory --all                 # entire fleet
+lettactl report memory --match "acme-*"      # wildcard
+lettactl report memory --tags "tenant:acme"  # by tags
+lettactl report memory my-agent -o json      # JSON output
+```
+
+Shows fill %, limits, usage, and content preview per block. Shared blocks are deduplicated and marked with `*`. Fill percentages are color-coded: green (<50%), yellow (50-79%), red (80%+). For single agents, the AGENT column is hidden.
+
+### Analyze Mode (LLM-powered)
+
+```bash
+lettactl report memory my-agent --analyze
+lettactl report memory --tags "tenant:acme" --analyze --confirm
+```
+
+Messages each agent asking it to evaluate its own memory blocks. The agent reports on:
+
+- **Topic count** per block — signals when a block should be split
+- **Space status** — healthy, crowded, near-full, or empty
+- **Split recommendation** — should this block be broken up?
+- **Stale info** — outdated facts, old dates, deprecated references
+- **Missing context** — topics the agent gets asked about but has no block for
+- **Redundancy** — duplicate info across blocks
+- **Contradictions** — conflicting info between blocks
+- **Suggested actions** — what the agent would change about its memory layout
+
+The agent is uniquely positioned to judge its own memory — the API tells you fill percentages, but only the agent knows "this pricing data is from last year" or "I keep getting asked about competitor analysis and have nowhere to store it."
+
 ## Commands
 
 ### Deploy Configuration
@@ -387,6 +423,20 @@ lettactl compact-messages my-agent
 
 # Cancel running message processes
 lettactl cancel-messages my-agent --run-ids "run1,run2"
+```
+
+### Fleet Reports
+```bash
+# Memory usage report
+lettactl report memory my-agent              # single agent
+lettactl report memory --all                 # all agents
+lettactl report memory --match "acme-*"      # wildcard filter
+lettactl report memory --tags "tenant:acme"  # tag filter
+lettactl report memory my-agent -o json      # JSON output
+
+# LLM-powered memory analysis (messages agents, costs tokens)
+lettactl report memory my-agent --analyze
+lettactl report memory --all --analyze --confirm  # skip prompt
 ```
 
 ### Bulk Delete Operations

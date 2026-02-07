@@ -5,6 +5,7 @@ import * as readline from 'readline';
 
 import { LettaClientWrapper } from '../client/letta-client';
 import { AgentResolver } from '../client/agent-resolver';
+import { normalizeResponse } from '../shared/response-normalizer';
 import { isRunTerminal, getEffectiveRunStatus } from './run-utils';
 import { Run } from '../../types/run';
 
@@ -14,6 +15,9 @@ export interface BulkMessageOptions {
   confirm?: boolean;      // skip confirmation prompt
   timeout?: number;       // per-agent timeout in seconds (undefined = no timeout)
   verbose?: boolean;
+  collectResponse?: boolean;  // extract assistant response text from completed runs
+  messageFn?: (agent: { id: string; name: string }) => string;  // per-agent message builder
+  agents?: Array<{ id: string; name: string }>;  // pre-resolved agents (skip resolution)
 }
 
 export interface BulkMessageResult {
@@ -23,6 +27,7 @@ export interface BulkMessageResult {
   duration: number;
   runId: string;
   error?: string;
+  responseText?: string;  // assistant response (when collectResponse is true)
 }
 
 const CONCURRENCY_LIMIT = 5;
@@ -37,10 +42,15 @@ export async function bulkSendMessage(
   outputFn: (msg: string) => void = console.log
 ): Promise<BulkMessageResult[]> {
   const client = new LettaClientWrapper();
-  const resolver = new AgentResolver(client);
 
-  // Resolve target agents
-  const agents = await resolveTargetAgents(client, resolver, options);
+  // Use pre-resolved agents or resolve from pattern/config
+  let agents: Array<{ id: string; name: string }>;
+  if (options.agents) {
+    agents = options.agents;
+  } else {
+    const resolver = new AgentResolver(client);
+    agents = await resolveTargetAgents(client, resolver, options);
+  }
 
   if (agents.length === 0) {
     if (options.pattern) {
@@ -89,9 +99,10 @@ export async function bulkSendMessage(
     };
 
     try {
-      // Send async message
+      // Send async message (use per-agent messageFn if provided)
+      const agentMessage = options.messageFn ? options.messageFn(agent) : message;
       const run = await client.createAsyncMessage(agent.id, {
-        messages: [{ role: 'user', content: message }]
+        messages: [{ role: 'user', content: agentMessage }]
       });
       result.runId = run.id;
 
@@ -107,6 +118,9 @@ export async function bulkSendMessage(
 
           if (effectiveStatus === 'completed') {
             result.status = 'completed';
+            if (options.collectResponse) {
+              result.responseText = await extractResponseText(client, run.id);
+            }
             break;
           } else if (effectiveStatus === 'failed') {
             result.status = 'failed';
@@ -212,9 +226,38 @@ async function resolveTargetAgents(
 }
 
 /**
+ * Extract assistant response text from a completed run
+ */
+async function extractResponseText(client: LettaClientWrapper, runId: string): Promise<string | undefined> {
+  try {
+    const messagesResponse = await client.getRunMessages(runId);
+    const messages = normalizeResponse(messagesResponse);
+
+    const parts: string[] = [];
+    for (const msg of messages) {
+      if (msg.message_type === 'assistant_message' ||
+          msg.type === 'assistant_message' ||
+          (msg.role === 'assistant' && !msg.type?.includes('system'))) {
+        const content = msg.content || msg.text || msg.assistant_message || msg.message;
+        if (typeof content === 'string') {
+          parts.push(content);
+        } else if (Array.isArray(content)) {
+          const text = content.map((item: any) => item.text || item.content || '').join(' ');
+          if (text) parts.push(text);
+        }
+      }
+    }
+
+    return parts.length > 0 ? parts.join('\n') : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
  * Prompt user for confirmation
  */
-async function promptConfirmation(prompt: string): Promise<boolean> {
+export async function promptConfirmation(prompt: string): Promise<boolean> {
   const rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout
@@ -228,6 +271,6 @@ async function promptConfirmation(prompt: string): Promise<boolean> {
   });
 }
 
-function sleep(ms: number): Promise<void> {
+export function sleep(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
