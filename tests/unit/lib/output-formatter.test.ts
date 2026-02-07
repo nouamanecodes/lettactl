@@ -55,6 +55,7 @@ describe('OutputFormatter', () => {
       folderCount: 0,
       mcpServerCount: 0,
       fileCount: 0,
+      tags: [],
       created: '2024-01-01',
       ...overrides,
     });

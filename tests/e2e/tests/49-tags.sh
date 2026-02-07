@@ -41,6 +41,11 @@ $CLI get agents --tags "role:support" -o json > $OUT 2>&1
 output_contains "$AGENT_A" && pass "Role filter includes support agent" || fail "Role filter missing support agent"
 output_not_contains "$AGENT_B" && pass "Role filter excludes research agent" || fail "Role filter should exclude research agent"
 
+# Verify TAGS column appears in table output
+$CLI get agents --tags "tenant:acme" > $OUT 2>&1
+output_contains "TAGS" && pass "TAGS column shown in table output" || fail "TAGS column missing"
+output_contains "tenant:acme" && pass "Tag values shown in table" || fail "Tag values missing from table"
+
 # Filter by nonexistent tag
 $CLI get agents --tags "tenant:nonexistent" -o json > $OUT 2>&1
 output_not_contains "$AGENT_A" && pass "Nonexistent tag returns no matches" || fail "Should return no matches"

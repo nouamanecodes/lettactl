@@ -117,6 +117,39 @@ describe('AgentValidator - tags', () => {
   });
 });
 
+describe('AgentValidator - reserved names', () => {
+  const baseAgent = (name: string) => ({
+    name,
+    description: 'd',
+    llm_config: { model: 'm', context_window: 1000 },
+    system_prompt: { value: 'p' }
+  });
+
+  it('rejects reserved name "agents"', () => {
+    expect(() => FleetConfigValidator.validate({
+      agents: [baseAgent('agents')]
+    })).toThrow('reserved');
+  });
+
+  it('rejects reserved name "blocks"', () => {
+    expect(() => FleetConfigValidator.validate({
+      agents: [baseAgent('blocks')]
+    })).toThrow('reserved');
+  });
+
+  it('rejects reserved name "tools"', () => {
+    expect(() => FleetConfigValidator.validate({
+      agents: [baseAgent('tools')]
+    })).toThrow('reserved');
+  });
+
+  it('accepts non-reserved names', () => {
+    expect(() => FleetConfigValidator.validate({
+      agents: [baseAgent('my-agent')]
+    })).not.toThrow();
+  });
+});
+
 describe('McpToolsValidator', () => {
   it('accepts tools: all', () => {
     expect(() => McpToolsValidator.validate([

@@ -24,11 +24,56 @@ export class LettaClientWrapper {
       params.tags = options.tags;
       params.match_all_tags = true;
     }
-    return await this.client.agents.list(params);
+    const result = await this.client.agents.list(params);
+
+    // SDK strips tags from response — fetch raw to get them back
+    try {
+      const baseUrl = process.env.LETTA_BASE_URL;
+      const url = new URL('/v1/agents/', baseUrl);
+      if (options?.tags) {
+        for (const tag of options.tags) {
+          url.searchParams.append('tags', tag);
+        }
+        url.searchParams.set('match_all_tags', 'true');
+      }
+      const response = await fetch(url.toString(), { headers: this.getAuthHeaders() });
+      if (response.ok) {
+        const rawAgents = await response.json() as any[];
+        const tagsMap = new Map<string, string[]>();
+        for (const a of rawAgents) {
+          if (a.id && a.tags) tagsMap.set(a.id, a.tags);
+        }
+        // Patch tags onto SDK response items
+        const items = (result as any).items || (Array.isArray(result) ? result : []);
+        for (const agent of items) {
+          if (tagsMap.has(agent.id)) {
+            agent.tags = tagsMap.get(agent.id);
+          }
+        }
+      }
+    } catch {
+      // Silently fall back to SDK response (tags will be empty)
+    }
+
+    return result;
   }
 
   async getAgent(agentId: string) {
-    return await this.client.agents.retrieve(agentId);
+    const agent = await this.client.agents.retrieve(agentId);
+
+    // SDK strips tags — fetch raw to get them back
+    try {
+      const baseUrl = process.env.LETTA_BASE_URL;
+      const response = await fetch(`${baseUrl}/v1/agents/${agentId}/`, { headers: this.getAuthHeaders() });
+      if (response.ok) {
+        const raw: any = await response.json();
+        if (raw.tags) (agent as any).tags = raw.tags;
+      }
+    } catch {
+      // Fall back to SDK response
+    }
+
+    return agent;
   }
 
   async createAgent(agentData: any) {

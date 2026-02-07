@@ -78,6 +78,7 @@ export class OutputFormatter {
       folderCount: agent.folderCount,
       mcpServerCount: agent.mcpServerCount,
       fileCount: agent.fileCount,
+      tags: agent.tags,
       created: agent.created,
     }));
 
