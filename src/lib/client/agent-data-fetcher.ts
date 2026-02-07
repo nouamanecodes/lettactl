@@ -15,6 +15,7 @@ export interface AgentDisplayData {
   folderCount: number;
   mcpServerCount: number;
   fileCount: number;
+  tags: string[];
   created: string;
   // Raw data for JSON output
   raw?: any;
@@ -114,6 +115,7 @@ export class AgentDataFetcher {
       folderCount: 0,
       mcpServerCount: 0,
       fileCount: 0,
+      tags: agent.tags || [],
       created: agent.created_at || '',
       raw: agent,
     };
@@ -143,6 +145,7 @@ export class AgentDataFetcher {
       folderCount: details.detailLevel === 'full' ? details.folders.length : 0,
       mcpServerCount: details.detailLevel === 'full' ? details.mcpServers.length : 0,
       fileCount: details.detailLevel === 'full' ? details.fileCount : 0,
+      tags: agent.tags || [],
       created: agent.created_at || '',
       raw: {
         ...agent,

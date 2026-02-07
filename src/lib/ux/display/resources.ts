@@ -16,6 +16,7 @@ export interface AgentData {
   folderCount?: number;
   mcpServerCount?: number;
   fileCount?: number;
+  tags?: string[];
   created?: string;
 }
 
@@ -30,6 +31,9 @@ export function displayAgents(agents: AgentData[], wide: boolean = false): strin
   const nameW = maxNameLen + 1;
   const modelW = wide ? 20 : 24;
 
+  const hasTags = agents.some(a => a.tags && a.tags.length > 0);
+  const tagsW = hasTags ? Math.max(...agents.map(a => (a.tags || []).join(', ').length), 4) + 1 : 0;
+
   for (const agent of agents) {
     const status = STATUS.ok;
     const name = agent.name;
@@ -43,6 +47,11 @@ export function displayAgents(agents: AgentData[], wide: boolean = false): strin
       purple(model.padEnd(modelW)) + ' ' +
       chalk.white(blocks) + ' ' +
       chalk.white(tools);
+
+    if (hasTags) {
+      const tagsStr = (agent.tags || []).join(', ') || '-';
+      row += '  ' + chalk.cyan(tagsStr.padEnd(tagsW));
+    }
 
     if (wide) {
       const folders = agent.folderCount !== undefined ? agent.folderCount.toString().padStart(7) : '      -';
@@ -61,6 +70,10 @@ export function displayAgents(agents: AgentData[], wide: boolean = false): strin
     chalk.dim('BLOCKS') + ' ' +
     chalk.dim('TOOLS');
 
+  if (hasTags) {
+    header += '  ' + chalk.dim('TAGS'.padEnd(tagsW));
+  }
+
   if (wide) {
     header += ' ' + chalk.dim('FOLDERS') + ' ' + chalk.dim('MCP') + ' ' + chalk.dim('FILES');
   }
@@ -68,7 +81,8 @@ export function displayAgents(agents: AgentData[], wide: boolean = false): strin
   header += '  ' + chalk.dim('CREATED');
 
   const baseWidth = wide ? 85 : 60;
-  const width = baseWidth + nameW;
+  const tagsExtra = hasTags ? tagsW + 2 : 0;
+  const width = baseWidth + nameW + tagsExtra;
   const boxLines = createBoxWithRows(`Agents (${agents.length})`, [header, ...rows], width);
   return boxLines.join('\n');
 }
@@ -76,11 +90,16 @@ export function displayAgents(agents: AgentData[], wide: boolean = false): strin
 function displayAgentsPlain(agents: AgentData[], wide: boolean = false): string {
   const lines: string[] = [];
 
+  const hasTags = agents.some(a => a.tags && a.tags.length > 0);
   const maxNameLen = Math.max(...agents.map(a => a.name.length), 4);
   const nameW = maxNameLen + 1;
   const modelW = wide ? 20 : 24;
+  const tagsW = hasTags ? Math.max(...agents.map(a => (a.tags || []).join(', ').length), 4) + 1 : 0;
 
   let header = 'NAME'.padEnd(nameW) + ' MODEL'.padEnd(modelW + 1) + ' BLOCKS TOOLS';
+  if (hasTags) {
+    header += '  ' + 'TAGS'.padEnd(tagsW);
+  }
   if (wide) {
     header += ' FOLDERS MCP FILES';
   }
@@ -97,6 +116,11 @@ function displayAgentsPlain(agents: AgentData[], wide: boolean = false): string 
     const created = formatDate(agent.created);
 
     let line = `${name} ${model} ${blocks} ${tools}`;
+
+    if (hasTags) {
+      const tagsStr = (agent.tags || []).join(', ') || '-';
+      line += `  ${tagsStr.padEnd(tagsW)}`;
+    }
 
     if (wide) {
       const folders = agent.folderCount !== undefined ? agent.folderCount.toString().padStart(7) : '      -';

@@ -188,10 +188,16 @@ export class AgentValidator {
     if (!agent.name || typeof agent.name !== 'string' || agent.name.trim() === '') {
       throw new Error('Agent name must be a non-empty string.');
     }
-    
+
     // Validate agent name format (no special characters that could break system)
     if (!/^[a-zA-Z0-9_-]+$/.test(agent.name)) {
       throw new Error('Agent name can only contain letters, numbers, hyphens, and underscores.');
+    }
+
+    // Reject reserved resource names that conflict with CLI commands
+    const reservedNames = ['agents', 'blocks', 'archives', 'tools', 'folders', 'files', 'mcp-servers', 'archival'];
+    if (reservedNames.includes(agent.name.toLowerCase())) {
+      throw new Error(`Agent name "${agent.name}" is reserved (conflicts with "lettactl get ${agent.name.toLowerCase()}"). Choose a different name.`);
     }
     
     // Validate description is non-empty string
