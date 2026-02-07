@@ -24,6 +24,7 @@ import { filesCommand } from './commands/files';
 import { contextCommand } from './commands/context';
 import { listRunsCommand, getRunCommand, deleteRunCommand } from './commands/runs';
 import { completionCommand } from './commands/completion';
+import reportCommand from './commands/report';
 
 import { setQuietMode, output, error } from './lib/shared/logger';
 import { printFancyHelp } from './lib/ux/help-formatter';
@@ -343,6 +344,20 @@ program
   .description('Delete/cancel a run')
   .argument('<run-id>', 'run ID')
   .action(deleteRunCommand);
+
+// Report command - fleet reporting
+program
+  .command('report')
+  .description('Generate reports on agent fleet (memory)')
+  .argument('<type>', 'report type (memory)')
+  .argument('[agent]', 'agent name (optional)')
+  .option('-o, --output <format>', 'output format (table|json)', 'table')
+  .option('--all', 'report on all agents')
+  .option('--match <pattern>', 'report on agents matching glob pattern')
+  .option('--tags <tags>', 'report on agents with tags (comma-separated)')
+  .option('--analyze', 'LLM-powered analysis (messages agents, costs tokens)')
+  .option('--confirm', 'skip confirmation prompt for --analyze')
+  .action(reportCommand);
 
 // Completion command - generate shell completions
 program
