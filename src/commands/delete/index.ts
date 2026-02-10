@@ -1,3 +1,5 @@
+import { minimatch } from 'minimatch';
+
 import { LettaClientWrapper } from '../../lib/client/letta-client';
 import { AgentResolver } from '../../lib/client/agent-resolver';
 import { validateResourceType, validateRequired } from '../../lib/validation/validators';
@@ -82,9 +84,8 @@ async function deleteAllCommandImpl(resource: string, options?: DeleteAllOptions
   // Filter agents by pattern if provided
   let agentsToDelete = allAgents;
   if (options?.pattern) {
-    const pattern = new RegExp(options.pattern, 'i');
     agentsToDelete = allAgents.filter(agent =>
-      pattern.test(agent.name) || pattern.test(agent.id)
+      minimatch(agent.name, options.pattern!) || minimatch(agent.id, options.pattern!)
     );
   }
 
