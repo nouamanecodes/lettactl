@@ -120,7 +120,7 @@ async function deleteAllCommandImpl(resource: string, options?: DeleteAllOptions
   for (const agent of agentsToDelete) {
     try {
       output(`\nDeleting agent: ${agent.name}...`);
-      await deleteAgentWithCleanup(client, resolver, agent, allAgents, false);
+      await deleteAgentWithCleanup(client, resolver, agent, allAgents, true);
       output(`Agent ${agent.name} deleted successfully`);
     } catch (err: any) {
       error(`Failed to delete agent ${agent.name}: ${err.message}`);
