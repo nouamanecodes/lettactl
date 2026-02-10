@@ -140,6 +140,11 @@ export async function processFolders(
   const foldersResponse = await client.listFolders();
   const existingFolders = Array.isArray(foldersResponse) ? foldersResponse : (foldersResponse as any).items || [];
 
+  // Track shared folder names for labeling
+  const sharedFolderNames = new Set<string>(
+    (config.shared_folders || []).map((f: any) => f.name)
+  );
+
   for (const agent of config.agents) {
     if (options.agent && !agent.name.includes(options.agent)) continue;
 
@@ -151,9 +156,10 @@ export async function processFolders(
         }
 
         let folder = existingFolders.find((f: any) => f.name === folderConfig.name);
+        const isShared = sharedFolderNames.has(folderConfig.name);
 
         if (!folder) {
-          if (verbose) log(`Creating folder: ${folderConfig.name}`);
+          if (verbose) log(`Creating ${isShared ? 'shared ' : ''}folder: ${folderConfig.name}`);
           if (!agent.embedding) {
             throw new Error(`Folder "${folderConfig.name}" requires an embedding handle. Set agent.embedding to a valid model handle.`);
           }
@@ -161,7 +167,7 @@ export async function processFolders(
             name: folderConfig.name,
             embedding: agent.embedding || DEFAULT_EMBEDDING
           });
-          log(`Created folder: ${folderConfig.name}`);
+          log(`Created ${isShared ? 'shared ' : ''}folder: ${folderConfig.name}`);
           createdFolders.set(folderConfig.name, folder.id);
 
           if (verbose) log(`Uploading ${folderConfig.files.length} files...`);

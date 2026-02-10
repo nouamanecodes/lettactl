@@ -388,12 +388,14 @@ export function displayFolders(folders: FolderData[]): string {
   }
 
   const rows: string[] = [];
+  const hasAgentCounts = folders.some(f => f.agentCount !== undefined);
 
   const maxNameLen = Math.max(...folders.map(f => f.name.length), 4);
   const nameW = maxNameLen + 1;
   const maxIdLen = Math.max(...folders.map(f => f.id.length), 2);
   const idW = maxIdLen + 1;
-  const baseWidth = 26;
+  const typeW = 9;
+  const baseWidth = hasAgentCounts ? 26 + typeW : 26;
   const width = baseWidth + nameW + idW;
 
   for (const folder of folders) {
@@ -401,21 +403,30 @@ export function displayFolders(folders: FolderData[]): string {
     const id = folder.id;
     const files = folder.fileCount !== undefined ? folder.fileCount.toString().padStart(5) : '    -';
     const agents = folder.agentCount !== undefined ? folder.agentCount.toString().padStart(6) : '     -';
+    const type = blockTypeTag(folder.agentCount);
 
-    const row = STATUS.ok + '  ' +
+    let row = STATUS.ok + '  ' +
       chalk.white(name.padEnd(nameW)) + '  ' +
       chalk.dim(id.padEnd(idW)) + '  ' +
       chalk.white(files) + '  ' +
       chalk.white(agents);
 
+    if (hasAgentCounts) {
+      row += '  ' + type;
+    }
+
     rows.push(row);
   }
 
-  const header = '   ' +
+  let header = '   ' +
     chalk.dim('NAME'.padEnd(nameW)) + '  ' +
     chalk.dim('ID'.padEnd(idW)) + '  ' +
     chalk.dim('FILES') + '  ' +
     chalk.dim('AGENTS');
+
+  if (hasAgentCounts) {
+    header += '  ' + chalk.dim('TYPE');
+  }
 
   const boxLines = createBoxWithRows(`Folders (${folders.length})`, [header, ...rows], width);
   return boxLines.join('\n');
@@ -423,13 +434,15 @@ export function displayFolders(folders: FolderData[]): string {
 
 function displayFoldersPlain(folders: FolderData[]): string {
   const lines: string[] = [];
+  const hasAgentCounts = folders.some(f => f.agentCount !== undefined);
 
   const maxNameLen = Math.max(...folders.map(f => f.name.length), 4);
   const nameW = maxNameLen + 1;
   const maxIdLen = Math.max(...folders.map(f => f.id.length), 2);
   const idW = maxIdLen + 1;
 
-  const header = 'NAME'.padEnd(nameW) + '  ' + 'ID'.padEnd(idW) + '  FILES  AGENTS';
+  let header = 'NAME'.padEnd(nameW) + '  ' + 'ID'.padEnd(idW) + '  FILES  AGENTS';
+  if (hasAgentCounts) header += '  TYPE';
   lines.push(header);
   lines.push('-'.repeat(header.length));
 
@@ -438,8 +451,11 @@ function displayFoldersPlain(folders: FolderData[]): string {
     const id = folder.id.padEnd(idW);
     const files = folder.fileCount !== undefined ? folder.fileCount.toString().padStart(5) : '    -';
     const agents = folder.agentCount !== undefined ? folder.agentCount.toString().padStart(6) : '     -';
+    const type = blockTypeTag(folder.agentCount, false);
 
-    lines.push(`${name}  ${id}  ${files}  ${agents}`);
+    let line = `${name}  ${id}  ${files}  ${agents}`;
+    if (hasAgentCounts) line += `  ${type}`;
+    lines.push(line);
   }
 
   return lines.join('\n');
