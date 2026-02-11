@@ -291,6 +291,7 @@ lettactl apply -f agents.yml --dry-run # See what would change
 lettactl apply -f agents.yml --root . # Specify root directory for file resolution
 lettactl apply -f agents.yml -v       # Verbose output
 lettactl apply -f agents.yml -q       # Quiet mode (for CI pipelines)
+lettactl apply -f agents.yml --skip-first-message  # Skip first_message (fast canary deploys)
 lettactl apply -f agents.yml --manifest  # Generate manifest with all resource IDs
 lettactl apply -f agents.yml --manifest output.json  # Custom manifest path
 
@@ -349,6 +350,9 @@ lettactl export agent my-agent -o my-agent-backup.json
 # Export agent to YAML (git-trackable config format)
 lettactl export agent my-agent -f yaml -o agents.yml
 
+# Export YAML without first_message (for canary/fast deploys)
+lettactl export agent my-agent -f yaml --skip-first-message -o agents.yml
+
 # Export with legacy format
 lettactl export agent my-agent --legacy-format -o legacy-backup.json
 
@@ -366,7 +370,7 @@ lettactl import my-agent-backup.json \
 lettactl is designed to work with git for version control. Your YAML config IS your version history.
 
 ```bash
-# 1. Capture current server state to git
+# 1. Capture current server state to git (includes tags, reasoning, tools, blocks, etc.)
 lettactl export agent my-agent -f yaml -o agents.yml
 git add agents.yml && git commit -m "snapshot: current config"
 
@@ -391,6 +395,7 @@ lettactl apply -f agents.yml
 | Check drift | `lettactl apply --dry-run` |
 | Capture server state | `lettactl export agent <name> -f yaml` |
 | Deploy config | `lettactl apply -f agents.yml` |
+| Fast canary deploy | `lettactl apply -f agents.yml --skip-first-message` |
 | Rollback | `git revert` + `lettactl apply` |
 | Version history | `git log agents.yml` |
 | Compare versions | `git diff HEAD~1 agents.yml` |
@@ -920,6 +925,8 @@ The `first_message` only runs on initial agent creation, not on updates. Useful 
 - Priming agents with initial context
 - Having agents confirm their configuration
 - Running setup tasks before user interaction
+
+Use `--skip-first-message` on `apply` or `export` to suppress the first message — useful for fast canary deploys where you don't want to wait for calibration.
 
 ### Memory Blocks
 
