@@ -7,6 +7,10 @@ export interface ApplyOptions {
   root?: string;
   manifest?: string;
   skipFirstMessage?: boolean;
+  canary?: boolean;
+  canaryPrefix?: string;
+  promote?: boolean;
+  cleanup?: boolean;
 }
 
 export interface DeployResult {

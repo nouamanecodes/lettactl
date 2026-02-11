@@ -9,4 +9,5 @@ export interface GetOptions {
   full?: boolean;
   query?: string;
   tags?: string;
+  canary?: boolean;
 }
