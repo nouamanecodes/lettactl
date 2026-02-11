@@ -149,6 +149,7 @@ async function exportAsYaml(
       name: b.label,
       description: b.description || '',
       limit: b.limit || 5000,
+      agent_owned: true,
       value: b.value,
     }));
   if (memoryBlocks.length > 0) {
