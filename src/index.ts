@@ -107,6 +107,10 @@ program
   .option('--root <path>', 'root directory for resolving file paths')
   .option('--manifest [path]', 'write agent manifest (default: <config>.manifest.json)')
   .option('--skip-first-message', 'skip sending first_message on agent creation')
+  .option('--canary', 'deploy canary copies of agents (CANARY- prefix)')
+  .option('--canary-prefix <prefix>', 'custom canary prefix (default: CANARY-)')
+  .option('--promote', 'promote canary config to production (use with --canary)')
+  .option('--cleanup', 'remove canary agents (use with --canary)')
   .action(async (options, command) => { await applyCommand(options, command); });
 
 // Get command - list resources
@@ -123,6 +127,7 @@ program
   .option('--full', 'show full archival entry text (use with: get archival <agent>)')
   .option('--query <text>', 'search archival memory by semantic similarity')
   .option('--tags <tags>', 'filter agents by tags (comma-separated)')
+  .option('--canary', 'show only canary agents')
   .action(getCommand);
 
 // Describe command - detailed agent info
@@ -132,6 +137,7 @@ program
   .argument('<resource>', 'resource type (agent|block|archive|tool|folder|file|mcp-servers)')
   .argument('<name>', 'resource name')
   .option('-o, --output <format>', 'output format (table, json)', 'table')
+  .option('--canary', 'describe the canary version of a resource')
   .action(describeCommand);
 
 // Delete command - remove resources

@@ -2,4 +2,5 @@ export const SUPPORTED_RESOURCES = ['agent', 'agents', 'block', 'blocks', 'archi
 
 export interface DescribeOptions {
   output?: string;
+  canary?: boolean;
 }

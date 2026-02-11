@@ -281,6 +281,38 @@ Messages each agent asking it to evaluate its own memory blocks. The agent repor
 
 The agent is uniquely positioned to judge its own memory — the API tells you fill percentages, but only the agent knows "this pricing data is from last year" or "I keep getting asked about competitor analysis and have nowhere to store it."
 
+## Canary Deployments
+
+Test configuration changes on canary copies before promoting to production. Canary agents share the same shared blocks, shared folders, and tools as production — only agent-specific memory blocks are isolated.
+
+```bash
+# Deploy canary copies (CANARY-prefixed, skips first_message)
+lettactl apply -f fleet.yaml --canary
+lettactl apply -f fleet.yaml --canary --dry-run      # preview first
+
+# Verify canaries
+lettactl get agents --canary                          # list canary agents
+lettactl describe agent my-agent --canary             # describes CANARY-my-agent
+
+# Promote to production (applies config to real agent names)
+lettactl apply -f fleet.yaml --canary --promote
+
+# Promote and clean up canaries in one step
+lettactl apply -f fleet.yaml --canary --promote --cleanup
+
+# Clean up canaries without promoting
+lettactl apply -f fleet.yaml --canary --cleanup
+
+# Custom prefix
+lettactl apply -f fleet.yaml --canary --canary-prefix "STAGING-"
+```
+
+**Key behaviors:**
+- `--canary` is idempotent — running it twice updates existing canaries
+- `--promote` is just a normal apply with `--skip-first-message` forced
+- Cleanup preserves shared blocks and folders used by other agents
+- Works with `--agent` filter: `--canary --agent my-agent` only deploys `CANARY-my-agent`
+
 ## Commands
 
 ### Deploy Configuration
@@ -292,6 +324,8 @@ lettactl apply -f agents.yml --root . # Specify root directory for file resoluti
 lettactl apply -f agents.yml -v       # Verbose output
 lettactl apply -f agents.yml -q       # Quiet mode (for CI pipelines)
 lettactl apply -f agents.yml --skip-first-message  # Skip first_message (fast canary deploys)
+lettactl apply -f agents.yml --canary    # Deploy CANARY-prefixed copies
+lettactl apply -f agents.yml --canary --promote --cleanup  # Promote + teardown
 lettactl apply -f agents.yml --manifest  # Generate manifest with all resource IDs
 lettactl apply -f agents.yml --manifest output.json  # Custom manifest path
 

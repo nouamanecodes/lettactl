@@ -5,6 +5,7 @@ import { withErrorHandling } from '../../lib/shared/error-handler';
 import { getSpinnerEnabled } from '../../lib/ux/spinner';
 
 import { SUPPORTED_RESOURCES, DescribeOptions } from './types';
+import { DEFAULT_CANARY_PREFIX } from '../../lib/apply/canary';
 import { describeAgent } from './agent';
 import { describeBlock } from './block';
 import { describeTool } from './tool';
@@ -25,9 +26,12 @@ async function describeCommandImpl(resource: string, name: string, options?: Des
   const resolver = new AgentResolver(client);
   const spinnerEnabled = getSpinnerEnabled(command);
 
+  // Auto-prefix name for canary lookup
+  const resolvedName = options?.canary ? `${DEFAULT_CANARY_PREFIX}${name}` : name;
+
   switch (normalizedResource) {
     case 'agent':
-      await describeAgent(client, resolver, name, options, spinnerEnabled, verbose);
+      await describeAgent(client, resolver, resolvedName, options, spinnerEnabled, verbose);
       break;
     case 'block':
       await describeBlock(client, resolver, name, options, spinnerEnabled);

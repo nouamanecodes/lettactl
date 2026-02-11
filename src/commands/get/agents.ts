@@ -5,6 +5,7 @@ import { createSpinner } from '../../lib/ux/spinner';
 import { output } from '../../lib/shared/logger';
 import { AgentDataFetcher, DetailLevel } from '../../lib/client/agent-data-fetcher';
 import { GetOptions } from './types';
+import { DEFAULT_CANARY_PREFIX, isCanaryName } from '../../lib/apply/canary';
 
 export async function getAgents(
   _resolver: AgentResolver,
@@ -30,7 +31,12 @@ export async function getAgents(
       ? options.tags.split(',').map(t => t.trim()).filter(Boolean)
       : undefined;
 
-    const agents = await fetcher.fetchAllAgents(detailLevel, tagFilter ? { tags: tagFilter } : undefined);
+    let agents = await fetcher.fetchAllAgents(detailLevel, tagFilter ? { tags: tagFilter } : undefined);
+
+    // Filter to canary agents only
+    if (options?.canary) {
+      agents = agents.filter(a => isCanaryName(a.name, DEFAULT_CANARY_PREFIX));
+    }
 
     spinner.stop();
 

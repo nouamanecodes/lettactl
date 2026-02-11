@@ -17,6 +17,7 @@ import { displayApplySummary } from '../../lib/ux/display';
 import { buildMcpServerRegistry, expandMcpToolsForAgents } from '../../lib/tools/mcp-tools';
 import { buildAgentManifest, getDefaultManifestPath, writeAgentManifest } from '../../lib/apply/agent-manifest';
 import { ApplyOptions, DeployResult } from './types';
+import { DEFAULT_CANARY_PREFIX, rewriteAgentNamesForCanary, cleanupCanaryAgents, buildCanaryMetadata } from '../../lib/apply/canary';
 import * as path from 'path';
 
 export async function applyCommand(options: ApplyOptions, command: any): Promise<DeployResult> {
@@ -86,6 +87,42 @@ export async function applyCommand(options: ApplyOptions, command: any): Promise
     }
 
     if (verbose) log(`Found ${config.agents.length} agents in configuration`);
+
+    // Canary flag validation
+    if (options.promote && !options.canary) {
+      throw new Error('--promote requires --canary flag');
+    }
+    if (options.cleanup && !options.canary) {
+      throw new Error('--cleanup requires --canary flag');
+    }
+    if (options.canary && options.match) {
+      throw new Error('--canary cannot be combined with --match (template mode)');
+    }
+
+    // Canary mode: rewrite agent names or handle cleanup
+    const canaryPrefix = options.canaryPrefix || DEFAULT_CANARY_PREFIX;
+    let canaryMode = false;
+
+    if (options.canary && options.cleanup && !options.promote) {
+      // Cleanup-only: delete canary agents and return
+      const client = new LettaClientWrapper();
+      await cleanupCanaryAgents(config, canaryPrefix, client, options, spinnerEnabled, verbose);
+      return { agents: {}, created: [], updated: [], unchanged: [] };
+    }
+
+    if (options.canary && !options.promote) {
+      // Canary deploy: prefix all agent names
+      const { rewrittenAgents } = rewriteAgentNamesForCanary(config.agents, canaryPrefix);
+      config.agents = rewrittenAgents;
+      canaryMode = true;
+      log(`Canary mode: deploying with prefix "${canaryPrefix}"`);
+    }
+
+    // Canary deploy skips first_message by default (testing, not calibration)
+    // Promote does NOT force-skip — user may want calibration on production
+    if (options.canary && !options.promote) {
+      options.skipFirstMessage = true;
+    }
 
     // Template mode: apply config to existing agents matching pattern
     if (options.match) {
@@ -198,7 +235,8 @@ export async function applyCommand(options: ApplyOptions, command: any): Promise
     const appliedAgents = new Map<string, { id: string; resolvedName: string }>();
 
     for (const agent of config.agents) {
-      if (options.agent && !agent.name.includes(options.agent)) continue;
+      const filterName = (agent as any)._originalName || agent.name;
+      if (options.agent && !filterName.includes(options.agent)) continue;
       if (verbose) {
         log(`  Description: ${agent.description}`);
         log(`  Tools: ${agent.tools?.join(', ') || 'none'}`);
@@ -332,6 +370,13 @@ export async function applyCommand(options: ApplyOptions, command: any): Promise
             folderContentHashes,
             skipFirstMessage: options.skipFirstMessage
           });
+
+          // Store canary metadata on newly created canary agents
+          if (canaryMode && (agent as any)._originalName) {
+            const canaryMeta = buildCanaryMetadata((agent as any)._originalName, canaryPrefix);
+            await client.updateAgent(createdAgent.id, { metadata: canaryMeta });
+          }
+
           succeeded.push(agent.name);
           created.push(agent.name);
           appliedAgents.set(agent.name, {
@@ -355,6 +400,11 @@ export async function applyCommand(options: ApplyOptions, command: any): Promise
       throw new Error(`${failed.length} agent(s) failed to apply`);
     } else {
       log(displayApplySummary(summaryData));
+    }
+
+    // Post-promote cleanup: delete canary agents after promoting to production
+    if (options.canary && options.promote && options.cleanup) {
+      await cleanupCanaryAgents(config, canaryPrefix, client, options, spinnerEnabled, verbose);
     }
 
     // Only generate manifest if explicitly requested via --manifest flag
