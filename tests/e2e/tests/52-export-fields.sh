@@ -1,5 +1,5 @@
 #!/bin/bash
-# Test: YAML export includes tags, reasoning, and respects --skip-first-message (#223)
+# Test: YAML export includes tags, reasoning, agent_owned (#223, #224)
 set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/../lib/common.sh"
@@ -27,6 +27,12 @@ agents:
     tags:
       - "tenant:acme"
       - "role:test"
+    memory_blocks:
+      - name: notes
+        description: "Test notes"
+        limit: 2000
+        agent_owned: true
+        value: "Some test notes"
 EOF
 
 $CLI apply -f "$CONFIG" > $OUT 2>&1
@@ -37,6 +43,7 @@ EXPORT="$LOG_DIR/52-export.yml"
 $CLI export agent "$AGENT" -f yaml -o "$EXPORT" > $OUT 2>&1
 grep -q "tenant:acme" "$EXPORT" && pass "Export includes tags" || fail "Tags missing from export"
 grep -q "reasoning: true" "$EXPORT" && pass "Export includes reasoning" || fail "Reasoning missing from export"
+grep -q "agent_owned: true" "$EXPORT" && pass "Export includes agent_owned" || fail "agent_owned missing from export"
 
 # Cleanup
 delete_agent_if_exists "$AGENT"
