@@ -125,7 +125,7 @@ export async function applyCommand(options: ApplyOptions, command: any): Promise
         agentFilter: options.agent,
         verbose
       });
-      displayDryRunResults(results, verbose);
+      displayDryRunResults(results, verbose, options.skipFirstMessage);
       return { agents: {}, created: [], updated: [], unchanged: [] };
     }
 
@@ -329,7 +329,8 @@ export async function applyCommand(options: ApplyOptions, command: any): Promise
             sharedBlockIds,
             spinnerEnabled,
             verbose,
-            folderContentHashes
+            folderContentHashes,
+            skipFirstMessage: options.skipFirstMessage
           });
           succeeded.push(agent.name);
           created.push(agent.name);

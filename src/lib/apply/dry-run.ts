@@ -155,7 +155,8 @@ async function computeAgentDiff(
       files: f.files,
       fileContentHashes: folderContentHashes.get(f.name) || {}
     })),
-    sharedBlocks: agent.shared_blocks || []
+    sharedBlocks: agent.shared_blocks || [],
+    firstMessage: agent.first_message || null
   };
 
   // Check if agent exists
@@ -201,7 +202,7 @@ async function computeAgentDiff(
 /**
  * Display dry-run results
  */
-export function displayDryRunResults(results: DryRunResult[], verbose: boolean): void {
+export function displayDryRunResults(results: DryRunResult[], verbose: boolean, skipFirstMessage?: boolean): void {
   const fancy = shouldUseFancyUx();
 
   // Calculate totals first for header
@@ -232,7 +233,7 @@ export function displayDryRunResults(results: DryRunResult[], verbose: boolean):
       created++;
       totalChanges++;
       output(displayDryRunAction(result.name, 'create'));
-      formatCreateDetails(result, fancy);
+      formatCreateDetails(result, fancy, skipFirstMessage);
     } else if (result.action === 'update' && result.operations) {
       updated++;
       totalChanges += result.operations.operationCount;
@@ -250,9 +251,10 @@ export function displayDryRunResults(results: DryRunResult[], verbose: boolean):
   output(displayDryRunSummary({ created, updated, unchanged, totalChanges }));
 }
 
-function formatCreateDetails(result: DryRunResult, fancy: boolean): void {
+function formatCreateDetails(result: DryRunResult, fancy: boolean, skipFirstMessage?: boolean): void {
   if (!result.config) return;
   const dim = fancy ? chalk.dim : (s: string) => s;
+  const yellow = fancy ? chalk.yellow : (s: string) => s;
   const indent = '    ';
   output(`${indent}${dim('Model:')} ${result.config.model || 'default'}`);
   output(`${indent}${dim('Embedding:')} ${result.config.embedding || 'default'}`);
@@ -268,6 +270,9 @@ function formatCreateDetails(result: DryRunResult, fancy: boolean): void {
   if (result.config.folders?.length) {
     const fileCount = result.config.folders.reduce((sum: number, f: any) => sum + f.files.length, 0);
     output(`${indent}${dim('Folders:')} ${result.config.folders.length} (${fileCount} files)`);
+  }
+  if (result.config.firstMessage && !skipFirstMessage) {
+    output(`${indent}${yellow('First message:')} will send calibration message`);
   }
 }
 

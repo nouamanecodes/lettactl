@@ -298,9 +298,10 @@ export async function createNewAgent(
     spinnerEnabled: boolean;
     verbose: boolean;
     folderContentHashes?: Map<string, Record<string, string>>;
+    skipFirstMessage?: boolean;
   }
 ): Promise<{ id: string; name: string }> {
-  const { client, blockManager, archiveManager, agentManager, toolNameToId, builtinTools, createdFolders, sharedBlockIds, spinnerEnabled, verbose, folderContentHashes } = context;
+  const { client, blockManager, archiveManager, agentManager, toolNameToId, builtinTools, createdFolders, sharedBlockIds, spinnerEnabled, verbose, folderContentHashes, skipFirstMessage } = context;
 
   const blockIds: string[] = [];
 
@@ -446,17 +447,20 @@ export async function createNewAgent(
       await client.closeAllAgentFiles(createdAgent.id);
     }
 
-    // Store folder file hashes in agent metadata for future change detection
+    // Store metadata for future change detection and export round-tripping
+    const metadata: Record<string, any> = {};
     if (folderContentHashes && folderContentHashes.size > 0) {
       const newFolderFileHashes: Record<string, Record<string, string>> = {};
       for (const [folderName, hashes] of folderContentHashes) {
         newFolderFileHashes[folderName] = hashes;
       }
-      await client.updateAgent(createdAgent.id, {
-        metadata: {
-          'lettactl.folderFileHashes': newFolderFileHashes
-        }
-      });
+      metadata['lettactl.folderFileHashes'] = newFolderFileHashes;
+    }
+    if (agent.first_message) {
+      metadata['lettactl.firstMessage'] = agent.first_message;
+    }
+    if (Object.keys(metadata).length > 0) {
+      await client.updateAgent(createdAgent.id, { metadata });
     }
 
     // Count resources for summary
@@ -467,7 +471,7 @@ export async function createNewAgent(
     creationSpinner.succeed(`Agent ${agentName} created (${blockCount} blocks, ${toolCount} tools, ${folderCount} folders)`);
 
     // Send first_message if configured (for agent auto-calibration)
-    if (agent.first_message) {
+    if (agent.first_message && !skipFirstMessage) {
       const firstMsgSpinner = spinnerEnabled ? createSpinner(`Sending first message to ${agentName}...`).start() : null;
       try {
         // Send async message

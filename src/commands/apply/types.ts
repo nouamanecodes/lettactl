@@ -6,6 +6,7 @@ export interface ApplyOptions {
   force?: boolean;
   root?: string;
   manifest?: string;
+  skipFirstMessage?: boolean;
 }
 
 export interface DeployResult {

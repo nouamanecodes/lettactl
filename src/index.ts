@@ -106,6 +106,7 @@ program
   .option('--force', 'remove resources not in config (strict reconciliation)')
   .option('--root <path>', 'root directory for resolving file paths')
   .option('--manifest [path]', 'write agent manifest (default: <config>.manifest.json)')
+  .option('--skip-first-message', 'skip sending first_message on agent creation')
   .action(async (options, command) => { await applyCommand(options, command); });
 
 // Get command - list resources
@@ -206,6 +207,7 @@ program
   .option('-f, --format <format>', 'output format (json|yaml)', 'json')
   .option('--max-steps <number>', 'maximum steps to export', parseInt)
   .option('--legacy-format', 'use legacy v1 format (json only)')
+  .option('--skip-first-message', 'omit first_message from exported YAML')
   .action(exportCommand);
 
 // Import command - import agents from files

@@ -1,6 +1,7 @@
 import { LettaClientWrapper } from '../../lib/client/letta-client';
 import { AgentResolver } from '../../lib/client/agent-resolver';
 import { normalizeResponse } from '../../lib/shared/response-normalizer';
+import { isBuiltinTool } from '../../lib/tools/builtin-tools';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as yaml from 'js-yaml';
@@ -14,6 +15,7 @@ export default async function exportCommand(
     maxSteps?: number;
     legacyFormat?: boolean;
     format?: string;
+    skipFirstMessage?: boolean;
   },
   command: any
 ) {
@@ -77,7 +79,7 @@ export default async function exportCommand(
 async function exportAsYaml(
   client: LettaClientWrapper,
   agent: any,
-  options: { output?: string },
+  options: { output?: string; skipFirstMessage?: boolean },
   verbose: boolean
 ): Promise<void> {
   // Fetch full agent details
@@ -114,14 +116,33 @@ async function exportAsYaml(
     agentConfig.embedding_config = (fullAgent as any).embedding_config;
   }
 
-  // Add tools (exclude built-in memory tools)
-  const builtInTools = ['send_message', 'conversation_search', 'archival_memory_insert', 'archival_memory_search'];
-  const customTools = tools.filter((t: any) => !builtInTools.includes(t.name));
+  // Reasoning flag (stored as enable_reasoner in llm_config)
+  const enableReasoner = (fullAgent as any).llm_config?.enable_reasoner;
+  if (enableReasoner !== undefined) {
+    agentConfig.reasoning = enableReasoner;
+  }
+
+  // Tags
+  const tags = (fullAgent as any).tags;
+  if (tags && tags.length > 0) {
+    agentConfig.tags = tags;
+  }
+
+  // First message — include unless --skip-first-message
+  if (!options.skipFirstMessage) {
+    const firstMessage = (fullAgent as any).metadata?.['lettactl.firstMessage'];
+    if (firstMessage) {
+      agentConfig.first_message = firstMessage;
+    }
+  }
+
+  // Add tools (exclude built-in tools)
+  const customTools = tools.filter((t: any) => !isBuiltinTool(t.name));
   if (customTools.length > 0) {
     agentConfig.tools = customTools.map((t: any) => t.name);
   }
 
-  // Add memory blocks (exclude built-in persona/human blocks unless customized)
+  // Add memory blocks
   const memoryBlocks = blocks
     .filter((b: any) => b.label && b.value)
     .map((b: any) => ({
