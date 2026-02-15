@@ -387,6 +387,15 @@ lettactl export agent my-agent -f yaml -o agents.yml
 # Export YAML without first_message (for canary/fast deploys)
 lettactl export agent my-agent -f yaml --skip-first-message -o agents.yml
 
+# Bulk export: all agents to a single fleet YAML
+lettactl export agents --all -f yaml -o fleet.yaml
+
+# Bulk export: agents matching a glob pattern
+lettactl export agents --match "support-*" -f yaml -o support-fleet.yaml
+
+# Bulk export: agents by tags (AND logic)
+lettactl export agents --tags "tenant:acme,role:support" -f yaml -o acme-support.yaml
+
 # Export with legacy format
 lettactl export agent my-agent --legacy-format -o legacy-backup.json
 
