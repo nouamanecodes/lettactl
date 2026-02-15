@@ -206,14 +206,17 @@ program
 // Export command - export agents to files
 program
   .command('export')
-  .description('Export an agent to a file')
-  .argument('<resource>', 'resource type (agent)')
-  .argument('<name>', 'agent name')
+  .description('Export agent(s) to a file')
+  .argument('<resource>', 'resource type (agent|agents)')
+  .argument('[name]', 'agent name (required for single export)')
   .option('-o, --output <file>', 'output filename')
   .option('-f, --format <format>', 'output format (json|yaml)', 'json')
   .option('--max-steps <number>', 'maximum steps to export', parseInt)
   .option('--legacy-format', 'use legacy v1 format (json only)')
   .option('--skip-first-message', 'omit first_message from exported YAML')
+  .option('--all', 'export all agents')
+  .option('--match <pattern>', 'export agents matching glob pattern')
+  .option('--tags <tags>', 'filter agents by tags (comma-separated, AND logic)')
   .action(exportCommand);
 
 // Import command - import agents from files

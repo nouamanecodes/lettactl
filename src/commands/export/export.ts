@@ -2,32 +2,82 @@ import { LettaClientWrapper } from '../../lib/client/letta-client';
 import { AgentResolver } from '../../lib/client/agent-resolver';
 import { normalizeResponse } from '../../lib/shared/response-normalizer';
 import { isBuiltinTool } from '../../lib/tools/builtin-tools';
+import { createSpinner, getSpinnerEnabled } from '../../lib/ux/spinner';
+import { minimatch } from 'minimatch';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as yaml from 'js-yaml';
-import { log, output, error } from '../../lib/shared/logger';
+import { log, output, error, warn } from '../../lib/shared/logger';
+
+const EXPORT_CONCURRENCY = 5;
 
 export default async function exportCommand(
   resource: string,
-  name: string,
+  name: string | undefined,
   options: {
     output?: string;
     maxSteps?: number;
     legacyFormat?: boolean;
     format?: string;
     skipFirstMessage?: boolean;
+    all?: boolean;
+    match?: string;
+    tags?: string;
   },
   command: any
 ) {
   const verbose = command.parent?.opts().verbose || false;
+  const spinnerEnabled = getSpinnerEnabled(command);
 
   try {
-    if (resource !== 'agent') {
-      throw new Error('Only "agent" resource is currently supported for export');
-    }
-
     const client = new LettaClientWrapper();
     const resolver = new AgentResolver(client);
+
+    // Determine if this is a bulk export
+    const isBulk = resource === 'agents' || options.all || options.match || options.tags;
+
+    if (isBulk) {
+      // Bulk export: YAML only
+      if (options.format && options.format !== 'yaml') {
+        throw new Error(
+          'Bulk export (--all/--match/--tags) only supports YAML format. Use: -f yaml'
+        );
+      }
+
+      const agents = await resolveExportAgents(client, resolver, options);
+
+      if (agents.length === 0) {
+        const filter = options.match || options.tags || 'all';
+        throw new Error(`No agents found matching: ${filter}`);
+      }
+
+      if (verbose) {
+        output(`Found ${agents.length} agent(s) to export`);
+      }
+
+      await exportBulkAsYaml(client, agents, options, verbose, spinnerEnabled);
+      return;
+    }
+
+    // Single-agent export (existing behavior)
+    if (resource !== 'agent') {
+      throw new Error(
+        'Resource must be "agent" (single) or "agents" (bulk).\n' +
+        'Usage:\n' +
+        '  lettactl export agent <name> -f yaml -o file.yaml\n' +
+        '  lettactl export agents --all -f yaml -o fleet.yaml'
+      );
+    }
+
+    if (!name) {
+      throw new Error(
+        'Agent name is required for single export.\n' +
+        'Usage:\n' +
+        '  lettactl export agent <name> -f yaml -o file.yaml\n' +
+        'For bulk export:\n' +
+        '  lettactl export agents --all -f yaml -o fleet.yaml'
+      );
+    }
 
     // Find the agent
     const { agent } = await resolver.findAgentByName(name);
@@ -68,20 +118,20 @@ export default async function exportCommand(
     }
 
   } catch (err: any) {
-    error(`Failed to export agent ${name}:`, err.message);
+    error(`Export failed:`, err.message);
     throw err;
   }
 }
 
 /**
- * Export agent to YAML format compatible with lettactl apply
+ * Build a fleet-YAML-compatible config object for a single agent.
+ * Returns the agent config object (not wrapped in { agents: [...] }).
  */
-async function exportAsYaml(
+async function buildAgentYamlConfig(
   client: LettaClientWrapper,
-  agent: any,
-  options: { output?: string; skipFirstMessage?: boolean },
-  verbose: boolean
-): Promise<void> {
+  agent: { id: string; name: string },
+  options: { skipFirstMessage?: boolean }
+): Promise<any> {
   // Fetch full agent details
   const fullAgent = await client.getAgent(agent.id);
 
@@ -177,12 +227,18 @@ async function exportAsYaml(
     });
   }
 
-  // Build fleet config wrapper
-  const fleetConfig = {
-    agents: [agentConfig],
-  };
+  return agentConfig;
+}
 
-  // Output
+/**
+ * Write a fleet config to YAML file or stdout
+ */
+function writeYamlOutput(
+  fleetConfig: { agents: any[] },
+  outputPath: string | undefined,
+  label: string,
+  verbose: boolean
+): void {
   const yamlStr = yaml.dump(fleetConfig, {
     lineWidth: 120,
     noRefs: true,
@@ -190,10 +246,10 @@ async function exportAsYaml(
     forceQuotes: false,
   });
 
-  if (options.output) {
-    const resolvedPath = path.resolve(options.output);
+  if (outputPath) {
+    const resolvedPath = path.resolve(outputPath);
     fs.writeFileSync(resolvedPath, yamlStr);
-    output(`Agent ${agent.name} exported to ${options.output}`);
+    output(`${label} exported to ${outputPath}`);
     if (verbose) {
       const stats = fs.statSync(resolvedPath);
       output(`File size: ${(stats.size / 1024).toFixed(2)} KB`);
@@ -201,5 +257,133 @@ async function exportAsYaml(
   } else {
     // Print to stdout
     output(yamlStr);
+  }
+}
+
+/**
+ * Export a single agent to YAML format compatible with lettactl apply
+ */
+async function exportAsYaml(
+  client: LettaClientWrapper,
+  agent: any,
+  options: { output?: string; skipFirstMessage?: boolean },
+  verbose: boolean
+): Promise<void> {
+  const agentConfig = await buildAgentYamlConfig(client, agent, options);
+  const fleetConfig = { agents: [agentConfig] };
+  writeYamlOutput(fleetConfig, options.output, `Agent ${agent.name}`, verbose);
+}
+
+/**
+ * Resolve which agents to export based on --all, --match, or --tags
+ */
+async function resolveExportAgents(
+  client: LettaClientWrapper,
+  resolver: AgentResolver,
+  options: { all?: boolean; match?: string; tags?: string }
+): Promise<Array<{ id: string; name: string }>> {
+  // By tags (AND logic via API)
+  if (options.tags) {
+    const tagFilter = options.tags.split(',').map(t => t.trim()).filter(Boolean);
+    const agents = await client.listAgents({ tags: tagFilter });
+    const agentList = normalizeResponse(agents);
+    return agentList.map((a: any) => ({ id: a.id, name: a.name }));
+  }
+
+  // All agents or glob match require full list
+  const allAgents = await resolver.getAllAgents();
+
+  if (options.all) {
+    return allAgents.map((a: any) => ({ id: a.id, name: a.name }));
+  }
+
+  if (options.match) {
+    return allAgents
+      .filter((a: any) => minimatch(a.name, options.match!))
+      .map((a: any) => ({ id: a.id, name: a.name }));
+  }
+
+  throw new Error(
+    'Bulk export requires one of: --all, --match <pattern>, or --tags <tags>\n' +
+    'Examples:\n' +
+    '  lettactl export agents --all -f yaml -o fleet.yaml\n' +
+    '  lettactl export agents --match "support-*" -f yaml -o fleet.yaml\n' +
+    '  lettactl export agents --tags "tenant:acme" -f yaml -o fleet.yaml'
+  );
+}
+
+/**
+ * Export multiple agents to a single fleet YAML file
+ */
+async function exportBulkAsYaml(
+  client: LettaClientWrapper,
+  agents: Array<{ id: string; name: string }>,
+  options: { output?: string; skipFirstMessage?: boolean },
+  verbose: boolean,
+  spinnerEnabled: boolean
+): Promise<void> {
+  const spinner = createSpinner(
+    `Exporting ${agents.length} agent(s)...`, spinnerEnabled
+  ).start();
+
+  const agentConfigs: any[] = [];
+  const failures: Array<{ name: string; error: string }> = [];
+  let completed = 0;
+
+  const processAgent = async (agent: { id: string; name: string }) => {
+    try {
+      const config = await buildAgentYamlConfig(client, agent, options);
+      agentConfigs.push(config);
+    } catch (err: any) {
+      failures.push({ name: agent.name, error: err.message });
+    }
+    completed++;
+    spinner.text = `Exporting agents... ${completed}/${agents.length}`;
+  };
+
+  // Concurrency-limited processing
+  const queue = [...agents];
+  const inProgress: Promise<void>[] = [];
+
+  while (queue.length > 0 || inProgress.length > 0) {
+    while (queue.length > 0 && inProgress.length < EXPORT_CONCURRENCY) {
+      const agent = queue.shift()!;
+      const promise = processAgent(agent).then(() => {
+        const idx = inProgress.indexOf(promise);
+        if (idx !== -1) inProgress.splice(idx, 1);
+      });
+      inProgress.push(promise);
+    }
+    if (inProgress.length >= EXPORT_CONCURRENCY ||
+        (queue.length === 0 && inProgress.length > 0)) {
+      await Promise.race(inProgress);
+    }
+  }
+
+  if (agentConfigs.length === 0) {
+    spinner.fail('No agents were successfully exported');
+    return;
+  }
+
+  // Sort alphabetically for deterministic output
+  agentConfigs.sort((a, b) => a.name.localeCompare(b.name));
+
+  const fleetConfig = { agents: agentConfigs };
+
+  spinner.succeed(`Exported ${agentConfigs.length} agent(s)`);
+
+  writeYamlOutput(
+    fleetConfig,
+    options.output,
+    `${agentConfigs.length} agent(s)`,
+    verbose
+  );
+
+  // Report failures
+  if (failures.length > 0) {
+    warn(`${failures.length} agent(s) failed to export:`);
+    for (const f of failures) {
+      warn(`  - ${f.name}: ${f.error}`);
+    }
   }
 }
