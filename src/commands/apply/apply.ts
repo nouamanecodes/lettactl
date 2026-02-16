@@ -12,7 +12,7 @@ import { processSharedBlocks, processFolders, updateExistingAgent, createNewAgen
 import { formatLettaError } from '../../lib/shared/error-handler';
 import { computeDryRunDiffs, displayDryRunResults } from '../../lib/apply/dry-run';
 import { log, warn, output, isQuietMode } from '../../lib/shared/logger';
-import { FILE_SEARCH_TOOLS } from '../../lib/tools/builtin-tools';
+import { DEFAULT_AGENT_TOOLS, FILE_SEARCH_TOOLS } from '../../lib/tools/builtin-tools';
 import { displayApplySummary } from '../../lib/ux/display';
 import { buildMcpServerRegistry, expandMcpToolsForAgents } from '../../lib/tools/mcp-tools';
 import { buildAgentManifest, getDefaultManifestPath, writeAgentManifest } from '../../lib/apply/agent-manifest';
@@ -197,7 +197,7 @@ export async function applyCommand(options: ApplyOptions, command: any): Promise
     await expandMcpToolsForAgents(config, client, mcpServerNameToId, verbose);
 
     // Generate tool source hashes and register tools
-    const allToolNames = new Set<string>();
+    const allToolNames = new Set<string>(DEFAULT_AGENT_TOOLS);
     for (const agent of config.agents) {
       for (const toolName of agent.tools || []) {
         allToolNames.add(toolName);
@@ -251,9 +251,15 @@ export async function applyCommand(options: ApplyOptions, command: any): Promise
         const toolSourceHashes = fileTracker.generateToolSourceHashes(agent.tools || [], parser.toolConfigs);
         const memoryBlockFileHashes = await fileTracker.generateMemoryBlockFileHashes(agent.memory_blocks || []);
 
-        // Build agent config - auto-manage file search tools based on folder presence
-        const hasFolders = (agent.folders || []).length > 0;
+        // Build agent config - auto-add default tools and file search tools
         let tools = agent.tools || [];
+        const toolSet = new Set(tools);
+        for (const defaultTool of DEFAULT_AGENT_TOOLS) {
+          if (!toolSet.has(defaultTool)) {
+            tools = [...tools, defaultTool];
+          }
+        }
+        const hasFolders = (agent.folders || []).length > 0;
 
         if (hasFolders) {
           // Add file search tools if not already present

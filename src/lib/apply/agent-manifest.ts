@@ -5,7 +5,7 @@ import type { FleetConfig, AgentConfig } from '../../types/fleet-config';
 import { BlockManager } from '../managers/block-manager';
 import { ArchiveManager } from '../managers/archive-manager';
 import { AgentManager } from '../managers/agent-manager';
-import { FILE_SEARCH_TOOLS } from '../tools/builtin-tools';
+import { DEFAULT_AGENT_TOOLS, FILE_SEARCH_TOOLS } from '../tools/builtin-tools';
 
 export interface ManifestItem {
   name: string;
@@ -62,8 +62,14 @@ function sortByName<T extends { name: string }>(items: T[]): T[] {
 
 function resolveAgentTools(agent: AgentConfig): string[] {
   let tools = agent.tools ? [...agent.tools] : [];
-  const hasFolders = (agent.folders || []).length > 0;
 
+  // Always add default tools
+  for (const tool of DEFAULT_AGENT_TOOLS) {
+    tools.push(tool);
+  }
+
+  // Add/remove file search tools based on folder presence
+  const hasFolders = (agent.folders || []).length > 0;
   if (hasFolders) {
     for (const tool of FILE_SEARCH_TOOLS) {
       tools.push(tool);

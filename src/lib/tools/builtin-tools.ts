@@ -70,6 +70,11 @@ export const PROTECTED_MEMORY_TOOLS = new Set([
 ]);
 
 /**
+ * Default tools auto-added to all agents
+ */
+export const DEFAULT_AGENT_TOOLS = ['conversation_search'];
+
+/**
  * File search tools auto-added when folders are attached
  * Note: open_files excluded - it loads files into context which bloats the window
  */

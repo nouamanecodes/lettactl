@@ -1093,7 +1093,7 @@ agents:
       from_file: "prompts/agent.md"    # Option 2: from file
       disable_base_prompt: false       # Option 3: skip base Letta instructions (default: false)
     
-    # Tools (optional)
+    # Tools (optional — conversation_search is always included by default)
     tools:
       - archival_memory_insert          # Built-in tools
       - archival_memory_search
