@@ -33,6 +33,28 @@ export default async function exportCommand(
     const client = new LettaClientWrapper();
     const resolver = new AgentResolver(client);
 
+    // LettaBot export: generates a lettabot.yaml from agent metadata
+    if (resource === 'lettabot') {
+      const isBulk = !name || options.all || options.match || options.tags;
+
+      if (isBulk) {
+        const agents = name
+          ? [await resolver.findAgentByName(name).then(r => r.agent)]
+          : await resolveExportAgents(client, resolver, options);
+
+        if (agents.length === 0) {
+          const filter = options.match || options.tags || 'all';
+          throw new Error(`No agents found matching: ${filter}`);
+        }
+
+        await exportLettaBotFleet(client, agents, options, verbose, spinnerEnabled);
+      } else {
+        const { agent } = await resolver.findAgentByName(name);
+        await exportLettaBotConfig(client, agent, options, verbose);
+      }
+      return;
+    }
+
     // Determine if this is a bulk export
     const isBulk = resource === 'agents' || options.all || options.match || options.tags;
 
@@ -62,10 +84,11 @@ export default async function exportCommand(
     // Single-agent export (existing behavior)
     if (resource !== 'agent') {
       throw new Error(
-        'Resource must be "agent" (single) or "agents" (bulk).\n' +
+        'Resource must be "agent", "agents", or "lettabot".\n' +
         'Usage:\n' +
         '  lettactl export agent <name> -f yaml -o file.yaml\n' +
-        '  lettactl export agents --all -f yaml -o fleet.yaml'
+        '  lettactl export agents --all -f yaml -o fleet.yaml\n' +
+        '  lettactl export lettabot <name> -o lettabot.yaml'
       );
     }
 
@@ -178,6 +201,12 @@ async function buildAgentYamlConfig(
     agentConfig.tags = tags;
   }
 
+  // LettaBot config
+  const lettabotConfig = (fullAgent as any).metadata?.['lettactl.lettabotConfig'];
+  if (lettabotConfig) {
+    agentConfig.lettabot = lettabotConfig;
+  }
+
   // First message — include unless --skip-first-message
   if (!options.skipFirstMessage) {
     const firstMessage = (fullAgent as any).metadata?.['lettactl.firstMessage'];
@@ -234,7 +263,7 @@ async function buildAgentYamlConfig(
  * Write a fleet config to YAML file or stdout
  */
 function writeYamlOutput(
-  fleetConfig: { agents: any[] },
+  fleetConfig: Record<string, any>,
   outputPath: string | undefined,
   label: string,
   verbose: boolean
@@ -386,4 +415,131 @@ async function exportBulkAsYaml(
       warn(`  - ${f.name}: ${f.error}`);
     }
   }
+}
+
+/**
+ * Build the lettabot server block from environment
+ */
+function buildServerBlock(): Record<string, any> {
+  const baseUrl = process.env.LETTA_BASE_URL!;
+  const isLocal = baseUrl.includes('localhost') || baseUrl.includes('127.0.0.1');
+
+  if (isLocal) {
+    return { mode: 'docker', baseUrl };
+  }
+
+  const block: Record<string, any> = { mode: 'api' };
+  if (process.env.LETTA_API_KEY) {
+    block.apiKey = process.env.LETTA_API_KEY;
+  }
+  return block;
+}
+
+/**
+ * Extract lettabot config from agent metadata.
+ * Returns null if the agent has no lettabot config.
+ */
+async function getLettaBotMetadata(
+  client: LettaClientWrapper,
+  agentId: string
+): Promise<Record<string, any> | null> {
+  const fullAgent = await client.getAgent(agentId);
+  return (fullAgent as any).metadata?.['lettactl.lettabotConfig'] || null;
+}
+
+/**
+ * Export a single agent's lettabot config as a standalone lettabot.yaml
+ */
+async function exportLettaBotConfig(
+  client: LettaClientWrapper,
+  agent: { id: string; name: string },
+  options: { output?: string },
+  verbose: boolean
+): Promise<void> {
+  const lettabotConfig = await getLettaBotMetadata(client, agent.id);
+
+  if (!lettabotConfig) {
+    throw new Error(
+      `Agent "${agent.name}" has no lettabot config in metadata.\n` +
+      'Add a lettabot: section to your fleet YAML and run lettactl apply first.'
+    );
+  }
+
+  const config: Record<string, any> = {
+    server: buildServerBlock(),
+    agent: { name: agent.name, id: agent.id },
+  };
+
+  // Passthrough runtime config sections
+  if (lettabotConfig.channels) config.channels = lettabotConfig.channels;
+  if (lettabotConfig.features) config.features = lettabotConfig.features;
+  if (lettabotConfig.polling) config.polling = lettabotConfig.polling;
+  if (lettabotConfig.transcription) config.transcription = lettabotConfig.transcription;
+  if (lettabotConfig.attachments) config.attachments = lettabotConfig.attachments;
+
+  writeYamlOutput(config, options.output, `LettaBot config for ${agent.name}`, verbose);
+}
+
+/**
+ * Export multiple agents' lettabot configs as a multi-agent lettabot.yaml
+ */
+async function exportLettaBotFleet(
+  client: LettaClientWrapper,
+  agents: Array<{ id: string; name: string }>,
+  options: { output?: string },
+  verbose: boolean,
+  spinnerEnabled: boolean
+): Promise<void> {
+  const spinner = createSpinner(
+    `Scanning ${agents.length} agent(s) for lettabot config...`, spinnerEnabled
+  ).start();
+
+  const agentConfigs: any[] = [];
+  let scanned = 0;
+
+  for (const agent of agents) {
+    const lettabotConfig = await getLettaBotMetadata(client, agent.id);
+    scanned++;
+    spinner.text = `Scanning agents for lettabot config... ${scanned}/${agents.length}`;
+
+    if (!lettabotConfig) continue;
+
+    const entry: Record<string, any> = {
+      name: agent.name,
+      id: agent.id,
+    };
+
+    if (lettabotConfig.channels) entry.channels = lettabotConfig.channels;
+    if (lettabotConfig.features) entry.features = lettabotConfig.features;
+    if (lettabotConfig.polling) entry.polling = lettabotConfig.polling;
+
+    agentConfigs.push(entry);
+  }
+
+  if (agentConfigs.length === 0) {
+    spinner.fail('No agents found with lettabot config in metadata');
+    throw new Error(
+      'None of the matched agents have a lettabot: section.\n' +
+      'Add lettabot: config to your fleet YAML and run lettactl apply first.'
+    );
+  }
+
+  // Sort alphabetically for deterministic output
+  agentConfigs.sort((a, b) => a.name.localeCompare(b.name));
+
+  // Server-wide settings from the first agent that has them
+  const firstConfig = await getLettaBotMetadata(client, agentConfigs[0].id || agents.find(a => a.name === agentConfigs[0].name)!.id);
+
+  const config: Record<string, any> = {
+    server: buildServerBlock(),
+    agents: agentConfigs,
+  };
+
+  // Promote server-wide settings (transcription, attachments) to top level
+  if (firstConfig?.transcription) config.transcription = firstConfig.transcription;
+  if (firstConfig?.attachments) config.attachments = firstConfig.attachments;
+
+  spinner.succeed(`Found ${agentConfigs.length} agent(s) with lettabot config`);
+
+  writeYamlOutput(config, options.output, `Multi-agent LettaBot config`, verbose);
 }

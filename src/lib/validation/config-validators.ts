@@ -157,6 +157,10 @@ export class AgentValidator {
     if (agent.tags) {
       this.validateTags(agent.tags);
     }
+
+    if (agent.lettabot) {
+      LettaBotConfigValidator.validate(agent.lettabot);
+    }
   }
   
   private static validateStructure(agent: any): void {
@@ -211,7 +215,7 @@ export class AgentValidator {
       'name', 'description', 'system_prompt', 'llm_config',
       'tools', 'mcp_tools', 'memory_blocks', 'archives', 'folders',
       'embedding', 'embedding_config', 'shared_blocks', 'shared_folders',
-      'first_message', 'reasoning', 'tags'
+      'first_message', 'reasoning', 'tags', 'lettabot'
     ];
     
     const unknownFields = Object.keys(agent).filter(field => !allowedFields.includes(field));
@@ -722,6 +726,140 @@ export class LLMConfigValidator {
     
     if (config.context_window > 200000) {
       throw new Error('LLM config context_window cannot exceed 200000.');
+    }
+  }
+}
+
+/**
+ * Validator for LettaBot runtime configuration
+ */
+export class LettaBotConfigValidator {
+  private static readonly ALLOWED_TOP_LEVEL = [
+    'channels', 'features', 'polling', 'transcription', 'attachments'
+  ];
+
+  private static readonly ALLOWED_CHANNELS = [
+    'telegram', 'telegram-mtproto', 'slack', 'discord', 'whatsapp', 'signal'
+  ];
+
+  static validate(config: any): void {
+    if (!config || typeof config !== 'object' || Array.isArray(config)) {
+      throw new Error(
+        'lettabot must be an object.\n' +
+        'Example:\n' +
+        'lettabot:\n' +
+        '  channels:\n' +
+        '    telegram:\n' +
+        '      enabled: true'
+      );
+    }
+
+    const unknownKeys = Object.keys(config).filter(
+      k => !this.ALLOWED_TOP_LEVEL.includes(k)
+    );
+    if (unknownKeys.length > 0) {
+      throw new Error(
+        `lettabot: unknown fields: ${unknownKeys.join(', ')}\n` +
+        `Allowed fields: ${this.ALLOWED_TOP_LEVEL.join(', ')}`
+      );
+    }
+
+    if (config.channels) {
+      this.validateChannels(config.channels);
+    }
+    if (config.features) {
+      this.validateFeatures(config.features);
+    }
+    if (config.polling) {
+      this.validatePolling(config.polling);
+    }
+    if (config.transcription) {
+      this.validateTranscription(config.transcription);
+    }
+    if (config.attachments) {
+      this.validateAttachments(config.attachments);
+    }
+  }
+
+  private static validateChannels(channels: any): void {
+    if (typeof channels !== 'object' || Array.isArray(channels)) {
+      throw new Error('lettabot.channels must be an object.');
+    }
+
+    const unknownChannels = Object.keys(channels).filter(
+      k => !this.ALLOWED_CHANNELS.includes(k)
+    );
+    if (unknownChannels.length > 0) {
+      throw new Error(
+        `lettabot.channels: unknown channels: ${unknownChannels.join(', ')}\n` +
+        `Allowed channels: ${this.ALLOWED_CHANNELS.join(', ')}`
+      );
+    }
+
+    for (const [name, channel] of Object.entries(channels)) {
+      if (!channel || typeof channel !== 'object') {
+        throw new Error(`lettabot.channels.${name} must be an object.`);
+      }
+      if (typeof (channel as any).enabled !== 'boolean') {
+        throw new Error(
+          `lettabot.channels.${name} must have an "enabled" boolean field.`
+        );
+      }
+    }
+  }
+
+  private static validateFeatures(features: any): void {
+    if (typeof features !== 'object' || Array.isArray(features)) {
+      throw new Error('lettabot.features must be an object.');
+    }
+
+    if (features.heartbeat !== undefined) {
+      if (typeof features.heartbeat !== 'object' || Array.isArray(features.heartbeat)) {
+        throw new Error('lettabot.features.heartbeat must be an object.');
+      }
+      if (typeof features.heartbeat.enabled !== 'boolean') {
+        throw new Error('lettabot.features.heartbeat must have an "enabled" boolean field.');
+      }
+      if (features.heartbeat.promptFile !== undefined &&
+          (typeof features.heartbeat.promptFile !== 'string' ||
+           features.heartbeat.promptFile.trim() === '')) {
+        throw new Error('lettabot.features.heartbeat.promptFile must be a non-empty string.');
+      }
+    }
+
+    if (features.maxToolCalls !== undefined) {
+      if (!Number.isInteger(features.maxToolCalls) || features.maxToolCalls <= 0) {
+        throw new Error('lettabot.features.maxToolCalls must be a positive integer.');
+      }
+    }
+  }
+
+  private static validatePolling(polling: any): void {
+    if (typeof polling !== 'object' || Array.isArray(polling)) {
+      throw new Error('lettabot.polling must be an object.');
+    }
+  }
+
+  private static validateTranscription(transcription: any): void {
+    if (typeof transcription !== 'object' || Array.isArray(transcription)) {
+      throw new Error('lettabot.transcription must be an object.');
+    }
+    if (transcription.provider && transcription.provider !== 'openai') {
+      throw new Error('lettabot.transcription.provider must be "openai" (only supported provider).');
+    }
+  }
+
+  private static validateAttachments(attachments: any): void {
+    if (typeof attachments !== 'object' || Array.isArray(attachments)) {
+      throw new Error('lettabot.attachments must be an object.');
+    }
+    if (attachments.maxMB !== undefined &&
+        (!Number.isInteger(attachments.maxMB) || attachments.maxMB <= 0)) {
+      throw new Error('lettabot.attachments.maxMB must be a positive integer.');
+    }
+    if (attachments.maxAgeDays !== undefined &&
+        (!Number.isInteger(attachments.maxAgeDays) || attachments.maxAgeDays <= 0)) {
+      throw new Error('lettabot.attachments.maxAgeDays must be a positive integer.');
     }
   }
 }

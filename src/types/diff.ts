@@ -49,6 +49,7 @@ export interface AgentUpdateOperations {
     contextWindow?: FieldChange<number>;
     reasoning?: FieldChange<boolean>;
     tags?: FieldChange<string[]>;
+    lettabotConfig?: FieldChange<Record<string, any> | null>;
   };
 
   // Resource management operations

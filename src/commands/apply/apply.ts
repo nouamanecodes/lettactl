@@ -305,7 +305,8 @@ export async function applyCommand(options: ApplyOptions, command: any): Promise
             fileContentHashes: folderContentHashes.get(folder.name) || {}
           })),
           sharedBlocks: agent.shared_blocks || [],
-          tags: agent.tags || []
+          tags: agent.tags || [],
+          lettabotConfig: agent.lettabot || null
         };
 
         // Check if agent exists

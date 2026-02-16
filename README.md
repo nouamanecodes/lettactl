@@ -1142,6 +1142,95 @@ agents:
           - "files/specific-file.pdf"   # Specific files
 
     embedding: "openai/text-embedding-3-small"       # Optional: embedding model
+
+    # LettaBot runtime config (optional) - multi-channel bot settings
+    lettabot:
+      channels:
+        telegram:
+          enabled: true
+          token: ${TELEGRAM_BOT_TOKEN}
+          dmPolicy: pairing
+          groups:
+            "*": { mode: mention-only }
+        slack:
+          enabled: true
+          botToken: ${SLACK_BOT_TOKEN}
+          appToken: ${SLACK_APP_TOKEN}
+        discord:
+          enabled: true
+          token: ${DISCORD_TOKEN}
+      features:
+        heartbeat:
+          enabled: true
+          intervalMin: 30
+          promptFile: prompts/heartbeat.md
+        maxToolCalls: 50
+        inlineImages: true
+      transcription:
+        provider: openai
+        model: whisper-1
+      attachments:
+        maxMB: 50
+        maxAgeDays: 7
+```
+
+### LettaBot Config
+
+The optional `lettabot:` section on any agent configures multi-channel bot runtime settings. Config is stored as agent metadata — changes never trigger agent recreation, preserving conversation history.
+
+**Supported channels:** telegram, telegram-mtproto, slack, discord, whatsapp, signal
+
+```yaml
+agents:
+  - name: support-bot
+    # ... standard agent config ...
+
+    lettabot:
+      channels:
+        telegram:
+          enabled: true
+          token: ${TELEGRAM_BOT_TOKEN}
+          dmPolicy: pairing              # 'pairing' or 'open'
+          groupDebounceSec: 5
+          groups:
+            "*": { mode: mention-only }  # 'open', 'listen', 'mention-only', 'disabled'
+        slack:
+          enabled: true
+          botToken: ${SLACK_BOT_TOKEN}
+          appToken: ${SLACK_APP_TOKEN}
+      features:
+        heartbeat:
+          enabled: true
+          intervalMin: 30
+          skipRecentUserMin: 5
+          promptFile: prompts/heartbeat.md  # resolved like system_prompt from_file
+        cron: true
+        maxToolCalls: 50
+        inlineImages: true
+      transcription:
+        provider: openai
+        model: whisper-1
+      attachments:
+        maxMB: 50
+        maxAgeDays: 7
+```
+
+Environment variables (`${VAR}`) are expanded in channel tokens and API keys. File references (`promptFile`) are resolved relative to the YAML root, consistent with `from_file` elsewhere.
+
+#### Generate LettaBot Config
+
+After applying, use `export lettabot` to generate a ready-to-use `lettabot.yaml`:
+
+```bash
+# Single agent → standalone lettabot.yaml
+lettactl export lettabot support-bot -o lettabot.yaml
+
+# All agents with lettabot config → multi-agent lettabot.yaml
+lettactl export lettabot --all -o lettabot.yaml
+
+# Filtered by tags or glob
+lettactl export lettabot --tags "tenant:acme" -o lettabot.yaml
+lettactl export lettabot --match "support-*" -o lettabot.yaml
 ```
 
 ### Shared Blocks Schema

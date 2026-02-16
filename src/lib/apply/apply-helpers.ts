@@ -459,6 +459,9 @@ export async function createNewAgent(
     if (agent.first_message) {
       metadata['lettactl.firstMessage'] = agent.first_message;
     }
+    if (agent.lettabot) {
+      metadata['lettactl.lettabotConfig'] = agent.lettabot;
+    }
     if (Object.keys(metadata).length > 0) {
       await client.updateAgent(createdAgent.id, { metadata });
     }

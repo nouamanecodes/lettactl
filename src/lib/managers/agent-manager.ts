@@ -50,7 +50,8 @@ export class AgentManager {
           folders: '',
           sharedBlocks: '',
           archives: '',
-          tags: ''
+          tags: '',
+          lettabotConfig: ''
         };
         const { baseName, version } = this.parseVersionFromName(agent.name);
 
@@ -89,6 +90,7 @@ export class AgentManager {
     archives?: Array<{name: string; description?: string; embedding?: string}>;
     sharedBlocks?: string[];
     tags?: string[];
+    lettabotConfig?: Record<string, any> | null;
   }): AgentConfigHashes {
     
     // System prompt hash
@@ -150,6 +152,9 @@ export class AgentManager {
     // Tags hash
     const tagsHash = generateContentHash(JSON.stringify([...(config.tags || [])].sort()));
 
+    // LettaBot config hash
+    const lettabotConfigHash = generateContentHash(JSON.stringify(config.lettabotConfig || null));
+
     // Overall hash combining all components
     const overallHash = generateContentHash(JSON.stringify({
       systemPrompt: systemPromptHash,
@@ -159,9 +164,10 @@ export class AgentManager {
       folders: foldersHash,
       sharedBlocks: sharedBlocksHash,
       archives: archivesHash,
-      tags: tagsHash
+      tags: tagsHash,
+      lettabotConfig: lettabotConfigHash
     }));
-    
+
     return {
       overall: overallHash,
       systemPrompt: systemPromptHash,
@@ -171,7 +177,8 @@ export class AgentManager {
       folders: foldersHash,
       sharedBlocks: sharedBlocksHash,
       archives: archivesHash,
-      tags: tagsHash
+      tags: tagsHash,
+      lettabotConfig: lettabotConfigHash
     };
   }
 
@@ -194,6 +201,7 @@ export class AgentManager {
       archives?: Array<{name: string; description?: string; embedding?: string}>;
       sharedBlocks?: string[];
       tags?: string[];
+      lettabotConfig?: Record<string, any> | null;
     },
     verbose: boolean = false
   ): Promise<{ agentName: string; shouldCreate: boolean; existingAgent?: AgentVersion }> {
@@ -240,6 +248,7 @@ export class AgentManager {
     archives?: Array<{name: string; description?: string; embedding?: string}>;
     sharedBlocks?: string[];
     tags?: string[];
+    lettabotConfig?: Record<string, any> | null;
   }): {
     hasChanges: boolean;
     changedComponents: string[];
@@ -273,6 +282,9 @@ export class AgentManager {
     if (existing.configHashes.tags !== newHashes.tags) {
       changedComponents.push('tags');
     }
+    if (existing.configHashes.lettabotConfig !== newHashes.lettabotConfig) {
+      changedComponents.push('lettabotConfig');
+    }
 
     return {
       hasChanges: changedComponents.length > 0,
@@ -296,6 +308,7 @@ export class AgentManager {
     archives?: Array<{name: string; description?: string; embedding?: string}>;
     sharedBlocks?: string[];
     tags?: string[];
+    lettabotConfig?: Record<string, any> | null;
   }, agentId: string): void {
     const configHashes = this.generateAgentConfigHashes(agentConfig);
     const { baseName, version } = this.parseVersionFromName(agentName);
