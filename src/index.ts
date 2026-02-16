@@ -207,7 +207,7 @@ program
 program
   .command('export')
   .description('Export agent(s) to a file')
-  .argument('<resource>', 'resource type (agent|agents)')
+  .argument('<resource>', 'resource type (agent|agents|lettabot)')
   .argument('[name]', 'agent name (required for single export)')
   .option('-o, --output <file>', 'output filename')
   .option('-f, --format <format>', 'output format (json|yaml)', 'json')

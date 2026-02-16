@@ -75,6 +75,11 @@ export class FleetParser {
           await this.resolveBlockContent(block);
         }
       }
+
+      // Resolve lettabot config (file refs + env var expansion)
+      if (agent.lettabot) {
+        await this.resolveLettaBotConfig(agent.lettabot);
+      }
     }
 
     return config;
@@ -489,6 +494,29 @@ export class FleetParser {
     }
 
     return { mcpServerNameToId, created, updated, unchanged, failed };
+  }
+
+  /**
+   * Resolve file references and env vars in lettabot config
+   */
+  private async resolveLettaBotConfig(config: any): Promise<void> {
+    // Resolve heartbeat promptFile to inline prompt content
+    if (config.features?.heartbeat?.promptFile) {
+      const filePath = path.resolve(this.basePath, config.features.heartbeat.promptFile);
+      const content = fs.readFileSync(filePath, 'utf8');
+      config.features.heartbeat.prompt = content.trim();
+    }
+
+    // Expand env vars in channel tokens, transcription keys, polling config
+    if (config.channels) {
+      config.channels = this.expandEnvVars(config.channels);
+    }
+    if (config.transcription) {
+      config.transcription = this.expandEnvVars(config.transcription);
+    }
+    if (config.polling) {
+      config.polling = this.expandEnvVars(config.polling);
+    }
   }
 
   private expandEnvVars(value: any): any {

@@ -1,4 +1,4 @@
-import { ArchiveValidator, McpToolsValidator, SharedFolderValidator, FleetConfigValidator } from '../../../src/lib/validation/config-validators';
+import { ArchiveValidator, McpToolsValidator, SharedFolderValidator, FleetConfigValidator, LettaBotConfigValidator } from '../../../src/lib/validation/config-validators';
 
 describe('ArchiveValidator', () => {
   it('rejects more than one archive per agent', () => {
@@ -147,6 +147,124 @@ describe('AgentValidator - reserved names', () => {
     expect(() => FleetConfigValidator.validate({
       agents: [baseAgent('my-agent')]
     })).not.toThrow();
+  });
+});
+
+describe('LettaBotConfigValidator', () => {
+  it('accepts a valid config with channels', () => {
+    expect(() => LettaBotConfigValidator.validate({
+      channels: {
+        telegram: { enabled: true, token: '${TELEGRAM_TOKEN}' },
+        slack: { enabled: false }
+      }
+    })).not.toThrow();
+  });
+
+  it('accepts an empty object', () => {
+    expect(() => LettaBotConfigValidator.validate({})).not.toThrow();
+  });
+
+  it('accepts full config with all sections', () => {
+    expect(() => LettaBotConfigValidator.validate({
+      channels: {
+        telegram: { enabled: true },
+        discord: { enabled: true, token: 'abc' },
+        whatsapp: { enabled: false }
+      },
+      features: {
+        cron: true,
+        heartbeat: { enabled: true, intervalMin: 60 },
+        maxToolCalls: 5
+      },
+      polling: { enabled: true, intervalMs: 3000 },
+      transcription: { provider: 'openai' },
+      attachments: { maxMB: 10, maxAgeDays: 30 }
+    })).not.toThrow();
+  });
+
+  it('rejects non-object lettabot', () => {
+    expect(() => LettaBotConfigValidator.validate('string')).toThrow('lettabot must be an object');
+    expect(() => LettaBotConfigValidator.validate([1, 2])).toThrow('lettabot must be an object');
+    expect(() => LettaBotConfigValidator.validate(null)).toThrow('lettabot must be an object');
+  });
+
+  it('rejects unknown top-level fields', () => {
+    expect(() => LettaBotConfigValidator.validate({
+      channels: { telegram: { enabled: true } },
+      badField: true
+    })).toThrow('unknown fields: badField');
+  });
+
+  it('rejects unknown channel names', () => {
+    expect(() => LettaBotConfigValidator.validate({
+      channels: { teams: { enabled: true } }
+    })).toThrow('unknown channels: teams');
+  });
+
+  it('rejects channel missing enabled', () => {
+    expect(() => LettaBotConfigValidator.validate({
+      channels: { telegram: { token: 'abc' } }
+    })).toThrow('must have an "enabled" boolean field');
+  });
+
+  it('rejects heartbeat missing enabled', () => {
+    expect(() => LettaBotConfigValidator.validate({
+      features: { heartbeat: { intervalMin: 30 } }
+    })).toThrow('heartbeat must have an "enabled" boolean field');
+  });
+
+  it('rejects non-positive maxToolCalls', () => {
+    expect(() => LettaBotConfigValidator.validate({
+      features: { maxToolCalls: 0 }
+    })).toThrow('maxToolCalls must be a positive integer');
+    expect(() => LettaBotConfigValidator.validate({
+      features: { maxToolCalls: -1 }
+    })).toThrow('maxToolCalls must be a positive integer');
+  });
+
+  it('rejects invalid transcription provider', () => {
+    expect(() => LettaBotConfigValidator.validate({
+      transcription: { provider: 'whisper' }
+    })).toThrow('provider must be "openai"');
+  });
+
+  it('rejects non-positive attachment limits', () => {
+    expect(() => LettaBotConfigValidator.validate({
+      attachments: { maxMB: 0 }
+    })).toThrow('maxMB must be a positive integer');
+    expect(() => LettaBotConfigValidator.validate({
+      attachments: { maxAgeDays: -5 }
+    })).toThrow('maxAgeDays must be a positive integer');
+  });
+});
+
+describe('AgentValidator - lettabot integration', () => {
+  const baseAgent = (name: string, lettabot?: any) => ({
+    name,
+    description: 'd',
+    llm_config: { model: 'm', context_window: 1000 },
+    system_prompt: { value: 'p' },
+    ...(lettabot !== undefined ? { lettabot } : {})
+  });
+
+  it('accepts agent without lettabot section', () => {
+    expect(() => FleetConfigValidator.validate({
+      agents: [baseAgent('agent-a')]
+    })).not.toThrow();
+  });
+
+  it('accepts agent with valid lettabot config', () => {
+    expect(() => FleetConfigValidator.validate({
+      agents: [baseAgent('agent-a', {
+        channels: { telegram: { enabled: true } }
+      })]
+    })).not.toThrow();
+  });
+
+  it('rejects agent with invalid lettabot config', () => {
+    expect(() => FleetConfigValidator.validate({
+      agents: [baseAgent('agent-a', 'not-object')]
+    })).toThrow('lettabot must be an object');
   });
 });
 

@@ -156,6 +156,8 @@ async function computeAgentDiff(
       fileContentHashes: folderContentHashes.get(f.name) || {}
     })),
     sharedBlocks: agent.shared_blocks || [],
+    tags: agent.tags || [],
+    lettabotConfig: agent.lettabot || null,
     firstMessage: agent.first_message || null
   };
 
@@ -271,6 +273,12 @@ function formatCreateDetails(result: DryRunResult, fancy: boolean, skipFirstMess
     const fileCount = result.config.folders.reduce((sum: number, f: any) => sum + f.files.length, 0);
     output(`${indent}${dim('Folders:')} ${result.config.folders.length} (${fileCount} files)`);
   }
+  if (result.config.lettabotConfig) {
+    const channels = Object.keys(result.config.lettabotConfig.channels || {});
+    if (channels.length) {
+      output(`${indent}${dim('LettaBot channels:')} ${channels.join(', ')}`);
+    }
+  }
   if (result.config.firstMessage && !skipFirstMessage) {
     output(`${indent}${yellow('First message:')} will send calibration message`);
   }
@@ -312,6 +320,20 @@ function formatUpdateDetails(ops: AgentUpdateOperations, verbose: boolean, fancy
     }
     if (ops.updateFields.contextWindow) {
       output(`    ${dim('context_window:')} ${ops.updateFields.contextWindow.from} ${dim('->')} ${ops.updateFields.contextWindow.to}`);
+    }
+    if (ops.updateFields.tags) {
+      output(`    ${dim('tags:')} [${ops.updateFields.tags.from}] ${dim('->')} [${ops.updateFields.tags.to}]`);
+    }
+    if (ops.updateFields.lettabotConfig) {
+      const from = ops.updateFields.lettabotConfig.from;
+      const to = ops.updateFields.lettabotConfig.to;
+      if (!from && to) {
+        output(`    ${green('lettabot:')} added`);
+      } else if (from && !to) {
+        output(`    ${red('lettabot:')} removed`);
+      } else {
+        output(`    ${dim('lettabot:')} updated`);
+      }
     }
   }
 

@@ -250,6 +250,20 @@ export class OutputFormatter {
         const { from, to } = operations.updateFields.contextWindow;
         log(`  ~ Context window: ${from} → ${to}`);
       }
+      if (operations.updateFields.tags !== undefined) {
+        log(`  ~ Tags: updated`);
+      }
+      if (operations.updateFields.lettabotConfig !== undefined) {
+        const from = operations.updateFields.lettabotConfig.from;
+        const to = operations.updateFields.lettabotConfig.to;
+        if (!from && to) {
+          log(`  + LettaBot config: added`);
+        } else if (from && !to) {
+          log(`  - LettaBot config: removed`);
+        } else {
+          log(`  ~ LettaBot config: updated`);
+        }
+      }
     } else {
       log(`  = Basic fields: unchanged`);
     }

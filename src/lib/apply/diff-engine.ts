@@ -51,6 +51,7 @@ export class DiffEngine {
       archives?: Array<{name: string; description?: string; embedding?: string; embedding_config?: Record<string, any>}>;
       sharedBlocks?: string[];
       tags?: string[];
+      lettabotConfig?: Record<string, any> | null;
     },
     toolRegistry: Map<string, string>,
     folderRegistry: Map<string, string>,
@@ -155,6 +156,14 @@ export class DiffEngine {
     const desiredTags = [...(desiredConfig.tags || [])].sort();
     if (JSON.stringify(currentTags) !== JSON.stringify(desiredTags)) {
       fieldUpdates.tags = { from: currentTags, to: desiredTags };
+      operations.operationCount++;
+    }
+
+    // Compare lettabot config (stored in agent metadata)
+    const currentLettabotConfig = (currentAgent as any).metadata?.['lettactl.lettabotConfig'] || null;
+    const desiredLettabotConfig = desiredConfig.lettabotConfig || null;
+    if (JSON.stringify(currentLettabotConfig) !== JSON.stringify(desiredLettabotConfig)) {
+      fieldUpdates.lettabotConfig = { from: currentLettabotConfig, to: desiredLettabotConfig };
       operations.operationCount++;
     }
 

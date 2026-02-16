@@ -47,6 +47,7 @@ export interface AgentConfig {
   first_message?: string; // Message sent to agent on first creation for auto-calibration
   reasoning?: boolean; // Enable reasoning for models that support it (default: true)
   tags?: string[]; // Tags for filtering and multi-tenancy (e.g., ["tenant:user-123", "role:support"])
+  lettabot?: LettaBotConfig; // LettaBot runtime configuration (channels, features, polling, etc.)
 }
 
 export interface McpToolConfig {
@@ -107,4 +108,58 @@ export interface ArchiveConfig {
 export interface LLMConfig {
   model: string;
   context_window: number;
+}
+
+// LettaBot configuration types
+
+export type LettaBotGroupMode = 'open' | 'listen' | 'mention-only' | 'disabled';
+
+export interface LettaBotGroupConfig {
+  mode?: LettaBotGroupMode;
+  allowedUsers?: string[];
+}
+
+export interface LettaBotChannelConfigBase {
+  enabled: boolean;
+  dmPolicy?: 'pairing' | 'allowlist' | 'open';
+  allowedUsers?: (string | number)[];
+  groupDebounceSec?: number;
+  groups?: Record<string, LettaBotGroupConfig>;
+  mentionPatterns?: string[];
+}
+
+export interface LettaBotConfig {
+  channels?: {
+    telegram?: LettaBotChannelConfigBase & { token?: string };
+    'telegram-mtproto'?: LettaBotChannelConfigBase & {
+      phoneNumber?: string;
+      apiId?: number;
+      apiHash?: string;
+      groupPolicy?: 'mention' | 'reply' | 'both' | 'off';
+      adminChatId?: number;
+    };
+    slack?: LettaBotChannelConfigBase & { appToken?: string; botToken?: string };
+    discord?: LettaBotChannelConfigBase & { token?: string };
+    whatsapp?: LettaBotChannelConfigBase & { selfChat?: boolean };
+    signal?: LettaBotChannelConfigBase & { phone?: string; selfChat?: boolean };
+  };
+  features?: {
+    cron?: boolean;
+    heartbeat?: {
+      enabled: boolean;
+      intervalMin?: number;
+      skipRecentUserMin?: number;
+      prompt?: string;
+      promptFile?: string;
+    };
+    inlineImages?: boolean;
+    maxToolCalls?: number;
+  };
+  polling?: {
+    enabled?: boolean;
+    intervalMs?: number;
+    gmail?: { enabled?: boolean; account?: string; accounts?: string[] };
+  };
+  transcription?: { provider: 'openai'; apiKey?: string; model?: string };
+  attachments?: { maxMB?: number; maxAgeDays?: number };
 }

@@ -8,6 +8,7 @@ export interface AgentConfigHashes {
   sharedBlocks: string;      // Shared blocks hash
   archives: string;          // Archives hash
   tags: string;              // Tags hash
+  lettabotConfig: string;    // LettaBot config hash
 }
 
 export interface AgentVersion {

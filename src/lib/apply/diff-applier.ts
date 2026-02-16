@@ -68,6 +68,18 @@ export class DiffApplier {
       }
 
       await this.client.updateAgent(agentId, apiFields);
+
+      // Update lettabotConfig in agent metadata (stored separately from agent fields)
+      if (fields.lettabotConfig !== undefined) {
+        const agent = await this.client.getAgent(agentId);
+        const metadata = { ...(agent as any).metadata };
+        if (fields.lettabotConfig.to) {
+          metadata['lettactl.lettabotConfig'] = fields.lettabotConfig.to;
+        } else {
+          delete metadata['lettactl.lettabotConfig'];
+        }
+        await this.client.updateAgent(agentId, { metadata });
+      }
     }
 
     // Apply tool changes
