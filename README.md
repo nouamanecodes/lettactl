@@ -313,6 +313,33 @@ lettactl apply -f fleet.yaml --canary --canary-prefix "STAGING-"
 - Cleanup preserves shared blocks and folders used by other agents
 - Works with `--agent` filter: `--canary --agent my-agent` only deploys `CANARY-my-agent`
 
+## Recalibration
+
+After `apply` updates agents with new tools, prompts, or docs, agents with existing conversation history may not pick up the changes. The `--recalibrate` flag sends a calibration message to agents that had changes applied:
+
+```bash
+# Recalibrate all agents that had changes
+lettactl apply -f fleet.yaml --recalibrate
+
+# Custom calibration message
+lettactl apply -f fleet.yaml --recalibrate --recalibrate-message "gather_competitive_data has been updated."
+
+# Filter by tags (AND logic)
+lettactl apply -f fleet.yaml --recalibrate --recalibrate-tags "role:edna"
+
+# Filter by glob pattern
+lettactl apply -f fleet.yaml --recalibrate --recalibrate-match "*-puma-*"
+
+# Fire-and-forget (don't wait for responses)
+lettactl apply -f fleet.yaml --recalibrate --no-wait
+```
+
+**Key behaviors:**
+- Only agents with actual diffs are recalibrated — unchanged agents are skipped
+- Default message: "Your tools and instructions have been updated. Review your system prompt for any changes."
+- `--recalibrate-tags` and `--recalibrate-match` further narrow which updated agents receive the message
+- `--no-wait` sends messages without polling for responses (useful in CI)
+
 ## Commands
 
 ### Deploy Configuration
@@ -326,6 +353,8 @@ lettactl apply -f agents.yml -q       # Quiet mode (for CI pipelines)
 lettactl apply -f agents.yml --skip-first-message  # Skip first_message (fast canary deploys)
 lettactl apply -f agents.yml --canary    # Deploy CANARY-prefixed copies
 lettactl apply -f agents.yml --canary --promote --cleanup  # Promote + teardown
+lettactl apply -f agents.yml --recalibrate  # Send calibration message to updated agents
+lettactl apply -f agents.yml --recalibrate --no-wait  # Fire-and-forget recalibration
 lettactl apply -f agents.yml --manifest  # Generate manifest with all resource IDs
 lettactl apply -f agents.yml --manifest output.json  # Custom manifest path
 

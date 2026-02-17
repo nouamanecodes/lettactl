@@ -111,6 +111,11 @@ program
   .option('--canary-prefix <prefix>', 'custom canary prefix (default: CANARY-)')
   .option('--promote', 'promote canary config to production (use with --canary)')
   .option('--cleanup', 'remove canary agents (use with --canary)')
+  .option('--recalibrate', 'send calibration message to agents that had changes applied')
+  .option('--recalibrate-message <text>', 'custom recalibration message (overrides default)')
+  .option('--recalibrate-tags <tags>', 'filter recalibration to agents matching tags (comma-separated, AND logic)')
+  .option('--recalibrate-match <pattern>', 'filter recalibration to agents matching glob pattern')
+  .option('--no-wait', 'fire-and-forget recalibration (do not wait for agent responses)')
   .action(async (options, command) => { await applyCommand(options, command); });
 
 // Get command - list resources

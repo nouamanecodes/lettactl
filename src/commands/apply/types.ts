@@ -11,6 +11,11 @@ export interface ApplyOptions {
   canaryPrefix?: string;
   promote?: boolean;
   cleanup?: boolean;
+  recalibrate?: boolean;
+  recalibrateMessage?: string;
+  recalibrateTags?: string;
+  recalibrateMatch?: string;
+  wait?: boolean;  // Commander maps --no-wait to wait=false
 }
 
 export interface DeployResult {

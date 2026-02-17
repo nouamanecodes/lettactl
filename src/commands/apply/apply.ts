@@ -18,6 +18,8 @@ import { buildMcpServerRegistry, expandMcpToolsForAgents } from '../../lib/tools
 import { buildAgentManifest, getDefaultManifestPath, writeAgentManifest } from '../../lib/apply/agent-manifest';
 import { ApplyOptions, DeployResult } from './types';
 import { DEFAULT_CANARY_PREFIX, rewriteAgentNamesForCanary, cleanupCanaryAgents, buildCanaryMetadata } from '../../lib/apply/canary';
+import { bulkSendMessage } from '../../lib/messaging/bulk-messenger';
+import { minimatch } from 'minimatch';
 import * as path from 'path';
 
 export async function applyCommand(options: ApplyOptions, command: any): Promise<DeployResult> {
@@ -412,6 +414,60 @@ export async function applyCommand(options: ApplyOptions, command: any): Promise
     // Post-promote cleanup: delete canary agents after promoting to production
     if (options.canary && options.promote && options.cleanup) {
       await cleanupCanaryAgents(config, canaryPrefix, client, options, spinnerEnabled, verbose);
+    }
+
+    // Post-apply recalibration: send calibration message to updated agents
+    if (options.recalibrate && updated.length > 0) {
+      // Collect agents that had changes applied
+      let recalibrateAgents = updated
+        .filter(name => appliedAgents.has(name))
+        .map(name => ({ id: appliedAgents.get(name)!.id, name: appliedAgents.get(name)!.resolvedName }));
+
+      // Filter by tags if specified
+      if (options.recalibrateTags) {
+        const tagFilter = options.recalibrateTags.split(',').map(t => t.trim()).filter(Boolean);
+        const taggedAgents = await client.listAgents({ tags: tagFilter });
+        const taggedIds = new Set(
+          (Array.isArray(taggedAgents) ? taggedAgents : (taggedAgents as any).items || [])
+            .map((a: any) => a.id)
+        );
+        recalibrateAgents = recalibrateAgents.filter(a => taggedIds.has(a.id));
+      }
+
+      // Filter by glob pattern if specified
+      if (options.recalibrateMatch) {
+        recalibrateAgents = recalibrateAgents.filter(a => minimatch(a.name, options.recalibrateMatch!));
+      }
+
+      if (recalibrateAgents.length > 0) {
+        const calibrationMessage = options.recalibrateMessage ||
+          'Your tools and instructions have been updated. Review your system prompt for any changes.';
+
+        log(`\nRecalibrating ${recalibrateAgents.length} updated agent(s)...`);
+
+        if (options.wait === false) {
+          // Fire-and-forget: send async messages without polling
+          for (const agent of recalibrateAgents) {
+            try {
+              await client.createAsyncMessage(agent.id, {
+                messages: [{ role: 'user', content: calibrationMessage }]
+              });
+              log(`  Sent recalibration to ${agent.name}`);
+            } catch (err: any) {
+              warn(`  Failed to send recalibration to ${agent.name}: ${err.message}`);
+            }
+          }
+          log('Recalibration messages sent (not waiting for responses)');
+        } else {
+          await bulkSendMessage(calibrationMessage, {
+            agents: recalibrateAgents,
+            confirm: true,  // skip confirmation — user already opted in via --recalibrate
+            verbose,
+          }, (msg) => log(msg));
+        }
+      } else {
+        if (verbose) log('No agents matched recalibration filters');
+      }
     }
 
     // Only generate manifest if explicitly requested via --manifest flag
