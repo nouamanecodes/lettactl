@@ -321,6 +321,9 @@ function formatUpdateDetails(ops: AgentUpdateOperations, verbose: boolean, fancy
     if (ops.updateFields.contextWindow) {
       output(`    ${dim('context_window:')} ${ops.updateFields.contextWindow.from} ${dim('->')} ${ops.updateFields.contextWindow.to}`);
     }
+    if (ops.updateFields.maxTokens) {
+      output(`    ${dim('max_tokens:')} ${ops.updateFields.maxTokens.from} ${dim('->')} ${ops.updateFields.maxTokens.to}`);
+    }
     if (ops.updateFields.tags) {
       output(`    ${dim('tags:')} [${ops.updateFields.tags.from}] ${dim('->')} [${ops.updateFields.tags.to}]`);
     }

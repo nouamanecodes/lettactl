@@ -84,6 +84,7 @@ export class AgentManager {
     embedding?: string;
     embeddingConfig?: Record<string, any>;
     contextWindow?: number;
+    maxTokens?: number;
     memoryBlocks?: Array<{name: string; description: string; limit: number; value: string}>;
     memoryBlockFileHashes?: Record<string, string>;
     folders?: Array<{name: string; files: string[]; fileContentHashes?: Record<string, string>}>;
@@ -195,6 +196,7 @@ export class AgentManager {
       embedding?: string;
       embeddingConfig?: Record<string, any>;
       contextWindow?: number;
+      maxTokens?: number;
       memoryBlocks?: Array<{name: string; description: string; limit: number; value: string}>;
       memoryBlockFileHashes?: Record<string, string>;
       folders?: Array<{name: string; files: string[]}>;
@@ -242,6 +244,7 @@ export class AgentManager {
     embedding?: string;
     embeddingConfig?: Record<string, any>;
     contextWindow?: number;
+    maxTokens?: number;
     memoryBlocks?: Array<{name: string; description: string; limit: number; value: string}>;
     memoryBlockFileHashes?: Record<string, string>;
     folders?: Array<{name: string; files: string[]}>;
@@ -303,6 +306,7 @@ export class AgentManager {
     embedding?: string;
     embeddingConfig?: Record<string, any>;
     contextWindow?: number;
+    maxTokens?: number;
     memoryBlocks?: Array<{name: string; description: string; limit: number; value: string}>;
     folders?: Array<{name: string; files: string[]}>;
     archives?: Array<{name: string; description?: string; embedding?: string}>;

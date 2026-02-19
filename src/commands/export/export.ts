@@ -178,6 +178,9 @@ async function buildAgentYamlConfig(
       context_window: (fullAgent as any).llm_config?.context_window ||
                       (fullAgent as any).context_window_limit ||
                       16000,
+      ...((fullAgent as any).llm_config?.max_tokens !== undefined && {
+        max_tokens: (fullAgent as any).llm_config.max_tokens,
+      }),
     },
   };
 

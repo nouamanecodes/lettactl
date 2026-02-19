@@ -60,6 +60,9 @@ export class DiffApplier {
       if (fields.contextWindow !== undefined) {
         apiFields.context_window_limit = fields.contextWindow.to;
       }
+      if (fields.maxTokens !== undefined) {
+        apiFields.max_tokens = fields.maxTokens.to;
+      }
       if (fields.reasoning !== undefined) {
         apiFields.reasoning = fields.reasoning.to;
       }

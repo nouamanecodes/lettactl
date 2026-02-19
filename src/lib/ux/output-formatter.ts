@@ -250,6 +250,10 @@ export class OutputFormatter {
         const { from, to } = operations.updateFields.contextWindow;
         log(`  ~ Context window: ${from} → ${to}`);
       }
+      if (operations.updateFields.maxTokens !== undefined) {
+        const { from, to } = operations.updateFields.maxTokens;
+        log(`  ~ Max tokens: ${from} → ${to}`);
+      }
       if (operations.updateFields.tags !== undefined) {
         log(`  ~ Tags: updated`);
       }

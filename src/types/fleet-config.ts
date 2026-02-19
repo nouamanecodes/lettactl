@@ -108,6 +108,7 @@ export interface ArchiveConfig {
 export interface LLMConfig {
   model: string;
   context_window: number;
+  max_tokens?: number;
 }
 
 // LettaBot configuration types

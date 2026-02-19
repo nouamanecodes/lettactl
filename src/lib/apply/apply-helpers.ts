@@ -380,7 +380,8 @@ export async function createNewAgent(
       system: agent.system_prompt.value || '',
       block_ids: blockIds,
       context_window_limit: agent.llm_config?.context_window || DEFAULT_CONTEXT_WINDOW,
-      reasoning: agent.reasoning ?? DEFAULT_REASONING
+      reasoning: agent.reasoning ?? DEFAULT_REASONING,
+      ...(agent.llm_config?.max_tokens !== undefined && { max_tokens: agent.llm_config.max_tokens }),
     };
 
     if (agent.tags && agent.tags.length > 0) {
@@ -420,6 +421,7 @@ export async function createNewAgent(
       embedding: agent.embedding,
       embeddingConfig: agent.embedding_config,
       contextWindow: agent.llm_config?.context_window,
+      maxTokens: agent.llm_config?.max_tokens,
       memoryBlocks: (agent.memory_blocks || []).map((block: any) => ({
         name: block.name,
         description: block.description,

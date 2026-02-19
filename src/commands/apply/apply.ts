@@ -285,6 +285,7 @@ export async function applyCommand(options: ApplyOptions, command: any): Promise
           embedding: agent.embedding,
           embeddingConfig: agent.embedding_config,
           contextWindow: agent.llm_config?.context_window,
+          maxTokens: agent.llm_config?.max_tokens,
           reasoning: agent.reasoning,
           memoryBlocks: (agent.memory_blocks || []).map((block: any) => ({
             name: block.name,

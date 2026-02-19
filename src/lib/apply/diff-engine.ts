@@ -44,6 +44,7 @@ export class DiffEngine {
       embedding?: string;
       embeddingConfig?: Record<string, any>;
       contextWindow?: number;
+      maxTokens?: number;
       reasoning?: boolean;
       memoryBlocks?: Array<{name: string; description: string; limit: number; value: string}>;
       memoryBlockFileHashes?: Record<string, string>;
@@ -142,6 +143,13 @@ export class DiffEngine {
     const currentContextWindow = (currentAgent as any).llm_config?.context_window || DEFAULT_CONTEXT_WINDOW;
     if (currentContextWindow !== desiredContextWindow) {
       fieldUpdates.contextWindow = { from: currentContextWindow, to: desiredContextWindow };
+      operations.operationCount++;
+    }
+
+    const desiredMaxTokens = desiredConfig.maxTokens;
+    const currentMaxTokens = (currentAgent as any).llm_config?.max_tokens;
+    if (desiredMaxTokens !== undefined && currentMaxTokens !== desiredMaxTokens) {
+      fieldUpdates.maxTokens = { from: currentMaxTokens, to: desiredMaxTokens };
       operations.operationCount++;
     }
 

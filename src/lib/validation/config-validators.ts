@@ -727,6 +727,13 @@ export class LLMConfigValidator {
     if (config.context_window > 200000) {
       throw new Error('LLM config context_window cannot exceed 200000.');
     }
+
+    // max_tokens is optional
+    if (config.max_tokens !== undefined) {
+      if (!Number.isInteger(config.max_tokens) || config.max_tokens <= 0) {
+        throw new Error('LLM config max_tokens must be a positive integer.');
+      }
+    }
   }
 }
 

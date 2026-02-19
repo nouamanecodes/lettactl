@@ -47,6 +47,7 @@ export interface AgentUpdateOperations {
     embedding?: FieldChange<string>;
     embeddingConfig?: FieldChange<Record<string, any> | null>;
     contextWindow?: FieldChange<number>;
+    maxTokens?: FieldChange<number>;
     reasoning?: FieldChange<boolean>;
     tags?: FieldChange<string[]>;
     lettabotConfig?: FieldChange<Record<string, any> | null>;
