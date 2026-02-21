@@ -61,7 +61,7 @@ export class LettaClientWrapper {
   async getAgent(agentId: string) {
     const agent = await this.client.agents.retrieve(agentId);
 
-    // SDK strips tags — fetch raw to get them back
+    // SDK strips tags, description, tools, and blocks — fetch raw to get them back
     try {
       const baseUrl = process.env.LETTA_BASE_URL;
       const response = await fetch(`${baseUrl}/v1/agents/${agentId}/`, { headers: this.getAuthHeaders() });
@@ -69,6 +69,8 @@ export class LettaClientWrapper {
         const raw: any = await response.json();
         if (raw.tags !== undefined) (agent as any).tags = raw.tags;
         if (raw.description !== undefined) (agent as any).description = raw.description;
+        if (raw.tools !== undefined) (agent as any).tools = raw.tools;
+        if (raw.memory?.blocks !== undefined) (agent as any).blocks = raw.memory.blocks;
       }
     } catch {
       // Fall back to SDK response
