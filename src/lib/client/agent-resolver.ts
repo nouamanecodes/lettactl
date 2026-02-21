@@ -34,7 +34,7 @@ export class AgentResolver {
     // Fetch attached tools
     try {
       const tools = await this.client.listAgentTools(agentId);
-      agentWithDetails.tools = Array.isArray(tools) ? tools : (tools?.items || []);
+      agentWithDetails.tools = tools;
     } catch (error) {
       warn(`Warning: Could not fetch tools for agent ${agentId}`);
       agentWithDetails.tools = [];
@@ -43,7 +43,7 @@ export class AgentResolver {
     // Fetch attached memory blocks
     try {
       const blocks = await this.client.listAgentBlocks(agentId);
-      agentWithDetails.blocks = Array.isArray(blocks) ? blocks : (blocks?.items || []);
+      agentWithDetails.blocks = blocks;
     } catch (error) {
       warn(`Warning: Could not fetch blocks for agent ${agentId}`);
       agentWithDetails.blocks = [];
@@ -52,7 +52,7 @@ export class AgentResolver {
     // Fetch attached folders
     try {
       const folders = await this.client.listAgentFolders(agentId);
-      agentWithDetails.folders = Array.isArray(folders) ? folders : (folders?.items || []);
+      agentWithDetails.folders = folders;
     } catch (error) {
       warn(`Warning: Could not fetch folders for agent ${agentId}`);
       agentWithDetails.folders = [];

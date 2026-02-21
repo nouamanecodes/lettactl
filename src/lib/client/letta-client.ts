@@ -348,7 +348,11 @@ export class LettaClientWrapper {
   }
 
   async listAgentTools(agentId: string) {
-    return await this.client.agents.tools.list(agentId);
+    const allTools: any[] = [];
+    for await (const tool of this.client.agents.tools.list(agentId)) {
+      allTools.push(tool);
+    }
+    return allTools;
   }
 
   async updateToolApproval(agentId: string, toolName: string, requiresApproval: boolean) {
@@ -375,7 +379,11 @@ export class LettaClientWrapper {
   }
 
   async listAgentBlocks(agentId: string) {
-    return await this.client.agents.blocks.list(agentId);
+    const allBlocks: any[] = [];
+    for await (const block of this.client.agents.blocks.list(agentId)) {
+      allBlocks.push(block);
+    }
+    return allBlocks;
   }
 
   // Folder Management
@@ -384,7 +392,11 @@ export class LettaClientWrapper {
   }
 
   async listAgentFolders(agentId: string) {
-    return await this.client.agents.folders.list(agentId);
+    const allFolders: any[] = [];
+    for await (const folder of this.client.agents.folders.list(agentId)) {
+      allFolders.push(folder);
+    }
+    return allFolders;
   }
 
   async closeAllAgentFiles(agentId: string) {
