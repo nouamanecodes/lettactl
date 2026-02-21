@@ -72,14 +72,12 @@ export class DiffEngine {
 
     // Get current agent state from server
     const currentAgent = await this.client.getAgent(existingAgent.id);
-    const currentToolsResponse = await this.client.listAgentTools(existingAgent.id);
-    const currentBlocksResponse = await this.client.listAgentBlocks(existingAgent.id);
     const currentFoldersResponse = await this.client.listAgentFolders(existingAgent.id);
     const currentArchivesResponse = await this.client.listAgentArchives(existingAgent.id);
-    
-    // Normalize responses to arrays
-    const currentTools = normalizeResponse(currentToolsResponse);
-    const currentBlocks = normalizeResponse(currentBlocksResponse);
+
+    // Use embedded tools/blocks from agent object (more reliable than paginated list endpoints)
+    const currentTools = normalizeResponse((currentAgent as any).tools || []);
+    const currentBlocks = normalizeResponse((currentAgent as any).blocks || []);
     const currentFolders = normalizeResponse(currentFoldersResponse);
     const currentArchives = normalizeResponse(currentArchivesResponse);
 

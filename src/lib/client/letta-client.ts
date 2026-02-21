@@ -67,7 +67,8 @@ export class LettaClientWrapper {
       const response = await fetch(`${baseUrl}/v1/agents/${agentId}/`, { headers: this.getAuthHeaders() });
       if (response.ok) {
         const raw: any = await response.json();
-        if (raw.tags) (agent as any).tags = raw.tags;
+        if (raw.tags !== undefined) (agent as any).tags = raw.tags;
+        if (raw.description !== undefined) (agent as any).description = raw.description;
       }
     } catch {
       // Fall back to SDK response

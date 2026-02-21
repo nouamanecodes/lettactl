@@ -31,24 +31,10 @@ export class AgentResolver {
     const agent = await this.client.getAgent(agentId);
     const agentWithDetails = agent as any;
     
-    // Fetch attached tools
-    try {
-      const tools = await this.client.listAgentTools(agentId);
-      agentWithDetails.tools = tools;
-    } catch (error) {
-      warn(`Warning: Could not fetch tools for agent ${agentId}`);
-      agentWithDetails.tools = [];
-    }
-    
-    // Fetch attached memory blocks
-    try {
-      const blocks = await this.client.listAgentBlocks(agentId);
-      agentWithDetails.blocks = blocks;
-    } catch (error) {
-      warn(`Warning: Could not fetch blocks for agent ${agentId}`);
-      agentWithDetails.blocks = [];
-    }
-    
+    // Use embedded tools/blocks from agent object (more reliable than paginated list endpoints)
+    agentWithDetails.tools = agentWithDetails.tools || [];
+    agentWithDetails.blocks = agentWithDetails.blocks || [];
+
     // Fetch attached folders
     try {
       const folders = await this.client.listAgentFolders(agentId);

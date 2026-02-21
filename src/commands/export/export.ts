@@ -158,13 +158,13 @@ async function buildAgentYamlConfig(
   // Fetch full agent details
   const fullAgent = await client.getAgent(agent.id);
 
-  // Fetch attached resources
-  const [tools, blocks, folders, archives] = await Promise.all([
-    client.listAgentTools(agent.id).then(normalizeResponse),
-    client.listAgentBlocks(agent.id).then(normalizeResponse),
+  // Use embedded tools/blocks from agent object; fetch folders/archives separately
+  const [folders, archives] = await Promise.all([
     client.listAgentFolders(agent.id).then(normalizeResponse),
     client.listAgentArchives(agent.id).then(normalizeResponse),
   ]);
+  const tools = normalizeResponse((fullAgent as any).tools || []);
+  const blocks = normalizeResponse((fullAgent as any).blocks || []);
 
   // Build YAML-compatible config
   const agentConfig: any = {

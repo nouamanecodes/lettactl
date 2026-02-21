@@ -65,11 +65,9 @@ export class AgentDataFetcher {
       return this.transformMinimal(agent);
     }
 
-    // Fetch tools and blocks in parallel
-    const [tools, blocks] = await Promise.all([
-      this.safeListAgentTools(agentId),
-      this.safeListAgentBlocks(agentId),
-    ]);
+    // Use embedded tools/blocks from agent object (more reliable than paginated list endpoints)
+    const tools = normalizeResponse((agent as any).tools || []);
+    const blocks = normalizeResponse((agent as any).blocks || []);
 
     let folders: any[] = [];
     let fileCount = 0;
