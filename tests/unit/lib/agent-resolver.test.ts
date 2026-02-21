@@ -79,25 +79,37 @@ describe('AgentResolver', () => {
   });
 
   describe('getAgentWithDetails', () => {
-    it('should get agent details by ID', async () => {
+    it('should get agent details by ID using embedded tools/blocks', async () => {
+      const mockTools = [
+        { id: 'tool-1', name: 'my_tool' },
+        { id: 'tool-2', name: 'other_tool' },
+      ];
+      const mockBlocks = [
+        { id: 'block-1', label: 'persona', value: 'test' },
+      ];
       const mockAgent = {
         id: 'agent-123',
         name: 'test-agent',
         system: 'You are a test agent',
         memory: { blocks: [] },
-        tools: ['archival_memory_insert']
+        tools: mockTools,
+        blocks: mockBlocks,
       };
 
       mockClient.getAgent.mockResolvedValue(mockAgent as any);
+      mockClient.listAgentFolders.mockResolvedValue([] as any);
       mockClient.listAgentArchives.mockResolvedValue([] as any);
 
       const result = await agentResolver.getAgentWithDetails('agent-123');
 
-      expect(result).toMatchObject({
-        ...mockAgent,
-        archives: [],
-      });
+      expect(result.tools).toEqual(mockTools);
+      expect(result.blocks).toEqual(mockBlocks);
+      expect(result.folders).toEqual([]);
+      expect(result.archives).toEqual([]);
       expect(mockClient.getAgent).toHaveBeenCalledWith('agent-123');
+      // Should NOT call listAgentTools or listAgentBlocks
+      expect(mockClient.listAgentTools).not.toHaveBeenCalled();
+      expect(mockClient.listAgentBlocks).not.toHaveBeenCalled();
     });
   });
 });
