@@ -118,22 +118,119 @@ program
   .option('--no-wait', 'fire-and-forget recalibration (do not wait for agent responses)')
   .action(async (options, command) => { await applyCommand(options, command); });
 
-// Get command - list resources
-program
-  .command('get')
-  .description('Display resources (agents, blocks, archives, tools, folders, files, mcp-servers, archival)')
-  .argument('<resource>', 'resource type (agents|blocks|archives|tools|folders|files|mcp-servers|archival)')
-  .argument('[name]', 'specific resource name (optional)')
+// Get command - parent with subcommands
+const getCmd = program.command('get').description('Display resources');
+
+getCmd
+  .command('agents')
+  .description('List agents')
+  .argument('[name]', 'specific agent name (optional)')
   .option('-o, --output <format>', 'output format (table|json|yaml)', 'table')
-  .option('-a, --agent <name>', 'filter by agent name (for blocks, tools, folders)')
-  .option('--shared', 'show only resources attached to 2+ agents')
-  .option('--orphaned', 'show only resources attached to 0 agents')
-  .option('--short', 'truncate block values to 300 characters (use with: get blocks <agent>)')
-  .option('--full', 'show full archival entry text (use with: get archival <agent>)')
-  .option('--query <text>', 'search archival memory by semantic similarity')
   .option('--tags <tags>', 'filter agents by tags (comma-separated)')
   .option('--canary', 'show only canary agents')
-  .action(getCommand);
+  .action((name, options, command) => getCommand('agents', name, options, command));
+
+getCmd
+  .command('blocks')
+  .description('List memory blocks')
+  .argument('[name]', 'specific block or agent name (optional)')
+  .option('-o, --output <format>', 'output format (table|json|yaml)', 'table')
+  .option('-a, --agent <name>', 'filter by agent name')
+  .option('--shared', 'show only resources attached to 2+ agents')
+  .option('--orphaned', 'show only resources attached to 0 agents')
+  .option('--short', 'truncate block values to 300 characters')
+  .action((name, options, command) => getCommand('blocks', name, options, command));
+
+getCmd
+  .command('archives')
+  .description('List archives')
+  .argument('[name]', 'specific archive name (optional)')
+  .option('-o, --output <format>', 'output format (table|json|yaml)', 'table')
+  .option('-a, --agent <name>', 'filter by agent name')
+  .action((name, options, command) => getCommand('archives', name, options, command));
+
+getCmd
+  .command('tools')
+  .description('List tools')
+  .argument('[name]', 'specific tool name (optional)')
+  .option('-o, --output <format>', 'output format (table|json|yaml)', 'table')
+  .option('-a, --agent <name>', 'filter by agent name')
+  .option('--shared', 'show only resources attached to 2+ agents')
+  .option('--orphaned', 'show only resources attached to 0 agents')
+  .action((name, options, command) => getCommand('tools', name, options, command));
+
+getCmd
+  .command('folders')
+  .description('List folders')
+  .argument('[name]', 'specific folder name (optional)')
+  .option('-o, --output <format>', 'output format (table|json|yaml)', 'table')
+  .option('-a, --agent <name>', 'filter by agent name')
+  .option('--shared', 'show only resources attached to 2+ agents')
+  .option('--orphaned', 'show only resources attached to 0 agents')
+  .action((name, options, command) => getCommand('folders', name, options, command));
+
+getCmd
+  .command('files')
+  .description('List files')
+  .argument('[name]', 'specific file name (optional)')
+  .option('-o, --output <format>', 'output format (table|json|yaml)', 'table')
+  .option('-a, --agent <name>', 'filter by agent name')
+  .action((name, options, command) => getCommand('files', name, options, command));
+
+getCmd
+  .command('mcp-servers')
+  .description('List MCP servers')
+  .option('-o, --output <format>', 'output format (table|json|yaml)', 'table')
+  .action((options, command) => getCommand('mcp-servers', undefined, options, command));
+
+getCmd
+  .command('archival')
+  .description('List archival memory entries')
+  .argument('[name]', 'specific agent name (optional)')
+  .option('-o, --output <format>', 'output format (table|json|yaml)', 'table')
+  .option('-a, --agent <name>', 'filter by agent name')
+  .option('--full', 'show full archival entry text')
+  .option('--query <text>', 'search archival memory by semantic similarity')
+  .action((name, options, command) => getCommand('archival', name, options, command));
+
+getCmd
+  .command('messages')
+  .description('List agent conversation messages')
+  .argument('<agent>', 'agent name')
+  .option('-l, --limit <number>', 'number of messages to show (default: 10)', parseInt)
+  .option('-a, --all', 'show all messages (no limit)')
+  .option('--system', 'include system messages')
+  .option('--order <order>', 'sort order (asc|desc)', 'desc')
+  .option('--before <id>', 'show messages before this message ID')
+  .option('--after <id>', 'show messages after this message ID')
+  .option('-o, --output <format>', 'output format (table|json)', 'table')
+  .action(listMessagesCommand);
+
+getCmd
+  .command('runs')
+  .description('List async job runs')
+  .option('--active', 'show only active runs')
+  .option('-a, --agent <name>', 'filter by agent name')
+  .option('-l, --limit <number>', 'limit number of results', parseInt)
+  .option('-o, --output <format>', 'output format (table|json)', 'table')
+  .action(listRunsCommand);
+
+getCmd
+  .command('run')
+  .description('Get run details')
+  .argument('<run-id>', 'run ID')
+  .option('--wait', 'wait for run to complete')
+  .option('--stream', 'stream run output')
+  .option('--messages', 'show run messages')
+  .option('-o, --output <format>', 'output format (table|json)', 'table')
+  .action(getRunCommand);
+
+getCmd
+  .command('context')
+  .description('Show context window token usage breakdown')
+  .argument('<agent>', 'agent name')
+  .option('-o, --output <format>', 'output format (table|json)', 'table')
+  .action(contextCommand);
 
 // Describe command - detailed agent info
 program
@@ -245,21 +342,6 @@ program
   .option('-f, --file <path>', 'agent YAML configuration file', 'agents.yml')
   .action(validateCommand);
 
-// Message commands
-// List messages (replaces old logs command)
-program
-  .command('messages')
-  .description('List agent conversation messages')
-  .argument('<agent>', 'agent name')
-  .option('-l, --limit <number>', 'number of messages to show (default: 10)', parseInt)
-  .option('-a, --all', 'show all messages (no limit)')
-  .option('--system', 'include system messages')
-  .option('--order <order>', 'sort order (asc|desc)', 'desc')
-  .option('--before <id>', 'show messages before this message ID')
-  .option('--after <id>', 'show messages after this message ID')
-  .option('-o, --output <format>', 'output format (table|json)', 'table')
-  .action(listMessagesCommand);
-
 // Send message to agent
 program
   .command('send')
@@ -326,34 +408,6 @@ program
   .argument('<agent>', 'agent name')
   .option('-o, --output <format>', 'output format (table|json)', 'table')
   .action(filesCommand);
-
-// Context - show context window usage
-program
-  .command('context')
-  .description('Show context window token usage breakdown')
-  .argument('<agent>', 'agent name')
-  .option('-o, --output <format>', 'output format (table|json)', 'table')
-  .action(contextCommand);
-
-// Runs - manage async job runs
-program
-  .command('runs')
-  .description('List async job runs')
-  .option('--active', 'show only active runs')
-  .option('-a, --agent <name>', 'filter by agent name')
-  .option('-l, --limit <number>', 'limit number of results', parseInt)
-  .option('-o, --output <format>', 'output format (table|json)', 'table')
-  .action(listRunsCommand);
-
-program
-  .command('run')
-  .description('Get run details')
-  .argument('<run-id>', 'run ID')
-  .option('--wait', 'wait for run to complete')
-  .option('--stream', 'stream run output')
-  .option('--messages', 'show run messages')
-  .option('-o, --output <format>', 'output format (table|json)', 'table')
-  .action(getRunCommand);
 
 program
   .command('run-delete')

@@ -476,9 +476,9 @@ lettactl apply -f agents.yml
 ![Message Operations](assets/messages.png)
 ```bash
 # View conversation history (last 10 messages by default)
-lettactl messages my-agent
-lettactl messages my-agent -l 50    # Last 50 messages
-lettactl messages my-agent --all    # Full history
+lettactl get messages my-agent
+lettactl get messages my-agent -l 50    # Last 50 messages
+lettactl get messages my-agent --all    # Full history
 
 # Send a message to an agent (async by default, polls until complete)
 lettactl send my-agent "Hello, how are you?"
@@ -651,20 +651,20 @@ lettactl get agents -o json
 lettactl describe tool my-tool -o json
 
 # Conversation history (last 10 by default)
-lettactl messages my-agent             # Last 10 messages
-lettactl messages my-agent --all       # Full history
+lettactl get messages my-agent             # Last 10 messages
+lettactl get messages my-agent --all       # Full history
 ```
 
 ### Async Runs
 ```bash
-lettactl runs                         # List async job runs
-lettactl runs --active                # Show only active runs
-lettactl runs -a my-agent             # Filter by agent
-lettactl runs -o json                 # JSON output for scripting
-lettactl run <run-id>                 # Get run details
-lettactl run <run-id> --wait          # Wait for run to complete
-lettactl run <run-id> --messages      # Show run messages
-lettactl run <run-id> -o json         # JSON output
+lettactl get runs                         # List async job runs
+lettactl get runs --active                # Show only active runs
+lettactl get runs -a my-agent             # Filter by agent
+lettactl get runs -o json                 # JSON output for scripting
+lettactl get run <run-id>                 # Get run details
+lettactl get run <run-id> --wait          # Wait for run to complete
+lettactl get run <run-id> --messages      # Show run messages
+lettactl get run <run-id> -o json         # JSON output
 lettactl run-delete <run-id>          # Cancel/delete a run
 ```
 
@@ -674,8 +674,8 @@ lettactl health                       # Check server connectivity
 lettactl health -o json               # JSON output for CI/scripts
 lettactl files my-agent               # Show attached files
 lettactl files my-agent -o json       # JSON output
-lettactl context my-agent             # Show context window usage
-lettactl context my-agent -o json     # JSON output
+lettactl get context my-agent             # Show context window usage
+lettactl get context my-agent -o json     # JSON output
 ```
 
 ### Validate Configuration

@@ -26,7 +26,7 @@ const COMMAND_GROUPS: CommandGroup[] = [
   {
     title: 'Resources',
     commands: [
-      { key: 'get', value: 'Display resources' },
+      { key: 'get', value: 'Display resources / list' },
       { key: 'describe', value: 'Show detailed info' },
       { key: 'create', value: 'Create a new agent' },
       { key: 'update', value: 'Update an agent' },
@@ -39,10 +39,10 @@ const COMMAND_GROUPS: CommandGroup[] = [
     title: 'Messaging',
     commands: [
       { key: 'send', value: 'Send message to agent' },
-      { key: 'messages', value: 'List conversation' },
       { key: 'reset-messages', value: 'Reset history' },
       { key: 'compact-messages', value: 'Compact history' },
       { key: 'cancel-messages', value: 'Cancel running' },
+      { key: '', value: '' }, // padding for alignment
       { key: '', value: '' }, // padding for alignment
     ],
   },
@@ -51,10 +51,10 @@ const COMMAND_GROUPS: CommandGroup[] = [
     commands: [
       { key: 'health', value: 'Check server status' },
       { key: 'files', value: 'Show attached files' },
-      { key: 'context', value: 'Show token usage' },
-      { key: 'runs', value: 'List async jobs' },
-      { key: 'run', value: 'Get run details' },
       { key: 'run-delete', value: 'Delete/cancel run' },
+      { key: '', value: '' }, // padding for alignment
+      { key: '', value: '' }, // padding for alignment
+      { key: '', value: '' }, // padding for alignment
     ],
   },
 ];

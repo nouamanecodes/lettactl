@@ -15,21 +15,19 @@ const COMMANDS = [
   'export',
   'import',
   'validate',
-  'messages',
   'send',
   'reset-messages',
   'compact-messages',
   'cancel-messages',
   'health',
   'files',
-  'context',
-  'runs',
-  'run',
   'run-delete',
   'completion',
 ];
 
 const RESOURCES = ['agents', 'agent', 'blocks', 'block', 'archives', 'archive', 'tools', 'tool', 'folders', 'folder', 'files', 'file', 'mcp-servers'];
+
+const GET_SUBCOMMANDS = [...RESOURCES, 'messages', 'runs', 'run', 'context'];
 
 const bashCompletion = `
 # lettactl bash completion
@@ -41,13 +39,18 @@ _lettactl_completions() {
 
     commands="${COMMANDS.join(' ')}"
     resources="${RESOURCES.join(' ')}"
+    get_subcommands="${GET_SUBCOMMANDS.join(' ')}"
 
     case "\${prev}" in
         lettactl)
             COMPREPLY=( $(compgen -W "\${commands}" -- "\${cur}") )
             return 0
             ;;
-        get|describe|delete|create|update|export)
+        get)
+            COMPREPLY=( $(compgen -W "\${get_subcommands}" -- "\${cur}") )
+            return 0
+            ;;
+        describe|delete|create|update|export)
             COMPREPLY=( $(compgen -W "\${resources}" -- "\${cur}") )
             return 0
             ;;
@@ -96,16 +99,12 @@ _lettactl() {
         'export:Export an agent to a file'
         'import:Import an agent from a file'
         'validate:Validate agent configuration'
-        'messages:List agent conversation messages'
         'send:Send a message to an agent'
         'reset-messages:Reset conversation history'
         'compact-messages:Compact conversation history'
         'cancel-messages:Cancel running message processes'
         'health:Check Letta server connectivity'
         'files:Show attached files'
-        'context:Show context window usage'
-        'runs:List async job runs'
-        'run:Get run details'
         'run-delete:Delete/cancel a run'
         'completion:Generate shell completion script'
     )
@@ -142,7 +141,25 @@ _lettactl() {
             ;;
         resource)
             case "\${words[1]}" in
-                get|describe|delete|create|update|export)
+                get)
+                    local -a get_subcommands
+                    get_subcommands=(
+                        'agents:List agents'
+                        'blocks:List memory blocks'
+                        'archives:List archives'
+                        'tools:List tools'
+                        'folders:List folders'
+                        'files:List files'
+                        'mcp-servers:List MCP servers'
+                        'archival:List archival memory'
+                        'messages:List conversation messages'
+                        'runs:List async job runs'
+                        'run:Get run details'
+                        'context:Show token usage'
+                    )
+                    _describe -t get_subcommands 'get subcommand' get_subcommands
+                    ;;
+                describe|delete|create|update|export)
                     _describe -t resources 'resource type' resources
                     ;;
                 cleanup)
@@ -177,21 +194,20 @@ complete -c lettactl -n __fish_use_subcommand -a update -d 'Update an existing a
 complete -c lettactl -n __fish_use_subcommand -a export -d 'Export an agent to a file'
 complete -c lettactl -n __fish_use_subcommand -a import -d 'Import an agent from a file'
 complete -c lettactl -n __fish_use_subcommand -a validate -d 'Validate agent configuration'
-complete -c lettactl -n __fish_use_subcommand -a messages -d 'List agent messages'
 complete -c lettactl -n __fish_use_subcommand -a send -d 'Send a message to an agent'
 complete -c lettactl -n __fish_use_subcommand -a reset-messages -d 'Reset conversation history'
 complete -c lettactl -n __fish_use_subcommand -a compact-messages -d 'Compact conversation history'
 complete -c lettactl -n __fish_use_subcommand -a cancel-messages -d 'Cancel running messages'
 complete -c lettactl -n __fish_use_subcommand -a health -d 'Check server connectivity'
 complete -c lettactl -n __fish_use_subcommand -a files -d 'Show attached files'
-complete -c lettactl -n __fish_use_subcommand -a context -d 'Show context window usage'
-complete -c lettactl -n __fish_use_subcommand -a runs -d 'List async job runs'
-complete -c lettactl -n __fish_use_subcommand -a run -d 'Get run details'
 complete -c lettactl -n __fish_use_subcommand -a run-delete -d 'Delete/cancel a run'
 complete -c lettactl -n __fish_use_subcommand -a completion -d 'Generate shell completion'
 
-# Resources for get/describe/delete/create/update/export
-complete -c lettactl -n '__fish_seen_subcommand_from get describe delete create update export' -a 'agents agent blocks block archives archive tools tool folders folder files file mcp-servers' -d 'Resource type'
+# Subcommands for get
+complete -c lettactl -n '__fish_seen_subcommand_from get' -a 'agents blocks archives tools folders files mcp-servers archival messages runs run context' -d 'Resource type'
+
+# Resources for describe/delete/create/update/export
+complete -c lettactl -n '__fish_seen_subcommand_from describe delete create update export' -a 'agents agent blocks block archives archive tools tool folders folder files file mcp-servers' -d 'Resource type'
 
 # Cleanup resources
 complete -c lettactl -n '__fish_seen_subcommand_from cleanup' -a 'blocks folders archives all' -d 'Resource type'
@@ -214,7 +230,7 @@ complete -c lettactl -n '__fish_seen_subcommand_from apply' -l dry-run -d 'Show 
 complete -c lettactl -n '__fish_seen_subcommand_from apply' -l root -d 'Root directory for paths' -r
 
 # Output format
-complete -c lettactl -n '__fish_seen_subcommand_from get describe messages runs run' -s o -l output -a 'table json yaml' -d 'Output format'
+complete -c lettactl -n '__fish_seen_subcommand_from get describe' -s o -l output -a 'table json yaml' -d 'Output format'
 `;
 
 export function completionCommand(shell: string) {
