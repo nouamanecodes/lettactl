@@ -193,6 +193,73 @@ agents:
       expect(config.agents[0].tools).toEqual(['tool1', 'tool2']);
     });
 
+    it('should throw on tool name collision with different sources', async () => {
+      const yamlContent = `
+agents:
+  - name: agent-a
+    description: "Agent A"
+    llm_config:
+      model: "google_ai/gemini-2.5-pro"
+      context_window: 32000
+    system_prompt:
+      value: "Test"
+    tools:
+      - name: my_tool
+        from_file: tools/my_tool_v1.py
+  - name: agent-b
+    description: "Agent B"
+    llm_config:
+      model: "google_ai/gemini-2.5-pro"
+      context_window: 32000
+    system_prompt:
+      value: "Test"
+    tools:
+      - name: my_tool
+        from_file: tools/my_tool_v2.py
+`;
+      const configPath = '/test/path/fleet.yaml';
+
+      mockedFs.existsSync.mockReturnValue(true);
+      mockedFs.readFileSync.mockReturnValue(yamlContent);
+
+      await expect(parser.parseFleetConfig(configPath)).rejects.toThrow('Tool name collision');
+    });
+
+    it('should allow same tool name with same source across agents', async () => {
+      const yamlContent = `
+agents:
+  - name: agent-a
+    description: "Agent A"
+    llm_config:
+      model: "google_ai/gemini-2.5-pro"
+      context_window: 32000
+    system_prompt:
+      value: "Test"
+    tools:
+      - name: my_tool
+        from_file: tools/shared_tool.py
+  - name: agent-b
+    description: "Agent B"
+    llm_config:
+      model: "google_ai/gemini-2.5-pro"
+      context_window: 32000
+    system_prompt:
+      value: "Test"
+    tools:
+      - name: my_tool
+        from_file: tools/shared_tool.py
+`;
+      const configPath = '/test/path/fleet.yaml';
+
+      mockedFs.existsSync.mockReturnValue(true);
+      mockedFs.readFileSync.mockReturnValue(yamlContent);
+
+      const config = await parser.parseFleetConfig(configPath);
+
+      expect(config.agents[0].tools).toContain('my_tool');
+      expect(config.agents[1].tools).toContain('my_tool');
+    });
+
     it('should throw error for invalid YAML', async () => {
       const invalidYaml = `
 agents:

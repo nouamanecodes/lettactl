@@ -275,6 +275,18 @@ export class FleetParser {
             }
           } else if (typeof tool === 'object' && tool.name) {
             // Tool configuration object with bucket source
+            // Check for conflicting tool configs with same name but different source
+            const existing = this.toolConfigs.get(tool.name);
+            if (existing) {
+              const existingSource = existing.from_file || existing.from_bucket?.path || existing.source_code || '';
+              const newSource = tool.from_file || tool.from_bucket?.path || tool.source_code || '';
+              if (existingSource !== newSource) {
+                throw new Error(
+                  `Tool name collision: "${tool.name}" is defined with different sources. ` +
+                  `Rename one of the tools to avoid ambiguity.`
+                );
+              }
+            }
             // Store the full config for later retrieval in registerRequiredTools
             this.toolConfigs.set(tool.name, tool);
             expandedTools.push(tool.name);

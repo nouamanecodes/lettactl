@@ -12,7 +12,6 @@ import { createSpinner } from '../ux/spinner';
 import { FleetParser } from './fleet-parser';
 import { StorageBackendManager, SupabaseStorageBackend, hasSupabaseConfig } from '../storage/storage-backend';
 import { FolderFileConfig } from '../../types/fleet-config';
-import { isBuiltinTool } from '../tools/builtin-tools';
 import { AgentResolver } from '../client/agent-resolver';
 import { log, error } from '../shared/logger';
 import { DEFAULT_CONTEXT_WINDOW, DEFAULT_MODEL, DEFAULT_EMBEDDING, DEFAULT_REASONING } from '../shared/constants';
@@ -379,6 +378,7 @@ export async function createNewAgent(
       model: agent.llm_config?.model || DEFAULT_MODEL,
       system: agent.system_prompt.value || '',
       block_ids: blockIds,
+      tool_ids: toolIds,
       context_window_limit: agent.llm_config?.context_window || DEFAULT_CONTEXT_WINDOW,
       reasoning: agent.reasoning ?? DEFAULT_REASONING,
       ...(agent.llm_config?.max_tokens !== undefined && { max_tokens: agent.llm_config.max_tokens }),
@@ -396,16 +396,6 @@ export async function createNewAgent(
     }
 
     const createdAgent = await client.createAgent(createPayload);
-
-    // Attach tools
-    for (const toolName of agent.tools || []) {
-      const toolId = toolNameToId.get(toolName);
-      if (toolId) {
-        const tag = builtinTools.has(toolName) || isBuiltinTool(toolName) ? ' [builtin]' : '';
-        if (verbose) log(`  Attaching tool: ${toolName}${tag}`);
-        await client.attachToolToAgent(createdAgent.id, toolId);
-      }
-    }
 
     // Attach archives
     for (const archiveId of archiveIds) {
