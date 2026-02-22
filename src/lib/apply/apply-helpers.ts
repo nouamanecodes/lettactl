@@ -441,6 +441,9 @@ export async function createNewAgent(
 
     // Store metadata for future change detection and export round-tripping
     const metadata: Record<string, any> = {};
+    // Store raw model/embedding strings for provider change detection (#255)
+    metadata['lettactl.model'] = agent.llm_config?.model || 'google_ai/gemini-2.5-pro';
+    metadata['lettactl.embedding'] = agent.embedding || 'openai/text-embedding-3-small';
     if (folderContentHashes && folderContentHashes.size > 0) {
       const newFolderFileHashes: Record<string, Record<string, string>> = {};
       for (const [folderName, hashes] of folderContentHashes) {
