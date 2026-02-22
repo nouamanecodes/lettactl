@@ -105,13 +105,24 @@ export class DiffEngine {
     }
 
     const desiredModel = desiredConfig.model || "google_ai/gemini-2.5-pro";
-    if (currentAgent.model !== desiredModel) {
+    // Letta strips provider prefixes, cloud vendor prefixes, and version suffixes:
+    //   "bedrock/us.anthropic.claude-haiku-4-5-20251001-v1:0" → "claude-haiku-4-5-20251001"
+    //   "anthropic/claude-haiku-4-5-20251001" → "claude-haiku-4-5-20251001"
+    const normalizeModelName = (m: string) => {
+      let name = m.includes('/') ? m.substring(m.lastIndexOf('/') + 1) : m;
+      // Strip cloud vendor prefixes (e.g. "us.anthropic.", "eu.amazon.")
+      name = name.replace(/^[a-z]{2}\.[a-z]+\./, '');
+      // Strip bedrock version suffixes (e.g. "-v1:0", "-v2:0")
+      name = name.replace(/-v\d+:\d+$/, '');
+      return name;
+    };
+    if (normalizeModelName(currentAgent.model || '') !== normalizeModelName(desiredModel)) {
       fieldUpdates.model = { from: currentAgent.model, to: desiredModel };
       operations.operationCount++;
     }
 
     const desiredEmbedding = desiredConfig.embedding || DEFAULT_EMBEDDING;
-    if (currentAgent.embedding !== desiredEmbedding) {
+    if (normalizeModelName(currentAgent.embedding || '') !== normalizeModelName(desiredEmbedding)) {
       fieldUpdates.embedding = { from: currentAgent.embedding, to: desiredEmbedding };
       operations.operationCount++;
     }
@@ -132,7 +143,9 @@ export class DiffEngine {
 
     const currentEmbeddingConfig = normalizeConfig((currentAgent as any).embedding_config);
     const desiredEmbeddingConfig = normalizeConfig(desiredConfig.embeddingConfig);
-    if (JSON.stringify(currentEmbeddingConfig) !== JSON.stringify(desiredEmbeddingConfig)) {
+    // Skip comparison when YAML only specifies the embedding shorthand (no explicit embedding_config)
+    // — the server auto-expands it into a full config object on save
+    if (desiredEmbeddingConfig !== null && JSON.stringify(currentEmbeddingConfig) !== JSON.stringify(desiredEmbeddingConfig)) {
       fieldUpdates.embeddingConfig = { from: currentEmbeddingConfig, to: desiredEmbeddingConfig };
       operations.operationCount++;
     }

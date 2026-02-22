@@ -1,0 +1,9 @@
+agents:
+- name: e2e-62-model-drift
+  description: Tests model provider prefix normalization
+  embedding: openai/text-embedding-3-small
+  system_prompt:
+    value: Agent for model drift test.
+  llm_config:
+    model: anthropic/claude-haiku-4-5-20251001
+    context_window: 32000

@@ -19,43 +19,35 @@ export class LettaClientWrapper {
   }
 
   async listAgents(options?: { tags?: string[] }) {
-    const params: any = {};
-    if (options?.tags && options.tags.length > 0) {
-      params.tags = options.tags;
-      params.match_all_tags = true;
-    }
-    const result = await this.client.agents.list(params);
+    // Use raw API with manual cursor pagination — SDK pagination is unreliable
+    // and the server enforces a small max page size regardless of limit
+    const baseUrl = process.env.LETTA_BASE_URL;
+    const headers = this.getAuthHeaders();
+    const allAgents: any[] = [];
+    let after: string | null = null;
 
-    // SDK strips tags from response — fetch raw to get them back
-    try {
-      const baseUrl = process.env.LETTA_BASE_URL;
-      const url = new URL('/v1/agents/', baseUrl);
-      if (options?.tags) {
+    while (true) {
+      const url = new URL('/v1/agents/', baseUrl!);
+      url.searchParams.set('limit', '100');
+      if (after) url.searchParams.set('after', after);
+      if (options?.tags && options.tags.length > 0) {
         for (const tag of options.tags) {
           url.searchParams.append('tags', tag);
         }
         url.searchParams.set('match_all_tags', 'true');
       }
-      const response = await fetch(url.toString(), { headers: this.getAuthHeaders() });
-      if (response.ok) {
-        const rawAgents = await response.json() as any[];
-        const tagsMap = new Map<string, string[]>();
-        for (const a of rawAgents) {
-          if (a.id && a.tags) tagsMap.set(a.id, a.tags);
-        }
-        // Patch tags onto SDK response items
-        const items = (result as any).items || (Array.isArray(result) ? result : []);
-        for (const agent of items) {
-          if (tagsMap.has(agent.id)) {
-            agent.tags = tagsMap.get(agent.id);
-          }
-        }
+      const response = await fetch(url.toString(), { headers });
+      if (!response.ok) {
+        throw new Error(`Failed to list agents: ${response.statusText}`);
       }
-    } catch {
-      // Silently fall back to SDK response (tags will be empty)
+      const page = await response.json() as any[];
+      if (!Array.isArray(page) || page.length === 0) break;
+      allAgents.push(...page);
+      after = page[page.length - 1].id;
+      if (page.length < 100) break; // Last page
     }
 
-    return result;
+    return allAgents;
   }
 
   async getAgent(agentId: string) {

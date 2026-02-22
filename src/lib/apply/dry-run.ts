@@ -324,6 +324,12 @@ function formatUpdateDetails(ops: AgentUpdateOperations, verbose: boolean, fancy
     if (ops.updateFields.maxTokens) {
       output(`    ${dim('max_tokens:')} ${ops.updateFields.maxTokens.from} ${dim('->')} ${ops.updateFields.maxTokens.to}`);
     }
+    if (ops.updateFields.reasoning !== undefined) {
+      output(`    ${dim('reasoning:')} ${ops.updateFields.reasoning.from} ${dim('->')} ${ops.updateFields.reasoning.to}`);
+    }
+    if (ops.updateFields.embeddingConfig) {
+      output(`    ${dim('embedding_config:')} ${JSON.stringify(ops.updateFields.embeddingConfig.from)} ${dim('->')} ${JSON.stringify(ops.updateFields.embeddingConfig.to)}`);
+    }
     if (ops.updateFields.tags) {
       output(`    ${dim('tags:')} [${ops.updateFields.tags.from}] ${dim('->')} [${ops.updateFields.tags.to}]`);
     }

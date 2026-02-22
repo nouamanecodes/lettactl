@@ -9,9 +9,11 @@ export async function buildMcpServerRegistry(client: LettaClientWrapper): Promis
   const serverList = Array.isArray(servers) ? servers : (servers as any).items || [];
   const registry = new Map<string, string>();
   for (const server of serverList) {
-    const name = (server as any).server_name || (server as any).name;
-    if (name && (server as any).id) {
-      registry.set(name, (server as any).id);
+    const s = server as any;
+    const name = s.server_name || s.name;
+    const id = s.id || s.server_id;
+    if (name && id) {
+      registry.set(name, id);
     }
   }
   return registry;

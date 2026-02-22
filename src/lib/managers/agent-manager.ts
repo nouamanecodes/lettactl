@@ -38,12 +38,12 @@ export class AgentManager {
     const agentList = normalizeResponse(agents);
 
     for (const agent of agentList) {
-      if (agent.name && agent.system) {
+      if (agent.name) {
         // For existing agents, store basic info for lookup
         // Full configuration hashing will be done during comparison
         const configHashes: AgentConfigHashes = {
           overall: '',              // Will be populated during comparison
-          systemPrompt: generateContentHash(agent.system),
+          systemPrompt: generateContentHash(agent.system || ''),
           tools: '',
           model: '',
           memoryBlocks: '',
