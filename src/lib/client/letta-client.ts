@@ -63,6 +63,7 @@ export class LettaClientWrapper {
         if (raw.description !== undefined) (agent as any).description = raw.description;
         if (raw.tools !== undefined) (agent as any).tools = raw.tools;
         if (raw.memory?.blocks !== undefined) (agent as any).blocks = raw.memory.blocks;
+        if (raw.llm_config !== undefined) (agent as any).llm_config = raw.llm_config;
       }
     } catch {
       // Fall back to SDK response

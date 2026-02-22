@@ -105,25 +105,40 @@ export class DiffEngine {
     }
 
     const desiredModel = desiredConfig.model || "google_ai/gemini-2.5-pro";
-    // Letta strips provider prefixes, cloud vendor prefixes, and version suffixes:
-    //   "bedrock/us.anthropic.claude-haiku-4-5-20251001-v1:0" → "claude-haiku-4-5-20251001"
-    //   "anthropic/claude-haiku-4-5-20251001" → "claude-haiku-4-5-20251001"
+    // Letta strips provider prefixes from the model field, so we can't rely on
+    // currentAgent.model for exact comparison. Use lettactl.model metadata (stored
+    // on create/update) for exact match; fall back to normalized comparison for
+    // legacy agents without metadata.
     const normalizeModelName = (m: string) => {
       let name = m.includes('/') ? m.substring(m.lastIndexOf('/') + 1) : m;
-      // Strip cloud vendor prefixes (e.g. "us.anthropic.", "eu.amazon.")
       name = name.replace(/^[a-z]{2}\.[a-z]+\./, '');
-      // Strip bedrock version suffixes (e.g. "-v1:0", "-v2:0")
       name = name.replace(/-v\d+:\d+$/, '');
       return name;
     };
-    if (normalizeModelName(currentAgent.model || '') !== normalizeModelName(desiredModel)) {
-      fieldUpdates.model = { from: currentAgent.model, to: desiredModel };
+    // Compare model using the best available source:
+    // 1. lettactl.model metadata (exact raw model stored on create/update)
+    // 2. llm_config.handle (server preserves full provider-prefixed name)
+    // 3. Normalized comparison (legacy fallback — can't detect provider changes)
+    const storedModel = (currentAgent as any).metadata?.['lettactl.model'];
+    const handleModel = (currentAgent as any).llm_config?.handle;
+    const currentModelRef = storedModel || handleModel;
+    const modelChanged = currentModelRef
+      ? currentModelRef !== desiredModel
+      : normalizeModelName(currentAgent.model || '') !== normalizeModelName(desiredModel);
+    if (modelChanged) {
+      fieldUpdates.model = { from: currentModelRef || currentAgent.model, to: desiredModel };
       operations.operationCount++;
     }
 
     const desiredEmbedding = desiredConfig.embedding || DEFAULT_EMBEDDING;
-    if (normalizeModelName(currentAgent.embedding || '') !== normalizeModelName(desiredEmbedding)) {
-      fieldUpdates.embedding = { from: currentAgent.embedding, to: desiredEmbedding };
+    const storedEmbedding = (currentAgent as any).metadata?.['lettactl.embedding'];
+    const handleEmbedding = (currentAgent as any).embedding_config?.handle;
+    const currentEmbeddingRef = storedEmbedding || handleEmbedding;
+    const embeddingChanged = currentEmbeddingRef
+      ? currentEmbeddingRef !== desiredEmbedding
+      : normalizeModelName(currentAgent.embedding || '') !== normalizeModelName(desiredEmbedding);
+    if (embeddingChanged) {
+      fieldUpdates.embedding = { from: currentEmbeddingRef || currentAgent.embedding, to: desiredEmbedding };
       operations.operationCount++;
     }
 
