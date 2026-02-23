@@ -2,6 +2,7 @@ import chalk from 'chalk';
 import { LettaClientWrapper } from '../client/letta-client';
 import { BlockManager } from '../managers/block-manager';
 import { ArchiveManager } from '../managers/archive-manager';
+import { FolderManager } from '../managers/folder-manager';
 import { AgentManager } from '../managers/agent-manager';
 import { DiffEngine, AgentUpdateOperations } from './diff-engine';
 import { FileContentTracker } from './file-content-tracker';
@@ -23,6 +24,7 @@ interface DryRunContext {
   client: LettaClientWrapper;
   blockManager: BlockManager;
   archiveManager: ArchiveManager;
+  folderManager: FolderManager;
   agentManager: AgentManager;
   diffEngine: DiffEngine;
   fileTracker: FileContentTracker;
@@ -42,7 +44,11 @@ export async function computeDryRunDiffs(
 
   // Build read-only registries
   const toolNameToId = await buildToolRegistry(client);
-  const folderNameToId = await buildFolderRegistry(client);
+  const folderRegistry = ctx.folderManager.getFolderRegistry();
+  const folderNameToId = new Map<string, string>();
+  for (const [name, info] of folderRegistry) {
+    folderNameToId.set(name, info.id);
+  }
   const sharedBlockIds = buildSharedBlockRegistry(config, blockManager);
   const mcpServerNameToId = await buildMcpServerRegistry(client);
   await expandMcpToolsForAgents(config, client, mcpServerNameToId, ctx.verbose);
@@ -74,15 +80,6 @@ async function buildToolRegistry(client: LettaClientWrapper): Promise<Map<string
   const registry = new Map<string, string>();
   for (const tool of tools) {
     registry.set(tool.name, tool.id);
-  }
-  return registry;
-}
-
-async function buildFolderRegistry(client: LettaClientWrapper): Promise<Map<string, string>> {
-  const folders = await client.listFolders();
-  const registry = new Map<string, string>();
-  for (const folder of folders) {
-    registry.set(folder.name, folder.id);
   }
   return registry;
 }

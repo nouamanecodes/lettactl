@@ -2,6 +2,7 @@ import { FleetParser } from '../../lib/apply/fleet-parser';
 import { LettaClientWrapper } from '../../lib/client/letta-client';
 import { BlockManager } from '../../lib/managers/block-manager';
 import { ArchiveManager } from '../../lib/managers/archive-manager';
+import { FolderManager } from '../../lib/managers/folder-manager';
 import { AgentManager } from '../../lib/managers/agent-manager';
 import { DiffEngine } from '../../lib/apply/diff-engine';
 import { FileContentTracker } from '../../lib/apply/file-content-tracker';
@@ -136,6 +137,7 @@ export async function applyCommand(options: ApplyOptions, command: any): Promise
     const blockManager = new BlockManager(client);
     const agentManager = new AgentManager(client);
     const archiveManager = new ArchiveManager(client);
+    const folderManager = new FolderManager(client);
     const diffEngine = new DiffEngine(client, blockManager, archiveManager, parser.basePath);
     const fileTracker = new FileContentTracker(parser.basePath, parser.storageBackend);
 
@@ -147,6 +149,9 @@ export async function applyCommand(options: ApplyOptions, command: any): Promise
     if (verbose) log('Loading existing archives...');
     await archiveManager.loadExistingArchives();
 
+    if (verbose) log('Loading existing folders...');
+    await folderManager.loadExistingFolders();
+
     if (verbose) log('Loading existing agents...');
     await agentManager.loadExistingAgents();
     loadSpinner.succeed('Loaded existing resources');
@@ -157,6 +162,7 @@ export async function applyCommand(options: ApplyOptions, command: any): Promise
         client,
         blockManager,
         archiveManager,
+        folderManager,
         agentManager,
         diffEngine,
         fileTracker,
@@ -222,7 +228,7 @@ export async function applyCommand(options: ApplyOptions, command: any): Promise
 
     // Process folders
     const folderSpinner = createSpinner('Processing folders...', spinnerEnabled).start();
-    const createdFolders = await processFolders(config, client, parser, options, verbose);
+    const createdFolders = await processFolders(config, folderManager, client, parser, options, verbose);
     folderSpinner.succeed(`Processed ${createdFolders.size} folders`);
 
     // Process agents

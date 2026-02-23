@@ -4,6 +4,7 @@ import * as os from 'os';
 import { LettaClientWrapper } from '../client/letta-client';
 import { BlockManager } from '../managers/block-manager';
 import { ArchiveManager } from '../managers/archive-manager';
+import { FolderManager } from '../managers/folder-manager';
 import { AgentManager, AgentVersion } from '../managers/agent-manager';
 import { DiffEngine } from './diff-engine';
 import { FileContentTracker } from './file-content-tracker';
@@ -119,6 +120,7 @@ async function uploadBucketFilesToFolder(
 
 export async function processFolders(
   config: any,
+  folderManager: FolderManager,
   client: LettaClientWrapper,
   parser: FleetParser,
   options: { agent?: string },
@@ -136,8 +138,6 @@ export async function processFolders(
   }
 
   if (verbose) log('Processing folders...');
-  const foldersResponse = await client.listFolders();
-  const existingFolders = Array.isArray(foldersResponse) ? foldersResponse : (foldersResponse as any).items || [];
 
   // Track shared folder names for labeling
   const sharedFolderNames = new Set<string>(
@@ -154,26 +154,26 @@ export async function processFolders(
           continue;
         }
 
-        let folder = existingFolders.find((f: any) => f.name === folderConfig.name);
+        const existingFolderId = folderManager.getFolderId(folderConfig.name);
         const isShared = sharedFolderNames.has(folderConfig.name);
 
-        if (!folder) {
+        if (!existingFolderId) {
           if (verbose) log(`Creating ${isShared ? 'shared ' : ''}folder: ${folderConfig.name}`);
           if (!agent.embedding) {
             throw new Error(`Folder "${folderConfig.name}" requires an embedding handle. Set agent.embedding to a valid model handle.`);
           }
-          folder = await client.createFolder({
+          const folderId = await folderManager.getOrCreateFolder({
             name: folderConfig.name,
             embedding: agent.embedding || DEFAULT_EMBEDDING
           });
           log(`Created ${isShared ? 'shared ' : ''}folder: ${folderConfig.name}`);
-          createdFolders.set(folderConfig.name, folder.id);
+          createdFolders.set(folderConfig.name, folderId);
 
           if (verbose) log(`Uploading ${folderConfig.files.length} files...`);
           for (const fileConfig of folderConfig.files) {
             try {
               if (isFromBucketConfig(fileConfig)) {
-                await uploadBucketFilesToFolder(fileConfig.from_bucket, folder.id, client, verbose);
+                await uploadBucketFilesToFolder(fileConfig.from_bucket, folderId, client, verbose);
               } else {
                 // Handle local file path (existing behavior)
                 const filePath = fileConfig;
@@ -186,7 +186,7 @@ export async function processFolders(
                 if (verbose) log(`  Uploading ${filePath}...`);
                 const fileStream = fs.createReadStream(resolvedPath);
 
-                await client.uploadFileToFolder(fileStream, folder.id, path.basename(filePath));
+                await client.uploadFileToFolder(fileStream, folderId, path.basename(filePath));
 
                 if (verbose) log(`  Uploaded: ${filePath}`);
               }
@@ -199,7 +199,7 @@ export async function processFolders(
           }
         } else {
           if (verbose) log(`Using existing folder: ${folderConfig.name}`);
-          createdFolders.set(folderConfig.name, folder.id);
+          createdFolders.set(folderConfig.name, existingFolderId);
           // File uploads for existing folders are handled by the diff engine
           // during agent update - this avoids creating duplicate files
         }
