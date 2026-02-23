@@ -1,0 +1,12 @@
+agents:
+- name: e2e-64-archive-protection
+  description: Agent with archival tools but no archives section
+  embedding: openai/text-embedding-3-small
+  system_prompt:
+    value: Agent that uses archival memory.
+  llm_config:
+    model: google_ai/gemini-2.5-pro
+    context_window: 32000
+  tools:
+  - archival_memory_insert
+  - archival_memory_search

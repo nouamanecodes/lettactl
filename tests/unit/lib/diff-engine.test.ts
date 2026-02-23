@@ -122,5 +122,24 @@ describe('DiffEngine', () => {
       const result = await analyzeArchiveChanges([{ name: 'archive', id: 'archive-1' }], [{ name: 'archive' }], mockArchiveManager);
       expect(result.unchanged).toEqual([{ name: 'archive', id: 'archive-1' }]);
     });
+
+    it('preserves archives when desired is empty but agent has archival tools (#257)', async () => {
+      const currentArchives = [{ name: 'learned-memory', id: 'archive-1' }];
+      const agentTools = [
+        { name: 'archival_memory_insert', id: 'tool-1' },
+        { name: 'archival_memory_search', id: 'tool-2' }
+      ];
+      const result = await analyzeArchiveChanges(currentArchives, [], mockArchiveManager, false, agentTools);
+      expect(result.toDetach).toEqual([]);
+      expect(result.unchanged).toEqual([{ name: 'learned-memory', id: 'archive-1' }]);
+    });
+
+    it('detaches archives when desired is empty and agent has no archival tools', async () => {
+      const currentArchives = [{ name: 'old-archive', id: 'archive-1' }];
+      const agentTools = [{ name: 'conversation_search', id: 'tool-1' }];
+      const result = await analyzeArchiveChanges(currentArchives, [], mockArchiveManager, false, agentTools);
+      expect(result.toDetach).toEqual([{ name: 'old-archive', id: 'archive-1' }]);
+      expect(result.unchanged).toEqual([]);
+    });
   });
 });

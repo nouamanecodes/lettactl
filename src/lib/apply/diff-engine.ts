@@ -245,7 +245,8 @@ export class DiffEngine {
       currentArchives,
       desiredConfig.archives || [],
       this.archiveManager,
-      dryRun
+      dryRun,
+      currentTools
     );
     operations.archives = archiveOps;
     operations.operationCount += archiveOps.toAttach.length + archiveOps.toDetach.length + archiveOps.toUpdate.length;

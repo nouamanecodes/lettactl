@@ -329,11 +329,20 @@ export async function analyzeFolderChanges(
   return { toAttach, toDetach, toUpdate, unchanged };
 }
 
+/**
+ * Archival memory tools that indicate the agent uses archival memory.
+ * When these tools are present and the YAML omits the archives section,
+ * we preserve existing archives instead of detaching them.
+ * @see https://github.com/nouamanecodes/lettactl/issues/257
+ */
+const ARCHIVAL_TOOLS = new Set(['archival_memory_insert', 'archival_memory_search']);
+
 export async function analyzeArchiveChanges(
   currentArchives: any[],
   desiredArchives: Array<{ name: string; description?: string; embedding?: string; embedding_config?: Record<string, any> }>,
   archiveManager: ArchiveManager,
-  dryRun: boolean = false
+  dryRun: boolean = false,
+  agentTools: any[] = []
 ): Promise<ArchiveDiff> {
   const currentArchiveNames = new Set<string>();
   const currentByName = new Map<string, any>();
@@ -343,6 +352,20 @@ export async function analyzeArchiveChanges(
     if (!name) continue;
     currentArchiveNames.add(name);
     currentByName.set(name, archive);
+  }
+
+  // If YAML omits archives section (empty desired list) but agent has archival
+  // tools, preserve all current archives to avoid destroying learned memory.
+  // See: https://github.com/nouamanecodes/lettactl/issues/257
+  if (desiredArchives.length === 0 && currentByName.size > 0) {
+    const hasArchivalTools = agentTools.some(t => ARCHIVAL_TOOLS.has(t.name));
+    if (hasArchivalTools) {
+      const unchanged = Array.from(currentByName.entries()).map(([name, archive]) => ({
+        name,
+        id: archive.id || '(unknown)'
+      }));
+      return { toAttach: [], toDetach: [], toUpdate: [], unchanged };
+    }
   }
 
   const desiredArchiveNames = new Set(desiredArchives.map(a => a.name));
