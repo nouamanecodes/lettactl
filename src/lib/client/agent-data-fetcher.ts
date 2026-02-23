@@ -107,7 +107,7 @@ export class AgentDataFetcher {
       id: agent.id || 'Unknown',
       name: agent.name || 'Unknown',
       description: agent.description,
-      model: agent.llm_config?.model || agent.model || '-',
+      model: agent.metadata?.['lettactl.model'] || agent.llm_config?.handle || agent.llm_config?.model || agent.model || '-',
       blockCount: 0, // Not available in list response
       toolCount: 0, // Not available in list response
       folderCount: 0,
@@ -137,7 +137,7 @@ export class AgentDataFetcher {
       id: agent.id || 'Unknown',
       name: agent.name || 'Unknown',
       description: agent.description,
-      model: agent.llm_config?.model || agent.model || '-',
+      model: agent.metadata?.['lettactl.model'] || agent.llm_config?.handle || agent.llm_config?.model || agent.model || '-',
       blockCount: details.blocks.length,
       toolCount: details.tools.length,
       folderCount: details.detailLevel === 'full' ? details.folders.length : 0,
