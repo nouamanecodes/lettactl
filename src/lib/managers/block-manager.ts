@@ -42,8 +42,10 @@ export class BlockManager {
           isShared: false
         };
 
-        // Store under plain label - shared detection happens via config, not naming
+        // Store under plain label and shared key so pre-existing shared blocks
+        // are discoverable without a dangerous plain-label fallback
         this.blockRegistry.set(block.label, blockInfo);
+        this.blockRegistry.set(`shared:${block.label}`, blockInfo);
       }
     }
   }
@@ -64,11 +66,8 @@ export class BlockManager {
     const sharedKey = this.getBlockKey(blockConfig.name, true);
     const contentHash = generateContentHash(blockConfig.value);
 
-    // Check shared key first, then plain label
-    let existing = this.blockRegistry.get(sharedKey);
-    if (!existing) {
-      existing = this.blockRegistry.get(blockConfig.name);
-    }
+    // Only check the shared key — never fall back to plain label
+    const existing = this.blockRegistry.get(sharedKey);
 
     if (existing) {
       // Shared blocks are always agent_owned - never overwrite
@@ -160,10 +159,7 @@ export class BlockManager {
    * Gets the shared block ID by name
    */
   getSharedBlockId(blockName: string): string | null {
-    let existing = this.blockRegistry.get(this.getBlockKey(blockName, true));
-    if (!existing) {
-      existing = this.blockRegistry.get(this.getBlockKey(blockName, false));
-    }
+    const existing = this.blockRegistry.get(this.getBlockKey(blockName, true));
     return existing ? existing.id : null;
   }
 

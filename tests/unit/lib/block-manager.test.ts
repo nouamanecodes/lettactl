@@ -68,6 +68,38 @@ describe('BlockManager', () => {
       expect(mockClient.updateBlock).not.toHaveBeenCalled();
     });
 
+    it('does not reuse a plain-label block from a different context', async () => {
+      // Simulate a block that exists only under a plain label (e.g. loaded by
+      // another tenant). Manually set it so it's NOT under the shared: key.
+      (manager as any).blockRegistry.set('brand_identity', {
+        id: 'other-tenant-block',
+        label: 'brand_identity',
+        description: 'other tenant',
+        value: 'other',
+        limit: 1000,
+        contentHash: 'abc',
+        isShared: false
+      });
+
+      mockClient.createBlock.mockResolvedValue({ id: 'new-block-id' } as any);
+
+      const result = await manager.getOrCreateSharedBlock({
+        name: 'brand_identity',
+        description: 'my tenant',
+        value: 'mine',
+        limit: 2000
+      });
+
+      // Should create a new block, NOT reuse the plain-label one
+      expect(result).toBe('new-block-id');
+      expect(mockClient.createBlock).toHaveBeenCalledWith({
+        label: 'brand_identity',
+        description: 'my tenant',
+        value: 'mine',
+        limit: 2000
+      });
+    });
+
     it('returns existing block when content unchanged', async () => {
       mockClient.listBlocks.mockResolvedValue([
         { id: 'id-1', label: 'test', value: 'same-val', description: 'desc', limit: 1000 }
@@ -79,6 +111,32 @@ describe('BlockManager', () => {
       expect(result).toBe('id-1');
       expect(mockClient.createBlock).not.toHaveBeenCalled();
       expect(mockClient.updateBlock).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('getSharedBlockId', () => {
+    it('returns null when block only exists under plain label', async () => {
+      // Manually register a block under plain label only (no shared: prefix)
+      (manager as any).blockRegistry.set('brand_identity', {
+        id: 'plain-block-id',
+        label: 'brand_identity',
+        description: 'desc',
+        value: 'val',
+        limit: 1000,
+        contentHash: 'abc',
+        isShared: false
+      });
+
+      expect(manager.getSharedBlockId('brand_identity')).toBeNull();
+    });
+
+    it('returns id when block exists under shared key', async () => {
+      mockClient.listBlocks.mockResolvedValue([
+        { id: 'shared-block-id', label: 'brand_identity', value: 'val', description: 'desc', limit: 1000 }
+      ] as any);
+      await manager.loadExistingBlocks();
+
+      expect(manager.getSharedBlockId('brand_identity')).toBe('shared-block-id');
     });
   });
 });
