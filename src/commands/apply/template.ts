@@ -185,7 +185,7 @@ export async function applyTemplateMode(
       }
 
       agentSpinner.stop();
-      OutputFormatter.showAgentUpdateDiff(ops, builtinTools);
+      OutputFormatter.showAgentUpdateDiff(ops, builtinTools, false);
 
       const updateSpinner = createSpinner(`Applying updates to ${existingAgent.name}...`, spinnerEnabled).start();
       await diffEngine.applyUpdateOperations(existingAgent.id, ops, verbose);

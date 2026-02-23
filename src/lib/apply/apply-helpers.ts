@@ -250,7 +250,7 @@ export async function updateExistingAgent(
 
     spinner.stop();
 
-    OutputFormatter.showAgentUpdateDiff(updateOperations, builtinTools);
+    OutputFormatter.showAgentUpdateDiff(updateOperations, builtinTools, force);
 
     const updateSpinner = createSpinner(`Applying updates to ${agent.name}...`, spinnerEnabled).start();
 

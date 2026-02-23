@@ -232,7 +232,7 @@ export class OutputFormatter {
    * @param operations - The update operations to display
    * @param builtinTools - Optional set of tool names that are builtins (for tagging)
    */
-  static showAgentUpdateDiff(operations: AgentUpdateOperations, builtinTools?: Set<string>): void {
+  static showAgentUpdateDiff(operations: AgentUpdateOperations, builtinTools?: Set<string>, force: boolean = false): void {
     // System prompt and basic field changes
     if (operations.updateFields) {
       if (operations.updateFields.system !== undefined) {
@@ -284,7 +284,7 @@ export class OutputFormatter {
         log(`  ~ Tools: ${unchanged.length} unchanged, ${toAdd.length + toRemove.length + toUpdate.length} modified`);
 
         toAdd.forEach(tool => log(`    + Added tool: ${tool.name}${getBuiltinTag(tool.name)}`));
-        toRemove.forEach(tool => log(`    - Removed tool: ${tool.name}${getBuiltinTag(tool.name)}`));
+        toRemove.forEach(tool => log(`    - Removed tool: ${tool.name}${getBuiltinTag(tool.name)}${force ? '' : ' (requires --force)'}`));
         toUpdate.forEach(tool => log(`    ~ Updated tool: ${tool.name} (${tool.reason})`));
       } else {
         log(`  = Tools: unchanged`);
@@ -301,7 +301,7 @@ export class OutputFormatter {
         log(`  ~ Memory blocks: ${unchanged.length} unchanged, ${toAdd.length + toRemove.length + toUpdate.length + toUpdateValue.length} modified`);
 
         toAdd.forEach(block => log(`    + Added block: ${block.name}`));
-        toRemove.forEach(block => log(`    - Removed block: ${block.name}`));
+        toRemove.forEach(block => log(`    - Removed block: ${block.name}${force ? '' : ' (requires --force)'}`));
         toUpdate.forEach(block => log(`    ~ Updated block: ${block.name}`));
         toUpdateValue.forEach(block => log(`    ~ Synced block: ${block.name} (value from YAML)`));
       } else {
@@ -319,7 +319,7 @@ export class OutputFormatter {
         log(`  ~ Folders: ${unchanged.length} unchanged, ${toAttach.length + toDetach.length + toUpdate.length} modified`);
 
         toAttach.forEach(folder => log(`    + Added folder: ${folder.name}`));
-        toDetach.forEach(folder => log(`    - Removed folder: ${folder.name}`));
+        toDetach.forEach(folder => log(`    - Removed folder: ${folder.name}${force ? '' : ' (requires --force)'}`));
         toUpdate.forEach(folder => {
           log(`    ~ Updated folder: ${folder.name}`);
           folder.filesToAdd.forEach(file => log(`      + Added file: ${file}`));
@@ -341,7 +341,7 @@ export class OutputFormatter {
         log(`  ~ Archives: ${unchanged.length} unchanged, ${toAttach.length + toDetach.length + toUpdate.length} modified`);
         toAttach.forEach(archive => log(`    + Added archive: ${archive.name}`));
         toUpdate.forEach(archive => log(`    ~ Updated archive: ${archive.name}`));
-        toDetach.forEach(archive => log(`    - Removed archive: ${archive.name} (requires --force)`));
+        toDetach.forEach(archive => log(`    - Removed archive: ${archive.name}${force ? '' : ' (requires --force)'}`));
       } else {
         log(`  = Archives: unchanged`);
       }

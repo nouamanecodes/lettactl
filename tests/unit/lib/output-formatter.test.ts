@@ -1,4 +1,5 @@
 import { OutputFormatter } from '../../../src/lib/ux/output-formatter';
+import { AgentUpdateOperations } from '../../../src/types/diff';
 
 // Mock console.log for testing
 const mockConsoleLog = jest.spyOn(console, 'log').mockImplementation(() => {});
@@ -78,6 +79,65 @@ describe('OutputFormatter', () => {
       const result = OutputFormatter.createAgentTable(agents);
 
       expect(result).toContain('NAME');
+    });
+  });
+
+  describe('showAgentUpdateDiff', () => {
+    const makeOperations = (): AgentUpdateOperations => ({
+      tools: {
+        toAdd: [],
+        toRemove: [{ name: 'old-tool', id: 't1' }],
+        toUpdate: [],
+        unchanged: [],
+      },
+      blocks: {
+        toAdd: [],
+        toRemove: [{ name: 'old-block', id: 'b1' }],
+        toUpdate: [],
+        toUpdateValue: [],
+        unchanged: [],
+      },
+      folders: {
+        toAttach: [],
+        toDetach: [{ name: 'old-folder', id: 'f1' }],
+        toUpdate: [],
+        unchanged: [],
+      },
+      archives: {
+        toAttach: [],
+        toDetach: [{ name: 'old-archive', id: 'a1' }],
+        toUpdate: [],
+        unchanged: [],
+      },
+      preservesConversation: true,
+      operationCount: 4,
+    });
+
+    it('shows (requires --force) on removal lines when force is false', () => {
+      OutputFormatter.showAgentUpdateDiff(makeOperations(), undefined, false);
+
+      const lines = mockConsoleLog.mock.calls.map(c => c[0]);
+      const removedTool = lines.find((l: string) => l.includes('Removed tool: old-tool'));
+      const removedBlock = lines.find((l: string) => l.includes('Removed block: old-block'));
+      const removedFolder = lines.find((l: string) => l.includes('Removed folder: old-folder'));
+      const removedArchive = lines.find((l: string) => l.includes('Removed archive: old-archive'));
+
+      expect(removedTool).toContain('(requires --force)');
+      expect(removedBlock).toContain('(requires --force)');
+      expect(removedFolder).toContain('(requires --force)');
+      expect(removedArchive).toContain('(requires --force)');
+    });
+
+    it('omits (requires --force) on removal lines when force is true', () => {
+      OutputFormatter.showAgentUpdateDiff(makeOperations(), undefined, true);
+
+      const lines = mockConsoleLog.mock.calls.map(c => c[0]);
+      const removalLines = lines.filter((l: string) => l.includes('Removed'));
+
+      expect(removalLines.length).toBe(4);
+      removalLines.forEach((line: string) => {
+        expect(line).not.toContain('(requires --force)');
+      });
     });
   });
 
