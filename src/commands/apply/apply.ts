@@ -9,7 +9,7 @@ import { FileContentTracker } from '../../lib/apply/file-content-tracker';
 import { createSpinner, getSpinnerEnabled } from '../../lib/ux/spinner';
 import { SupabaseStorageBackend, hasSupabaseConfig } from '../../lib/storage/storage-backend';
 import { applyTemplateMode } from './template';
-import { processSharedBlocks, processFolders, updateExistingAgent, createNewAgent } from '../../lib/apply/apply-helpers';
+import { collectDesiredResourceNames, processSharedBlocks, processFolders, updateExistingAgent, createNewAgent } from '../../lib/apply/apply-helpers';
 import { formatLettaError } from '../../lib/shared/error-handler';
 import { computeDryRunDiffs, displayDryRunResults } from '../../lib/apply/dry-run';
 import { log, warn, output, isQuietMode } from '../../lib/shared/logger';
@@ -141,16 +141,17 @@ export async function applyCommand(options: ApplyOptions, command: any): Promise
     const diffEngine = new DiffEngine(client, blockManager, archiveManager, parser.basePath);
     const fileTracker = new FileContentTracker(parser.basePath, parser.storageBackend);
 
-    // Load existing resources
+    // Load existing resources — scoped to current fleet to prevent cross-tenant contamination
+    const { blockNames, folderNames, archiveNames } = collectDesiredResourceNames(config);
     const loadSpinner = createSpinner('Loading existing resources...', spinnerEnabled).start();
     if (verbose) log('Loading existing blocks...');
-    await blockManager.loadExistingBlocks();
+    await blockManager.loadExistingBlocks(blockNames);
 
     if (verbose) log('Loading existing archives...');
-    await archiveManager.loadExistingArchives();
+    await archiveManager.loadExistingArchives(archiveNames);
 
     if (verbose) log('Loading existing folders...');
-    await folderManager.loadExistingFolders();
+    await folderManager.loadExistingFolders(folderNames);
 
     if (verbose) log('Loading existing agents...');
     await agentManager.loadExistingAgents();

@@ -114,6 +114,32 @@ describe('BlockManager', () => {
     });
   });
 
+  describe('loadExistingBlocks scoping', () => {
+    it('excludes blocks not in desiredNames', async () => {
+      mockClient.listBlocks.mockResolvedValue([
+        { id: 'b1', label: 'tenant_a_block', value: 'a', description: '', limit: 1000 },
+        { id: 'b2', label: 'tenant_b_block', value: 'b', description: '', limit: 1000 },
+      ] as any);
+
+      await manager.loadExistingBlocks(new Set(['tenant_a_block']));
+
+      expect(manager.getSharedBlockId('tenant_a_block')).toBe('b1');
+      expect(manager.getSharedBlockId('tenant_b_block')).toBeNull();
+    });
+
+    it('loads all blocks when desiredNames is omitted', async () => {
+      mockClient.listBlocks.mockResolvedValue([
+        { id: 'b1', label: 'block_a', value: 'a', description: '', limit: 1000 },
+        { id: 'b2', label: 'block_b', value: 'b', description: '', limit: 1000 },
+      ] as any);
+
+      await manager.loadExistingBlocks();
+
+      expect(manager.getSharedBlockId('block_a')).toBe('b1');
+      expect(manager.getSharedBlockId('block_b')).toBe('b2');
+    });
+  });
+
   describe('getSharedBlockId', () => {
     it('returns null when block only exists under plain label', async () => {
       // Manually register a block under plain label only (no shared: prefix)

@@ -15,12 +15,21 @@ export class FolderManager {
     this.client = client;
   }
 
-  async loadExistingFolders(): Promise<void> {
+  /**
+   * Loads existing folders from the server and builds the registry.
+   * When desiredNames is provided, only folders matching those names are registered,
+   * preventing cross-tenant contamination via unscoped global lookups.
+   */
+  async loadExistingFolders(desiredNames?: Set<string>): Promise<void> {
     const folders = await this.client.listFolders();
     const folderList = Array.isArray(folders) ? folders : (folders as any).items || [];
 
     for (const folder of folderList) {
       if (!folder.name || !folder.id) {
+        continue;
+      }
+      // Skip folders not in the current fleet config to prevent cross-tenant contamination
+      if (desiredNames && !desiredNames.has(folder.name)) {
         continue;
       }
       this.folderRegistry.set(folder.name, {

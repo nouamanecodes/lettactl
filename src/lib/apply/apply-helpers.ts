@@ -19,6 +19,44 @@ import { DEFAULT_CONTEXT_WINDOW, DEFAULT_MODEL, DEFAULT_EMBEDDING, DEFAULT_REASO
 import { isRunTerminal, getEffectiveRunStatus } from '../messaging/run-utils';
 import { Run } from '../../types/run';
 
+/**
+ * Collects all resource names declared in the fleet config.
+ * Used to scope resource loading and prevent cross-tenant contamination.
+ */
+export function collectDesiredResourceNames(config: any): {
+  blockNames: Set<string>;
+  folderNames: Set<string>;
+  archiveNames: Set<string>;
+} {
+  const blockNames = new Set<string>();
+  const folderNames = new Set<string>();
+  const archiveNames = new Set<string>();
+
+  for (const block of config.shared_blocks || []) {
+    blockNames.add(block.name);
+  }
+  for (const folder of config.shared_folders || []) {
+    folderNames.add(folder.name);
+  }
+
+  for (const agent of config.agents || []) {
+    for (const block of agent.memory_blocks || []) {
+      blockNames.add(block.name);
+    }
+    for (const sharedBlockName of agent.shared_blocks || []) {
+      blockNames.add(sharedBlockName);
+    }
+    for (const folder of agent.folders || []) {
+      folderNames.add(folder.name);
+    }
+    for (const archive of agent.archives || []) {
+      archiveNames.add(archive.name);
+    }
+  }
+
+  return { blockNames, folderNames, archiveNames };
+}
+
 export async function processSharedBlocks(
   config: any,
   blockManager: BlockManager,

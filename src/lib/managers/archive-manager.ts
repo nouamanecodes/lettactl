@@ -18,12 +18,21 @@ export class ArchiveManager {
     this.client = client;
   }
 
-  async loadExistingArchives(): Promise<void> {
+  /**
+   * Loads existing archives from the server and builds the registry.
+   * When desiredNames is provided, only archives matching those names are registered,
+   * preventing cross-tenant contamination via unscoped global lookups.
+   */
+  async loadExistingArchives(desiredNames?: Set<string>): Promise<void> {
     const archives = await this.client.listArchives();
     const archiveList = normalizeResponse(archives);
 
     for (const archive of archiveList) {
       if (!archive.name || !archive.id) {
+        continue;
+      }
+      // Skip archives not in the current fleet config to prevent cross-tenant contamination
+      if (desiredNames && !desiredNames.has(archive.name)) {
         continue;
       }
       this.archiveRegistry.set(archive.name, {

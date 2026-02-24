@@ -11,6 +11,7 @@ import { readLastApplied, applyThreeWayMerge, hashCurrentTools, hashCurrentBlock
 import { normalizeResponse } from '../../lib/shared/response-normalizer';
 import { log, output } from '../../lib/shared/logger';
 import { buildMcpServerRegistry, expandMcpToolsForAgents } from '../../lib/tools/mcp-tools';
+import { collectDesiredResourceNames } from '../../lib/apply/apply-helpers';
 
 /**
  * Template mode: apply a template config to all existing agents matching a glob pattern.
@@ -75,8 +76,9 @@ export async function applyTemplateMode(
   const fileTracker = new FileContentTracker(parser.basePath, parser.storageBackend);
   const createdFolders = new Map<string, string>();
 
-  await blockManager.loadExistingBlocks();
-  await archiveManager.loadExistingArchives();
+  const { blockNames, archiveNames } = collectDesiredResourceNames(config);
+  await blockManager.loadExistingBlocks(blockNames);
+  await archiveManager.loadExistingArchives(archiveNames);
 
   // Register MCP servers (if configured) and expand MCP tool selections
   if (config.mcp_servers && config.mcp_servers.length > 0) {

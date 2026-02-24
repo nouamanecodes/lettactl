@@ -22,14 +22,21 @@ export class BlockManager {
   }
 
   /**
-   * Loads existing blocks from the server and builds the registry
+   * Loads existing blocks from the server and builds the registry.
+   * When desiredNames is provided, only blocks matching those names are registered,
+   * preventing cross-tenant contamination via unscoped global lookups.
    */
-  async loadExistingBlocks(): Promise<void> {
+  async loadExistingBlocks(desiredNames?: Set<string>): Promise<void> {
     const blocks = await this.client.listBlocks();
     const blockList = normalizeResponse(blocks);
 
     for (const block of blockList) {
       if (block.label && block.value) {
+        // Skip blocks not in the current fleet config to prevent cross-tenant contamination
+        if (desiredNames && !desiredNames.has(block.label)) {
+          continue;
+        }
+
         const contentHash = generateContentHash(block.value);
 
         const blockInfo: BlockInfo = {

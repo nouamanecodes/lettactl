@@ -40,6 +40,32 @@ describe('FolderManager', () => {
     });
   });
 
+  describe('loadExistingFolders scoping', () => {
+    it('excludes folders not in desiredNames', async () => {
+      mockClient.listFolders.mockResolvedValue([
+        { id: 'f1', name: 'tenant_a_docs', embedding: null },
+        { id: 'f2', name: 'tenant_b_docs', embedding: null },
+      ] as any);
+
+      await manager.loadExistingFolders(new Set(['tenant_a_docs']));
+
+      expect(manager.getFolderId('tenant_a_docs')).toBe('f1');
+      expect(manager.getFolderId('tenant_b_docs')).toBeNull();
+    });
+
+    it('loads all folders when desiredNames is omitted', async () => {
+      mockClient.listFolders.mockResolvedValue([
+        { id: 'f1', name: 'folder_a', embedding: null },
+        { id: 'f2', name: 'folder_b', embedding: null },
+      ] as any);
+
+      await manager.loadExistingFolders();
+
+      expect(manager.getFolderId('folder_a')).toBe('f1');
+      expect(manager.getFolderId('folder_b')).toBe('f2');
+    });
+  });
+
   describe('getOrCreateFolder', () => {
     it('creates folder when not in registry', async () => {
       mockClient.listFolders.mockResolvedValue([] as any);
