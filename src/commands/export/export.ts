@@ -468,14 +468,23 @@ async function exportLettaBotConfig(
     );
   }
 
+  // Build server block from lettabot config or environment
+  const server = lettabotConfig.server || buildServerBlock();
+
   const config: Record<string, any> = {
-    server: buildServerBlock(),
-    agent: { name: agent.name, id: agent.id },
+    server,
+    agent: {
+      name: agent.name,
+      id: agent.id,
+      ...(lettabotConfig.displayName && { displayName: lettabotConfig.displayName }),
+    },
   };
 
   // Passthrough runtime config sections
+  if (lettabotConfig.conversations) config.conversations = lettabotConfig.conversations;
   if (lettabotConfig.channels) config.channels = lettabotConfig.channels;
   if (lettabotConfig.features) config.features = lettabotConfig.features;
+  if (lettabotConfig.providers) config.providers = lettabotConfig.providers;
   if (lettabotConfig.polling) config.polling = lettabotConfig.polling;
   if (lettabotConfig.transcription) config.transcription = lettabotConfig.transcription;
   if (lettabotConfig.attachments) config.attachments = lettabotConfig.attachments;
@@ -512,6 +521,8 @@ async function exportLettaBotFleet(
       id: agent.id,
     };
 
+    if (lettabotConfig.displayName) entry.displayName = lettabotConfig.displayName;
+    if (lettabotConfig.conversations) entry.conversations = lettabotConfig.conversations;
     if (lettabotConfig.channels) entry.channels = lettabotConfig.channels;
     if (lettabotConfig.features) entry.features = lettabotConfig.features;
     if (lettabotConfig.polling) entry.polling = lettabotConfig.polling;
@@ -533,12 +544,16 @@ async function exportLettaBotFleet(
   // Server-wide settings from the first agent that has them
   const firstConfig = await getLettaBotMetadata(client, agentConfigs[0].id || agents.find(a => a.name === agentConfigs[0].name)!.id);
 
+  // Use server block from first agent's config, or derive from environment
+  const server = firstConfig?.server || buildServerBlock();
+
   const config: Record<string, any> = {
-    server: buildServerBlock(),
+    server,
     agents: agentConfigs,
   };
 
-  // Promote server-wide settings (transcription, attachments) to top level
+  // Promote server-wide settings (providers, transcription, attachments) to top level
+  if (firstConfig?.providers) config.providers = firstConfig.providers;
   if (firstConfig?.transcription) config.transcription = firstConfig.transcription;
   if (firstConfig?.attachments) config.attachments = firstConfig.attachments;
 

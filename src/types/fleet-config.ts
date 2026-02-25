@@ -118,6 +118,7 @@ export type LettaBotGroupMode = 'open' | 'listen' | 'mention-only' | 'disabled';
 export interface LettaBotGroupConfig {
   mode?: LettaBotGroupMode;
   allowedUsers?: string[];
+  receiveBotMessages?: boolean;
 }
 
 export interface LettaBotChannelConfigBase {
@@ -127,22 +128,71 @@ export interface LettaBotChannelConfigBase {
   groupDebounceSec?: number;
   groups?: Record<string, LettaBotGroupConfig>;
   mentionPatterns?: string[];
+  // Deprecated but preserved for backwards compatibility
+  groupPollIntervalMin?: number;
+  instantGroups?: string[];
+  listeningGroups?: string[];
+}
+
+export interface LettaBotDisplayConfig {
+  showToolCalls?: boolean;
+  showReasoning?: boolean;
+  reasoningMaxChars?: number;
+}
+
+export interface LettaBotProviderConfig {
+  id: string;
+  name: string;
+  type: string;
+  apiKey: string;
 }
 
 export interface LettaBotConfig {
+  // Server connection (required for LettaBot runtime)
+  server?: {
+    mode?: 'api' | 'docker';
+    baseUrl?: string;
+    apiKey?: string;
+    logLevel?: 'fatal' | 'error' | 'warn' | 'info' | 'debug' | 'trace';
+    api?: {
+      port?: number;
+      host?: string;
+      corsOrigin?: string;
+    };
+  };
+  // Per-agent display name prefix for outbound messages
+  displayName?: string;
+  // Conversation routing
+  conversations?: {
+    mode?: 'shared' | 'per-channel';
+    heartbeat?: string; // "dedicated" | "last-active" | "<channel>"
+    perChannel?: string[];
+  };
   channels?: {
     telegram?: LettaBotChannelConfigBase & { token?: string };
     'telegram-mtproto'?: LettaBotChannelConfigBase & {
       phoneNumber?: string;
       apiId?: number;
       apiHash?: string;
+      databaseDirectory?: string;
       groupPolicy?: 'mention' | 'reply' | 'both' | 'off';
       adminChatId?: number;
     };
     slack?: LettaBotChannelConfigBase & { appToken?: string; botToken?: string };
     discord?: LettaBotChannelConfigBase & { token?: string };
-    whatsapp?: LettaBotChannelConfigBase & { selfChat?: boolean };
-    signal?: LettaBotChannelConfigBase & { phone?: string; selfChat?: boolean };
+    whatsapp?: LettaBotChannelConfigBase & {
+      selfChat?: boolean;
+      sessionPath?: string;
+      groupPolicy?: 'open' | 'disabled' | 'allowlist';
+      groupAllowFrom?: string[];
+    };
+    signal?: LettaBotChannelConfigBase & {
+      phone?: string;
+      selfChat?: boolean;
+      cliPath?: string;
+      httpHost?: string;
+      httpPort?: number;
+    };
   };
   features?: {
     cron?: boolean;
@@ -152,15 +202,23 @@ export interface LettaBotConfig {
       skipRecentUserMin?: number;
       prompt?: string;
       promptFile?: string;
+      target?: string; // Delivery target ("telegram:123", "slack:C123", etc.)
     };
     inlineImages?: boolean;
+    memfs?: boolean;
     maxToolCalls?: number;
+    sendFileDir?: string;
+    sendFileMaxSize?: number;
+    sendFileCleanup?: boolean;
+    display?: LettaBotDisplayConfig;
   };
+  // BYOK providers (api mode only)
+  providers?: LettaBotProviderConfig[];
   polling?: {
     enabled?: boolean;
     intervalMs?: number;
     gmail?: { enabled?: boolean; account?: string; accounts?: string[] };
   };
-  transcription?: { provider: 'openai'; apiKey?: string; model?: string };
+  transcription?: { provider: 'openai' | 'mistral'; apiKey?: string; model?: string };
   attachments?: { maxMB?: number; maxAgeDays?: number };
 }

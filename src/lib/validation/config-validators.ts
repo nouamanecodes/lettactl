@@ -742,7 +742,8 @@ export class LLMConfigValidator {
  */
 export class LettaBotConfigValidator {
   private static readonly ALLOWED_TOP_LEVEL = [
-    'channels', 'features', 'polling', 'transcription', 'attachments'
+    'server', 'displayName', 'conversations', 'channels', 'features',
+    'providers', 'polling', 'transcription', 'attachments'
   ];
 
   private static readonly ALLOWED_CHANNELS = [
@@ -771,11 +772,20 @@ export class LettaBotConfigValidator {
       );
     }
 
+    if (config.server) {
+      this.validateServer(config.server);
+    }
+    if (config.conversations) {
+      this.validateConversations(config.conversations);
+    }
     if (config.channels) {
       this.validateChannels(config.channels);
     }
     if (config.features) {
       this.validateFeatures(config.features);
+    }
+    if (config.providers) {
+      this.validateProviders(config.providers);
     }
     if (config.polling) {
       this.validatePolling(config.polling);
@@ -839,6 +849,22 @@ export class LettaBotConfigValidator {
         throw new Error('lettabot.features.maxToolCalls must be a positive integer.');
       }
     }
+
+    if (features.sendFileMaxSize !== undefined) {
+      if (!Number.isInteger(features.sendFileMaxSize) || features.sendFileMaxSize <= 0) {
+        throw new Error('lettabot.features.sendFileMaxSize must be a positive integer.');
+      }
+    }
+
+    if (features.display !== undefined) {
+      if (typeof features.display !== 'object' || Array.isArray(features.display)) {
+        throw new Error('lettabot.features.display must be an object.');
+      }
+      if (features.display.reasoningMaxChars !== undefined &&
+          (!Number.isInteger(features.display.reasoningMaxChars) || features.display.reasoningMaxChars < 0)) {
+        throw new Error('lettabot.features.display.reasoningMaxChars must be a non-negative integer.');
+      }
+    }
   }
 
   private static validatePolling(polling: any): void {
@@ -847,12 +873,68 @@ export class LettaBotConfigValidator {
     }
   }
 
+  private static validateServer(server: any): void {
+    if (typeof server !== 'object' || Array.isArray(server)) {
+      throw new Error('lettabot.server must be an object.');
+    }
+    if (server.mode !== undefined && server.mode !== 'api' && server.mode !== 'docker') {
+      throw new Error('lettabot.server.mode must be "api" or "docker".');
+    }
+    if (server.baseUrl !== undefined && (typeof server.baseUrl !== 'string' || server.baseUrl.trim() === '')) {
+      throw new Error('lettabot.server.baseUrl must be a non-empty string.');
+    }
+    if (server.api !== undefined) {
+      if (typeof server.api !== 'object' || Array.isArray(server.api)) {
+        throw new Error('lettabot.server.api must be an object.');
+      }
+      if (server.api.port !== undefined && (!Number.isInteger(server.api.port) || server.api.port <= 0)) {
+        throw new Error('lettabot.server.api.port must be a positive integer.');
+      }
+    }
+  }
+
+  private static validateConversations(conversations: any): void {
+    if (typeof conversations !== 'object' || Array.isArray(conversations)) {
+      throw new Error('lettabot.conversations must be an object.');
+    }
+    if (conversations.mode !== undefined && conversations.mode !== 'shared' && conversations.mode !== 'per-channel') {
+      throw new Error('lettabot.conversations.mode must be "shared" or "per-channel".');
+    }
+    if (conversations.perChannel !== undefined && !Array.isArray(conversations.perChannel)) {
+      throw new Error('lettabot.conversations.perChannel must be an array of channel names.');
+    }
+  }
+
+  private static validateProviders(providers: any): void {
+    if (!Array.isArray(providers)) {
+      throw new Error('lettabot.providers must be an array.');
+    }
+    providers.forEach((provider: any, index: number) => {
+      if (!provider || typeof provider !== 'object') {
+        throw new Error(`lettabot.providers[${index}] must be an object.`);
+      }
+      if (!provider.id || typeof provider.id !== 'string') {
+        throw new Error(`lettabot.providers[${index}] must have a non-empty "id" field.`);
+      }
+      if (!provider.name || typeof provider.name !== 'string') {
+        throw new Error(`lettabot.providers[${index}] must have a non-empty "name" field.`);
+      }
+      if (!provider.type || typeof provider.type !== 'string') {
+        throw new Error(`lettabot.providers[${index}] must have a non-empty "type" field.`);
+      }
+      if (!provider.apiKey || typeof provider.apiKey !== 'string') {
+        throw new Error(`lettabot.providers[${index}] must have a non-empty "apiKey" field.`);
+      }
+    });
+  }
+
   private static validateTranscription(transcription: any): void {
     if (typeof transcription !== 'object' || Array.isArray(transcription)) {
       throw new Error('lettabot.transcription must be an object.');
     }
-    if (transcription.provider && transcription.provider !== 'openai') {
-      throw new Error('lettabot.transcription.provider must be "openai" (only supported provider).');
+    const validProviders = ['openai', 'mistral'];
+    if (transcription.provider && !validProviders.includes(transcription.provider)) {
+      throw new Error(`lettabot.transcription.provider must be one of: ${validProviders.join(', ')}.`);
     }
   }
 

@@ -225,7 +225,7 @@ describe('LettaBotConfigValidator', () => {
   it('rejects invalid transcription provider', () => {
     expect(() => LettaBotConfigValidator.validate({
       transcription: { provider: 'whisper' }
-    })).toThrow('provider must be "openai"');
+    })).toThrow('provider must be one of: openai, mistral');
   });
 
   it('rejects non-positive attachment limits', () => {
