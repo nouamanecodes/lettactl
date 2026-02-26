@@ -9,8 +9,10 @@ jest.mock('ora', () => {
   return jest.fn(() => ({
     start: jest.fn(() => ({
       succeed: jest.fn(),
+      warn: jest.fn(),
       fail: jest.fn(),
       stop: jest.fn(),
+      text: '',
     })),
   }));
 });
@@ -146,6 +148,74 @@ describe('messages commands', () => {
         messages: [{ role: 'user', content: 'Hello' }],
         streaming: true
       });
+    });
+
+    it('should recover response from a false-failed run', async () => {
+      const mockAgent = { id: 'agent-123', name: 'test-agent' };
+      const mockRunResponse = { id: 'run-789', status: 'pending' };
+
+      mockResolver.findAgentByName.mockResolvedValue({ agent: mockAgent, allAgents: [] });
+      mockClient.createAsyncMessage.mockResolvedValue(mockRunResponse as any);
+
+      // First poll returns failed run
+      mockClient.getRun.mockResolvedValue({
+        id: 'run-789',
+        status: 'failed',
+        stop_reason: 'context_window_overflow_in_system_prompt',
+      } as any);
+
+      // getRunMessages returns messages including an assistant_message
+      mockClient.getRunMessages.mockResolvedValue([
+        { message_type: 'reasoning_message', reasoning: 'thinking...' },
+        { message_type: 'assistant_message', content: 'Here is the recovered response' },
+      ] as any);
+
+      await sendMessageCommand('test-agent', 'Hello agent', {}, mockCommand);
+
+      // Should have called getRunMessages to attempt recovery
+      expect(mockClient.getRunMessages).toHaveBeenCalledWith('run-789');
+
+      // Should output the recovered response (not exit with failure)
+      const allOutputs = mockConsoleLog.mock.calls.map(c => c[0]);
+      const hasRecoveredContent = allOutputs.some(
+        (msg: string) => typeof msg === 'string' && msg.includes('Here is the recovered response')
+      );
+      expect(hasRecoveredContent).toBe(true);
+    });
+
+    it('should exit on failed run with no assistant response to recover', async () => {
+      const mockAgent = { id: 'agent-123', name: 'test-agent' };
+      const mockRunResponse = { id: 'run-999', status: 'pending' };
+
+      mockResolver.findAgentByName.mockResolvedValue({ agent: mockAgent, allAgents: [] });
+      mockClient.createAsyncMessage.mockResolvedValue(mockRunResponse as any);
+
+      mockClient.getRun.mockResolvedValue({
+        id: 'run-999',
+        status: 'failed',
+        stop_reason: 'error',
+      } as any);
+
+      // getRunMessages returns only non-assistant messages
+      mockClient.getRunMessages.mockResolvedValue([
+        { message_type: 'reasoning_message', reasoning: 'thinking...' },
+        { message_type: 'tool_call_message', tool_call: { name: 'search', arguments: '{}' } },
+      ] as any);
+
+      const mockExit = jest.spyOn(process, 'exit').mockImplementation((() => {
+        throw new Error('process.exit called');
+      }) as any);
+
+      try {
+        await sendMessageCommand('test-agent', 'Hello agent', {}, mockCommand);
+        // Should not reach here
+        expect(true).toBe(false);
+      } catch (e: any) {
+        expect(e.message).toBe('process.exit called');
+      }
+
+      expect(mockExit).toHaveBeenCalledWith(1);
+      mockExit.mockRestore();
     });
   });
 });

@@ -5,6 +5,7 @@ export interface SpinnerInterface {
   text: string;
   start(): SpinnerInterface;
   succeed(text?: string): SpinnerInterface;
+  warn(text?: string): SpinnerInterface;
   fail(text?: string): SpinnerInterface;
   stop(): SpinnerInterface;
 }
@@ -18,6 +19,11 @@ class NoSpinner implements SpinnerInterface {
 
   succeed(text?: string): SpinnerInterface {
     if (text) output(`[OK] ${text}`);
+    return this;
+  }
+
+  warn(text?: string): SpinnerInterface {
+    if (text) output(`[WARN] ${text}`);
     return this;
   }
 
@@ -39,6 +45,10 @@ class QuietSpinner implements SpinnerInterface {
   }
 
   succeed(_text?: string): SpinnerInterface {
+    return this;
+  }
+
+  warn(_text?: string): SpinnerInterface {
     return this;
   }
 

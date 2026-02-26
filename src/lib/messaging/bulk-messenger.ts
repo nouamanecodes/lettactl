@@ -125,6 +125,9 @@ export async function bulkSendMessage(
           } else if (effectiveStatus === 'failed') {
             result.status = 'failed';
             result.error = runStatus.stop_reason ? `Run failed: ${runStatus.stop_reason}` : 'Run failed';
+            if (options.collectResponse) {
+              result.responseText = await extractResponseText(client, run.id);
+            }
             break;
           } else if (effectiveStatus === 'cancelled') {
             result.status = 'cancelled';
@@ -153,6 +156,8 @@ export async function bulkSendMessage(
     const durationStr = result.duration.toFixed(1);
     if (result.status === 'completed') {
       outputFn(`OK ${agent.name} (${durationStr}s)`);
+    } else if (result.status === 'failed' && result.responseText) {
+      outputFn(`WARN ${agent.name}: ${result.error || 'unknown error'} (response recovered)`);
     } else {
       outputFn(`FAIL ${agent.name}: ${result.error || 'unknown error'}`);
     }

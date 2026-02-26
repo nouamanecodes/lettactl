@@ -4,11 +4,40 @@ import { normalizeResponse, sleep } from '../../lib/shared/response-normalizer';
 import { createSpinner, getSpinnerEnabled } from '../../lib/ux/spinner';
 import { sendMessageToAgent } from '../../lib/messaging/message-sender';
 import { bulkSendMessage } from '../../lib/messaging/bulk-messenger';
-import { log, output, error } from '../../lib/shared/logger';
+import { log, output, error, warn } from '../../lib/shared/logger';
 import { Run } from '../../types/run';
 import { SendOptions } from './types';
 import { getMessageContent, formatElapsedTime } from './utils';
 import { isRunTerminal, getEffectiveRunStatus } from '../../lib/messaging/run-utils';
+
+/**
+ * Attempt to recover assistant response from a run that was marked as failed.
+ * Returns true if a response was found and displayed, false otherwise.
+ */
+async function tryRecoverResponse(
+  client: LettaClientWrapper,
+  runId: string,
+  verbose: boolean,
+  outputFormat?: string,
+): Promise<boolean> {
+  try {
+    const messagesResponse = await client.getRunMessages(runId);
+    const messages = normalizeResponse(messagesResponse);
+
+    const hasAssistant = messages.some((msg: any) =>
+      msg.message_type === 'assistant_message' ||
+      msg.type === 'assistant_message' ||
+      (msg.role === 'assistant' && !msg.type?.includes('system'))
+    );
+
+    if (hasAssistant) {
+      return true;
+    }
+  } catch {
+    // Recovery is best-effort; fall through to normal failure path
+  }
+  return false;
+}
 
 export async function sendMessageCommand(
   agentNameOrMessage: string,
@@ -184,6 +213,12 @@ export async function sendMessageCommand(
         }
 
         if (effectiveStatus === 'failed') {
+          const recovered = await tryRecoverResponse(client, runId, verbose, options.output);
+          if (recovered) {
+            spinner.warn(`Run failed after ${timeStr} but response was recovered${run.stop_reason ? ` (${run.stop_reason})` : ''}`);
+            await displayRunMessages(client, runId, verbose, options.output);
+            return;
+          }
           spinner.fail(`Message failed after ${timeStr}`);
           if (run.stop_reason) {
             error(`Reason: ${run.stop_reason}`);

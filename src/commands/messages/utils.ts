@@ -2,6 +2,34 @@
  * Safely extracts content from different message types
  */
 export function getMessageContent(message: any): string | null {
+  const msgType = message.message_type || message.type;
+
+  // Tool call messages: show "toolName(args)"
+  if (msgType === 'tool_call_message') {
+    const name = message.tool_call?.name || message.name || 'unknown_tool';
+    let args = '';
+    const rawArgs = message.tool_call?.arguments || message.arguments;
+    if (rawArgs) {
+      args = typeof rawArgs === 'string' ? rawArgs : JSON.stringify(rawArgs);
+      if (args.length > 300) args = args.slice(0, 300) + '...';
+    }
+    return `${name}(${args})`;
+  }
+
+  // Tool return messages: show return value (prefixed with [ERROR] if status is error)
+  if (msgType === 'tool_return_message') {
+    let value = message.tool_return || message.return_value || message.content || '';
+    if (typeof value !== 'string') value = JSON.stringify(value);
+    if (value.length > 500) value = value.slice(0, 500) + '...';
+    const isError = message.status === 'error';
+    return isError ? `[ERROR] ${value}` : value;
+  }
+
+  // Reasoning messages
+  if (msgType === 'reasoning_message') {
+    return message.reasoning || null;
+  }
+
   // Try different properties that might contain the message content
   if (message.text) return message.text;
   if (message.content) {
