@@ -94,6 +94,88 @@ describe('messages commands', () => {
 
       expect(mockConsoleLog).toHaveBeenCalledWith(JSON.stringify(mockMessages, null, 2));
     });
+
+    it('should auto-expand when all fetched messages are internal types', async () => {
+      const mockAgent = { id: 'agent-123', name: 'test-agent' };
+
+      // First fetch: 10 internal messages only
+      const internalMessages = Array.from({ length: 10 }, (_, i) => ({
+        id: `msg-${i}`,
+        message_type: 'tool_call_message',
+        tool_call: { name: 'poll_status', arguments: '{}' },
+        created_at: '2023-01-01T00:00:00Z',
+      }));
+
+      // Expanded fetch: includes real conversation
+      const expandedMessages = [
+        ...Array.from({ length: 50 }, (_, i) => ({
+          id: `msg-internal-${i}`,
+          message_type: 'reasoning_message',
+          reasoning: 'thinking...',
+          created_at: '2023-01-01T00:00:00Z',
+        })),
+        { id: 'msg-user', message_type: 'user_message', text: 'Hello', created_at: '2023-01-01T00:01:00Z' },
+        { id: 'msg-assistant', message_type: 'assistant_message', text: 'Hi there!', created_at: '2023-01-01T00:02:00Z' },
+      ];
+
+      mockResolver.findAgentByName.mockResolvedValue({ agent: mockAgent, allAgents: [] });
+      mockClient.listMessages
+        .mockResolvedValueOnce(internalMessages as any)
+        .mockResolvedValueOnce(expandedMessages as any);
+
+      await listMessagesCommand('test-agent', {}, mockCommand);
+
+      // Should have fetched twice: default limit, then expanded
+      expect(mockClient.listMessages).toHaveBeenCalledTimes(2);
+      expect(mockClient.listMessages).toHaveBeenNthCalledWith(2, 'agent-123', { limit: 200 });
+
+      // Should display the found user/assistant messages
+      const allOutputs = mockConsoleLog.mock.calls.map(c => String(c[0]));
+      const hasContent = allOutputs.some(msg => msg.includes('Hi there!'));
+      expect(hasContent).toBe(true);
+    });
+
+    it('should show helpful message when auto-expand still finds no visible messages', async () => {
+      const mockAgent = { id: 'agent-123', name: 'test-agent' };
+
+      // Both fetches return only internal messages
+      const internalMessages = [
+        { id: 'msg-1', message_type: 'tool_call_message', tool_call: { name: 'poll', arguments: '{}' }, created_at: '2023-01-01T00:00:00Z' },
+      ];
+      const expandedInternal = Array.from({ length: 150 }, (_, i) => ({
+        id: `msg-${i}`,
+        message_type: 'reasoning_message',
+        reasoning: 'thinking...',
+        created_at: '2023-01-01T00:00:00Z',
+      }));
+
+      mockResolver.findAgentByName.mockResolvedValue({ agent: mockAgent, allAgents: [] });
+      mockClient.listMessages
+        .mockResolvedValueOnce(internalMessages as any)
+        .mockResolvedValueOnce(expandedInternal as any);
+
+      await listMessagesCommand('test-agent', {}, mockCommand);
+
+      expect(mockClient.listMessages).toHaveBeenCalledTimes(2);
+      const allOutputs = mockConsoleLog.mock.calls.map(c => String(c[0]));
+      const hasHelpful = allOutputs.some(msg =>
+        msg.includes('No user-visible messages found') && msg.includes('--system')
+      );
+      expect(hasHelpful).toBe(true);
+    });
+
+    it('should show no messages found when agent has zero messages', async () => {
+      const mockAgent = { id: 'agent-123', name: 'test-agent' };
+
+      mockResolver.findAgentByName.mockResolvedValue({ agent: mockAgent, allAgents: [] });
+      mockClient.listMessages.mockResolvedValue([] as any);
+
+      await listMessagesCommand('test-agent', {}, mockCommand);
+
+      // Should NOT auto-expand (nothing to expand from)
+      expect(mockClient.listMessages).toHaveBeenCalledTimes(1);
+      expect(mockConsoleLog).toHaveBeenCalledWith('No messages found for agent test-agent');
+    });
   });
 
   describe('sendMessageCommand', () => {

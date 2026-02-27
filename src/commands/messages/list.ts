@@ -6,6 +6,8 @@ import { displayMessages, MessageDisplayData } from '../../lib/ux/display';
 import { ListOptions } from './types';
 import { getMessageContent } from './utils';
 
+const AUTO_EXPAND_LIMIT = 200;
+
 export async function listMessagesCommand(
   agentName: string,
   options: ListOptions,
@@ -44,10 +46,26 @@ export async function listMessagesCommand(
     }
 
     // Filter out system and reasoning messages unless --system flag
+    const hiddenTypes = ['system_message', 'reasoning_message', 'tool_call_message', 'tool_return_message'];
     const totalCount = messages.length;
     if (!options.system) {
-      const hiddenTypes = ['system_message', 'reasoning_message', 'tool_call_message', 'tool_return_message'];
       messages = messages.filter((m: any) => !hiddenTypes.includes(m.message_type || m.role));
+    }
+
+    // Auto-expand: if filtering dropped everything, fetch a larger window
+    if (messages.length === 0 && totalCount > 0 && !options.all) {
+      const expandedResponse = await client.listMessages(agent.id, { ...queryOptions, limit: AUTO_EXPAND_LIMIT });
+      let expandedMessages = normalizeResponse(expandedResponse);
+      const expandedTotal = expandedMessages.length;
+      if (!options.system) {
+        expandedMessages = expandedMessages.filter((m: any) => !hiddenTypes.includes(m.message_type || m.role));
+      }
+      if (expandedMessages.length > 0) {
+        messages = expandedMessages;
+      } else {
+        output(`No user-visible messages found (${expandedTotal} internal messages). Use --system to show all message types.`);
+        return;
+      }
     }
 
     if (messages.length === 0) {
