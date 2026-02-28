@@ -51,7 +51,8 @@ export class AgentManager {
           sharedBlocks: '',
           archives: '',
           tags: '',
-          lettabotConfig: ''
+          lettabotConfig: '',
+          conversations: ''
         };
         const { baseName, version } = this.parseVersionFromName(agent.name);
 
@@ -92,6 +93,7 @@ export class AgentManager {
     sharedBlocks?: string[];
     tags?: string[];
     lettabotConfig?: Record<string, any> | null;
+    conversations?: Array<{ summary: string; isolated_blocks?: string[] }>;
   }): AgentConfigHashes {
     
     // System prompt hash
@@ -156,6 +158,12 @@ export class AgentManager {
     // LettaBot config hash
     const lettabotConfigHash = generateContentHash(JSON.stringify(config.lettabotConfig || null));
 
+    // Conversations hash
+    const normalizedConversations = (config.conversations || [])
+      .map(c => ({ summary: c.summary, isolated_blocks: c.isolated_blocks || [] }))
+      .sort((a, b) => a.summary.localeCompare(b.summary));
+    const conversationsHash = generateContentHash(JSON.stringify(normalizedConversations));
+
     // Overall hash combining all components
     const overallHash = generateContentHash(JSON.stringify({
       systemPrompt: systemPromptHash,
@@ -166,7 +174,8 @@ export class AgentManager {
       sharedBlocks: sharedBlocksHash,
       archives: archivesHash,
       tags: tagsHash,
-      lettabotConfig: lettabotConfigHash
+      lettabotConfig: lettabotConfigHash,
+      conversations: conversationsHash
     }));
 
     return {
@@ -179,7 +188,8 @@ export class AgentManager {
       sharedBlocks: sharedBlocksHash,
       archives: archivesHash,
       tags: tagsHash,
-      lettabotConfig: lettabotConfigHash
+      lettabotConfig: lettabotConfigHash,
+      conversations: conversationsHash
     };
   }
 
@@ -252,6 +262,7 @@ export class AgentManager {
     sharedBlocks?: string[];
     tags?: string[];
     lettabotConfig?: Record<string, any> | null;
+    conversations?: Array<{ summary: string; isolated_blocks?: string[] }>;
   }): {
     hasChanges: boolean;
     changedComponents: string[];
@@ -287,6 +298,9 @@ export class AgentManager {
     }
     if (existing.configHashes.lettabotConfig !== newHashes.lettabotConfig) {
       changedComponents.push('lettabotConfig');
+    }
+    if (existing.configHashes.conversations !== newHashes.conversations) {
+      changedComponents.push('conversations');
     }
 
     return {
