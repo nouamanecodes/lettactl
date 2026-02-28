@@ -1,4 +1,4 @@
-export const SUPPORTED_RESOURCES = ['agent', 'agents', 'block', 'blocks', 'archive', 'archives', 'tool', 'tools', 'folder', 'folders', 'file', 'files', 'mcp-servers'];
+export const SUPPORTED_RESOURCES = ['agent', 'agents', 'block', 'blocks', 'archive', 'archives', 'tool', 'tools', 'folder', 'folders', 'file', 'files', 'mcp-servers', 'conversation', 'conversations'];
 
 export interface DescribeOptions {
   output?: string;

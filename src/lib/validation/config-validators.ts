@@ -161,6 +161,10 @@ export class AgentValidator {
     if (agent.lettabot) {
       LettaBotConfigValidator.validate(agent.lettabot);
     }
+
+    if (agent.conversations) {
+      this.validateConversations(agent.conversations);
+    }
   }
   
   private static validateStructure(agent: any): void {
@@ -215,7 +219,7 @@ export class AgentValidator {
       'name', 'description', 'system_prompt', 'llm_config',
       'tools', 'mcp_tools', 'memory_blocks', 'archives', 'folders',
       'embedding', 'embedding_config', 'shared_blocks', 'shared_folders',
-      'first_message', 'reasoning', 'tags', 'lettabot'
+      'first_message', 'reasoning', 'tags', 'lettabot', 'conversations'
     ];
     
     const unknownFields = Object.keys(agent).filter(field => !allowedFields.includes(field));
@@ -276,6 +280,36 @@ export class AgentValidator {
       }
       if (tag.includes(',')) {
         throw new Error(`Tag "${tag}" must not contain commas (commas are used as delimiters in CLI filters).`);
+      }
+    });
+  }
+
+  private static validateConversations(conversations: any): void {
+    if (!Array.isArray(conversations)) {
+      throw new Error('Agent conversations must be an array.');
+    }
+
+    conversations.forEach((conv: any, index: number) => {
+      if (!conv || typeof conv !== 'object') {
+        throw new Error(`Conversation ${index + 1} must be an object.`);
+      }
+      if (!conv.summary || typeof conv.summary !== 'string' || conv.summary.trim() === '') {
+        throw new Error(`Conversation ${index + 1} must have a non-empty "summary" string.`);
+      }
+      if (conv.isolated_blocks !== undefined) {
+        if (!Array.isArray(conv.isolated_blocks)) {
+          throw new Error(`Conversation ${index + 1}: isolated_blocks must be an array of block label strings.`);
+        }
+        conv.isolated_blocks.forEach((label: any, i: number) => {
+          if (!label || typeof label !== 'string') {
+            throw new Error(`Conversation ${index + 1}: isolated_blocks[${i}] must be a non-empty string.`);
+          }
+        });
+      }
+      const allowedConvFields = ['summary', 'isolated_blocks'];
+      const unknownConvFields = Object.keys(conv).filter((f: string) => !allowedConvFields.includes(f));
+      if (unknownConvFields.length > 0) {
+        throw new Error(`Conversation ${index + 1}: unknown fields: ${unknownConvFields.join(', ')}. Allowed: ${allowedConvFields.join(', ')}`);
       }
     });
   }

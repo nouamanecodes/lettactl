@@ -6,6 +6,7 @@ export interface ListOptions {
   before?: string;
   after?: string;
   output?: string;
+  conversationId?: string;
 }
 
 export interface SendOptions {
@@ -19,13 +20,17 @@ export interface SendOptions {
   confirm?: boolean;
   timeout?: number;
   output?: string;
+  conversationId?: string;
 }
 
 export interface ResetOptions {
   addDefault?: boolean;
 }
 
-export interface CompactOptions {}
+export interface CompactOptions {
+  conversationId?: string;
+  model?: string;
+}
 
 export interface CancelOptions {
   runIds?: string;

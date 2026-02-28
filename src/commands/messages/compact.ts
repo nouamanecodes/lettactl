@@ -5,7 +5,7 @@ import { CompactOptions } from './types';
 
 export async function compactMessagesCommand(
   agentName: string,
-  _options: CompactOptions,
+  options: CompactOptions,
   command: any
 ) {
   const verbose = command.parent?.opts().verbose || false;
@@ -17,13 +17,32 @@ export async function compactMessagesCommand(
     // Find the agent
     const { agent } = await resolver.findAgentByName(agentName);
 
-    if (verbose) {
-      output(`Compacting messages for agent: ${agent.name} (${agent.id})`);
+    if (options.conversationId) {
+      // Conversation compaction — resolve model
+      let model = options.model;
+      if (!model) {
+        const fullAgent = await client.getAgent(agent.id);
+        model = (fullAgent as any).llm_config?.model;
+      }
+      if (!model) {
+        error('Could not determine model. Specify --model explicitly.');
+        process.exit(1);
+      }
+
+      if (verbose) {
+        output(`Compacting conversation ${options.conversationId} with model ${model}`);
+      }
+
+      await client.compactConversationMessages(options.conversationId, { model });
+      output(`Conversation ${options.conversationId} compacted for agent ${agent.name}`);
+    } else {
+      if (verbose) {
+        output(`Compacting messages for agent: ${agent.name} (${agent.id})`);
+      }
+
+      await client.compactMessages(agent.id);
+      output(`Messages compacted for agent ${agent.name}`);
     }
-
-    await client.compactMessages(agent.id);
-
-    output(`Messages compacted for agent ${agent.name}`);
 
   } catch (err: any) {
     error(`Failed to compact messages for agent ${agentName}:`, err.message);

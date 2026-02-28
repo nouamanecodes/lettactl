@@ -349,6 +349,18 @@ export class OutputFormatter {
       log(`  = Archives: unchanged`);
     }
 
+    // Conversations changes
+    if (operations.conversations) {
+      const { toCreate, existing } = operations.conversations;
+      if (toCreate.length > 0) {
+        log(`  + Conversations: ${toCreate.length} to create`);
+        toCreate.forEach(conv => log(`    + ${conv.summary}`));
+      }
+      if (existing.length > 0) {
+        log(`  = Conversations: ${existing.length} existing`);
+      }
+    }
+
     log(`  Total operations: ${operations.operationCount}, preserves conversation: ${operations.preservesConversation}`);
   }
 }

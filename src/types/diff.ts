@@ -33,6 +33,11 @@ export interface ArchiveDiff {
   unchanged: Array<{ name: string; id: string }>;
 }
 
+export interface ConversationDiff {
+  toCreate: Array<{ summary: string; isolatedBlocks?: string[] }>;
+  existing: Array<{ summary: string; id: string }>;
+}
+
 export interface FieldChange<T> {
   from: T;
   to: T;
@@ -58,6 +63,7 @@ export interface AgentUpdateOperations {
   blocks?: BlockDiff;
   folders?: FolderDiff;
   archives?: ArchiveDiff;
+  conversations?: ConversationDiff;
 
   // Metadata
   preservesConversation: boolean;

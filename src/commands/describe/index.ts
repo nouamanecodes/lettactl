@@ -13,6 +13,7 @@ import { describeFolder } from './folder';
 import { describeFile } from './file';
 import { describeMcpServer } from './mcp-server';
 import { describeArchive } from './archive';
+import { describeConversation } from './conversation';
 
 async function describeCommandImpl(resource: string, name: string, options?: DescribeOptions, command?: any) {
   const verbose = command?.parent?.opts().verbose || false;
@@ -50,6 +51,9 @@ async function describeCommandImpl(resource: string, name: string, options?: Des
       break;
     case 'mcp-servers':
       await describeMcpServer(client, name, options, spinnerEnabled);
+      break;
+    case 'conversation':
+      await describeConversation(client, resolver, resolvedName, options, spinnerEnabled);
       break;
   }
 }

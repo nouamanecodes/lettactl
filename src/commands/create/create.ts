@@ -1,4 +1,5 @@
 import { LettaClientWrapper } from '../../lib/client/letta-client';
+import { AgentResolver } from '../../lib/client/agent-resolver';
 import { createSpinner, getSpinnerEnabled } from '../../lib/ux/spinner';
 import { log, output, error } from '../../lib/shared/logger';
 import { DEFAULT_MODEL, DEFAULT_EMBEDDING } from '../../lib/shared/constants';
@@ -23,8 +24,12 @@ export default async function createCommand(
   const verbose = command.parent?.opts().verbose || false;
 
   try {
+    if (resource === 'conversation' || resource === 'conversations') {
+      return await createConversation(name, options, command);
+    }
+
     if (resource !== 'agent') {
-      throw new Error('Only "agent" resource is currently supported for creation');
+      throw new Error('Only "agent" and "conversation" resources are supported for creation');
     }
 
     const client = new LettaClientWrapper();
@@ -91,6 +96,43 @@ export default async function createCommand(
 
   } catch (err: any) {
     error(`Failed to create agent ${name}:`, err.message);
+    throw err;
+  }
+}
+
+async function createConversation(
+  agentName: string,
+  options: { description?: string; [key: string]: any },
+  command: any
+) {
+  const verbose = command.parent?.opts().verbose || false;
+
+  const client = new LettaClientWrapper();
+  const resolver = new AgentResolver(client);
+
+  // Resolve agent name to ID
+  const { agent } = await resolver.findAgentByName(agentName);
+
+  if (verbose) {
+    log(`Creating conversation for agent: ${agent.name} (${agent.id})`);
+  }
+
+  const spinner = createSpinner(`Creating conversation for ${agent.name}...`, getSpinnerEnabled(command)).start();
+
+  try {
+    const createOpts: any = {};
+    if (options.description) createOpts.name = options.description;
+
+    const conversation = await client.createConversation(agent.id, createOpts);
+
+    spinner.succeed(`Conversation created for agent ${agent.name}`);
+    output(`Conversation ID: ${(conversation as any).id}`);
+
+    if (verbose) {
+      log(`Agent: ${agent.name} (${agent.id})`);
+    }
+  } catch (err: any) {
+    spinner.fail(`Failed to create conversation for ${agent.name}`);
     throw err;
   }
 }

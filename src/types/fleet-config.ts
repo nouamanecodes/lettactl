@@ -40,6 +40,7 @@ export interface AgentConfig {
   shared_blocks?: string[];
   memory_blocks?: MemoryBlock[];
   archives?: ArchiveConfig[];
+  conversations?: ConversationConfig[];
   folders?: FolderConfig[];
   shared_folders?: string[];
   embedding?: string;
@@ -103,6 +104,11 @@ export interface ArchiveConfig {
   description?: string;
   embedding?: string;
   embedding_config?: Record<string, any>;
+}
+
+export interface ConversationConfig {
+  summary: string;
+  isolated_blocks?: string[];  // Maps to isolated_block_labels in API
 }
 
 export interface LLMConfig {

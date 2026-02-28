@@ -322,7 +322,8 @@ export async function applyCommand(options: ApplyOptions, command: any): Promise
           })),
           sharedBlocks: agent.shared_blocks || [],
           tags: agent.tags || [],
-          lettabotConfig: agent.lettabot || null
+          lettabotConfig: agent.lettabot || null,
+          conversations: agent.conversations || undefined
         };
 
         // Check if agent exists

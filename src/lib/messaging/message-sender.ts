@@ -5,6 +5,7 @@ export interface MessageOptions {
   async?: boolean;
   maxSteps?: number;
   enableThinking?: boolean;
+  conversationId?: string;
 }
 
 export interface MessageResponse {
@@ -38,6 +39,12 @@ export async function sendMessageToAgent(
     if (options.enableThinking) params.enable_thinking = options.enableThinking;
 
     let response;
+
+    // Conversation-scoped streaming
+    if (options.conversationId) {
+      response = await client.streamConversationMessage(options.conversationId, { ...params, streaming: true });
+      return { success: true, response };
+    }
 
     // Call the underlying SDK methods exactly like the CLI
     if (options.async) {

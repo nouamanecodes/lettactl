@@ -36,8 +36,14 @@ export async function listMessagesCommand(
     if (options.before) queryOptions.before = options.before;
     if (options.after) queryOptions.after = options.after;
 
-    // Get messages
-    const response = await client.listMessages(agent.id, queryOptions);
+    // Get messages — from conversation or directly from agent
+    let response;
+    if (options.conversationId) {
+      const convMessages = await client.listConversationMessages(options.conversationId, queryOptions);
+      response = convMessages;
+    } else {
+      response = await client.listMessages(agent.id, queryOptions);
+    }
     let messages = normalizeResponse(response);
 
     if (options.output === 'json') {

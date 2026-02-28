@@ -7,6 +7,7 @@ export {
   displayFolders, FolderData,
   displayMcpServers, McpServerData,
   displayFiles, FileData,
+  displayConversations, ConversationData,
 } from './resources';
 
 // Block content display (full values)
@@ -24,6 +25,7 @@ export {
   displayFolderDetails, FolderDetailsData,
   displayFileDetails, FileDetailsData,
   displayMcpServerDetails, McpServerDetailsData,
+  displayConversationDetails, ConversationDetailsData,
 } from './details';
 
 // Shared entry list display (used by messages, archival)

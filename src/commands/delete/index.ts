@@ -22,6 +22,15 @@ async function deleteCommandImpl(resource: string, name: string, options?: Delet
     return await deleteMcpServer(name, options, command);
   }
 
+  if (resource === 'conversation' || resource === 'conversations') {
+    output('The Letta API does not support deleting individual conversations.');
+    output('Conversations are automatically removed when the parent agent is deleted.');
+    output('');
+    output('To delete all conversations for an agent:');
+    output('  lettactl delete agent <name> --force');
+    return;
+  }
+
   validateRequired(name, 'Agent name', 'lettactl delete agent <name>');
 
   const client = new LettaClientWrapper();

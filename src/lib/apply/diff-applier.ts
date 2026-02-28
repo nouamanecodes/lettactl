@@ -225,6 +225,17 @@ export class DiffApplier {
       }
     }
 
+    // Create new conversations
+    if (operations.conversations?.toCreate) {
+      for (const conv of operations.conversations.toCreate) {
+        if (verbose) log(`  Creating conversation: ${conv.summary}`);
+        await this.client.createConversation(agentId, {
+          summary: conv.summary,
+          isolated_block_labels: conv.isolatedBlocks,
+        });
+      }
+    }
+
     if (verbose) log('  Updates completed successfully');
   }
 

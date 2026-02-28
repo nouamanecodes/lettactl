@@ -499,12 +499,23 @@ export async function createNewAgent(
       await client.updateAgent(createdAgent.id, { metadata });
     }
 
+    // Create declared conversations
+    if (agent.conversations) {
+      for (const conv of agent.conversations) {
+        await client.createConversation(createdAgent.id, {
+          summary: conv.summary,
+          isolated_block_labels: conv.isolated_blocks,
+        });
+      }
+    }
+
     // Count resources for summary
     const blockCount = (agent.memory_blocks?.length || 0) + (agent.shared_blocks?.length || 0);
     const toolCount = agent.tools?.length || 0;
     const folderCount = agent.folders?.length || 0;
+    const convCount = agent.conversations?.length || 0;
 
-    creationSpinner.succeed(`Agent ${agentName} created (${blockCount} blocks, ${toolCount} tools, ${folderCount} folders)`);
+    creationSpinner.succeed(`Agent ${agentName} created (${blockCount} blocks, ${toolCount} tools, ${folderCount} folders${convCount > 0 ? `, ${convCount} conversations` : ''})`);
 
     // Send first_message if configured (for agent auto-calibration)
     if (agent.first_message && !skipFirstMessage) {

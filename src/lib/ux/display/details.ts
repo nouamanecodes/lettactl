@@ -86,6 +86,18 @@ export interface McpServerDetailsData {
   tools?: { name: string; description?: string }[];
 }
 
+export interface ConversationDetailsData {
+  id: string;
+  agentId: string;
+  agentName?: string;
+  name?: string;
+  summary?: string;
+  messageCount?: number;
+  status?: string;
+  created?: string;
+  updated?: string;
+}
+
 // ============================================================================
 // Agent Details
 // ============================================================================
@@ -740,6 +752,50 @@ function displayMcpServerDetailsPlain(data: McpServerDetailsData): string {
   } else {
     lines.push('  (no tools registered)');
   }
+
+  return lines.join('\n');
+}
+
+// ============================================================================
+// Conversation Details
+// ============================================================================
+
+export function displayConversationDetails(data: ConversationDetailsData): string {
+  if (!shouldUseFancyUx()) {
+    return displayConversationDetailsPlain(data);
+  }
+
+  const width = 70;
+  const lines: string[] = [];
+
+  const headerRows: BoxRow[] = [
+    { key: 'ID', value: data.id },
+    { key: 'Agent', value: data.agentName ? `${data.agentName} (${data.agentId})` : data.agentId },
+    { key: 'Name', value: data.name || '-' },
+    { key: 'Summary', value: data.summary || '-' },
+    { key: 'Messages', value: String(data.messageCount ?? '-') },
+    { key: 'Status', value: data.status || '-' },
+    { key: 'Created', value: formatDate(data.created) },
+    { key: 'Updated', value: formatDate(data.updated) },
+  ];
+  lines.push(...createBox(`Conversation: ${truncate(data.id, 40)}`, headerRows, width));
+
+  return lines.join('\n');
+}
+
+function displayConversationDetailsPlain(data: ConversationDetailsData): string {
+  const lines: string[] = [];
+
+  lines.push(`Conversation Details: ${data.id}`);
+  lines.push('='.repeat(50));
+  lines.push(`ID:            ${data.id}`);
+  lines.push(`Agent:         ${data.agentName ? `${data.agentName} (${data.agentId})` : data.agentId}`);
+  lines.push(`Name:          ${data.name || '-'}`);
+  lines.push(`Summary:       ${data.summary || '-'}`);
+  lines.push(`Messages:      ${data.messageCount ?? '-'}`);
+  lines.push(`Status:        ${data.status || '-'}`);
+  lines.push(`Created:       ${data.created || 'Unknown'}`);
+  lines.push(`Updated:       ${data.updated || 'Unknown'}`);
 
   return lines.join('\n');
 }

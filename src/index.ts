@@ -194,6 +194,13 @@ getCmd
   .action((name, options, command) => getCommand('archival', name, options, command));
 
 getCmd
+  .command('conversations')
+  .description('List conversations for an agent')
+  .argument('<agent>', 'agent name')
+  .option('-o, --output <format>', 'output format (table|json|yaml)', 'table')
+  .action((name, options, command) => getCommand('conversations', name, options, command));
+
+getCmd
   .command('messages')
   .description('List agent conversation messages')
   .argument('<agent>', 'agent name')
@@ -204,6 +211,7 @@ getCmd
   .option('--before <id>', 'show messages before this message ID')
   .option('--after <id>', 'show messages after this message ID')
   .option('-o, --output <format>', 'output format (table|json)', 'table')
+  .option('--conversation-id <id>', 'list messages from a conversation')
   .action(listMessagesCommand);
 
 getCmd
@@ -272,9 +280,9 @@ program
 // Create command - create new agents
 program
   .command('create')
-  .description('Create a new agent')
-  .argument('<resource>', 'resource type (agent)')
-  .argument('<name>', 'agent name')
+  .description('Create a new resource')
+  .argument('<resource>', 'resource type (agent|conversation)')
+  .argument('<name>', 'agent name (or agent name when creating a conversation)')
   .option('-d, --description <text>', 'agent description')
   .option('-m, --model <model>', 'LLM model (e.g., google_ai/gemini-2.5-pro)')
   .option('-s, --system <text>', 'system prompt')
@@ -358,6 +366,7 @@ program
   .option('--confirm', 'skip confirmation prompt for bulk operations')
   .option('--timeout <seconds>', 'timeout per agent in seconds for bulk operations', parseInt)
   .option('-o, --output <format>', 'output format (table|json)', 'table')
+  .option('--conversation-id <id>', 'send message within a conversation')
   .action(sendMessageCommand);
 
 // Reset agent messages
@@ -373,6 +382,8 @@ program
   .command('compact-messages')
   .description('Compact an agent\'s conversation history')
   .argument('<agent>', 'agent name')
+  .option('--conversation-id <id>', 'compact messages within a conversation')
+  .option('--model <model>', 'model to use for compaction (default: agent LLM model)')
   .action(compactMessagesCommand);
 
 // Cancel running messages

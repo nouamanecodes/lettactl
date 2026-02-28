@@ -18,6 +18,8 @@ export interface DryRunResult {
   action: 'create' | 'update' | 'unchanged';
   config?: any;
   operations?: AgentUpdateOperations;
+  conversationCount?: number;
+  conversationsToCreate?: number;
 }
 
 interface DryRunContext {
@@ -155,7 +157,8 @@ async function computeAgentDiff(
     sharedBlocks: agent.shared_blocks || [],
     tags: agent.tags || [],
     lettabotConfig: agent.lettabot || null,
-    firstMessage: agent.first_message || null
+    firstMessage: agent.first_message || null,
+    conversations: agent.conversations || null
   };
 
   // Check if agent exists
@@ -183,9 +186,26 @@ async function computeAgentDiff(
   const fullAgent = await client.getAgent(existingAgent.id);
   const previousFolderFileHashes = (fullAgent as any).metadata?.['lettactl.folderFileHashes'] || {};
 
+  // Best-effort conversation count and diff
+  let conversationCount: number | undefined;
+  let conversationsToCreate: number | undefined;
+  try {
+    const convos = await client.listConversations(existingAgent.id);
+    if (agent.conversations) {
+      const existingSummaries = new Set(convos.map((c: any) => c.summary || ''));
+      const newConvs = agent.conversations.filter((c: any) => !existingSummaries.has(c.summary));
+      conversationsToCreate = newConvs.length;
+      conversationCount = convos.length;
+    } else {
+      conversationCount = convos.length;
+    }
+  } catch {
+    // Conversation API may not be available
+  }
+
   const operations = await diffEngine.generateUpdateOperations(
     existingAgent,
-    agentConfig,
+    { ...agentConfig, conversations: agent.conversations },
     toolNameToId,
     folderNameToId,
     false,
@@ -195,7 +215,7 @@ async function computeAgentDiff(
     true  // dryRun - don't create resources
   );
 
-  return { name: agent.name, action: 'update', operations };
+  return { name: agent.name, action: 'update', operations, conversationCount, conversationsToCreate };
 }
 
 /**
@@ -236,7 +256,17 @@ export function displayDryRunResults(results: DryRunResult[], verbose: boolean, 
     } else if (result.action === 'update' && result.operations) {
       updated++;
       totalChanges += result.operations.operationCount;
-      output(displayDryRunAction(result.name, 'update', `${result.operations.operationCount} changes`));
+      const convParts: string[] = [];
+      if (result.conversationsToCreate && result.conversationsToCreate > 0) {
+        convParts.push(`${result.conversationsToCreate} conversation${result.conversationsToCreate !== 1 ? 's' : ''} to create`);
+      }
+      if (result.conversationCount && result.conversationCount > 0) {
+        convParts.push(`${result.conversationCount} conversation${result.conversationCount !== 1 ? 's' : ''}`);
+      }
+      const updateDetail = convParts.length > 0
+        ? `${result.operations.operationCount} changes, ${convParts.join(', ')}`
+        : `${result.operations.operationCount} changes`;
+      output(displayDryRunAction(result.name, 'update', updateDetail));
       formatUpdateDetails(result.operations, verbose, fancy);
     } else if (verbose) {
       unchanged++;
@@ -269,6 +299,9 @@ function formatCreateDetails(result: DryRunResult, fancy: boolean, skipFirstMess
   if (result.config.folders?.length) {
     const fileCount = result.config.folders.reduce((sum: number, f: any) => sum + f.files.length, 0);
     output(`${indent}${dim('Folders:')} ${result.config.folders.length} (${fileCount} files)`);
+  }
+  if (result.config.conversations?.length) {
+    output(`${indent}${dim('Conversations:')} ${result.config.conversations.length}`);
   }
   if (result.config.lettabotConfig) {
     const channels = Object.keys(result.config.lettabotConfig.channels || {});
@@ -391,6 +424,14 @@ function formatUpdateDetails(ops: AgentUpdateOperations, verbose: boolean, fancy
     for (const a of ops.archives.toUpdate) output(`    Archive [~]: ${a.name}`);
     if (verbose && ops.archives.unchanged.length > 0) {
       output(`    Archives unchanged: ${ops.archives.unchanged.length}`);
+    }
+  }
+
+  // Conversation changes
+  if (ops.conversations) {
+    for (const c of ops.conversations.toCreate) output(`    ${green('Conversation [+]:')} ${c.summary}`);
+    if (verbose && ops.conversations.existing.length > 0) {
+      output(`    ${dim(`Conversations unchanged: ${ops.conversations.existing.length}`)}`);
     }
   }
 }

@@ -70,7 +70,7 @@ export async function deleteAgentWithCleanup(
     }
   }
 
-  // Delete the agent
+  // Delete the agent (conversations are automatically cascade-deleted by the server)
   await client.deleteAgent(agent.id);
 
   // Clean up any remaining orphaned memory blocks by name pattern (fallback)

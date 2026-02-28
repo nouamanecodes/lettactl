@@ -14,6 +14,7 @@ import { getFiles } from './files';
 import { getMcpServers } from './mcp-servers';
 import { getArchival } from './archival';
 import { getArchives } from './archives';
+import { getConversations } from './conversations';
 
 async function getCommandImpl(resource: string, name?: string, options?: GetOptions, command?: any) {
   validateResourceType(resource, SUPPORTED_RESOURCES);
@@ -53,8 +54,8 @@ async function getCommandImpl(resource: string, name?: string, options?: GetOpti
     }
   }
 
-  // For `get blocks <agent>` or `get archival <agent>`, resolve the positional name as an agent
-  if ((resource === 'blocks' || resource === 'archival') && name && !agentId) {
+  // For `get blocks <agent>`, `get archival <agent>`, or `get conversations <agent>`, resolve the positional name as an agent
+  if ((resource === 'blocks' || resource === 'archival' || resource === 'conversations') && name && !agentId) {
     const spinner = createSpinner(`Resolving agent ${name}...`, spinnerEnabled).start();
     try {
       const { agent } = await resolver.findAgentByName(name);
@@ -92,6 +93,9 @@ async function getCommandImpl(resource: string, name?: string, options?: GetOpti
       break;
     case 'archives':
       await getArchives(client, resolver, options, spinnerEnabled, agentId);
+      break;
+    case 'conversations':
+      await getConversations(client, resolver, options, spinnerEnabled, agentId, agentName);
       break;
   }
 }

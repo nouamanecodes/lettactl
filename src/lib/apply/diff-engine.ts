@@ -53,6 +53,7 @@ export class DiffEngine {
       sharedBlocks?: string[];
       tags?: string[];
       lettabotConfig?: Record<string, any> | null;
+      conversations?: Array<{ summary: string; isolated_blocks?: string[] }>;
     },
     toolRegistry: Map<string, string>,
     folderRegistry: Map<string, string>,
@@ -250,6 +251,29 @@ export class DiffEngine {
     );
     operations.archives = archiveOps;
     operations.operationCount += archiveOps.toAttach.length + archiveOps.toDetach.length + archiveOps.toUpdate.length;
+
+    // Analyze conversation changes
+    if (desiredConfig.conversations) {
+      try {
+        const existingConvs = await this.client.listConversations(existingAgent.id);
+        const existingSummaries = new Set(existingConvs.map((c: any) => c.summary || ''));
+
+        const toCreate = desiredConfig.conversations
+          .filter((c: any) => !existingSummaries.has(c.summary))
+          .map((c: any) => ({ summary: c.summary, isolatedBlocks: c.isolated_blocks }));
+
+        const existing = existingConvs
+          .filter((c: any) => desiredConfig.conversations!.some((d: any) => d.summary === (c.summary || '')))
+          .map((c: any) => ({ summary: c.summary || '', id: c.id }));
+
+        if (toCreate.length > 0 || existing.length > 0) {
+          operations.conversations = { toCreate, existing };
+          operations.operationCount += toCreate.length;
+        }
+      } catch {
+        // Conversation API may not be available — skip silently
+      }
+    }
 
     return operations;
   }

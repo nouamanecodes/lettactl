@@ -92,9 +92,12 @@ export async function sendMessageCommand(
       output(`Options: ${JSON.stringify(options, null, 2)}`);
     }
 
-    // Streaming mode
-    if (options.stream) {
-      const result = await sendMessageToAgent(client, agent.id, message, { stream: true });
+    // Streaming mode (also forced when --conversation-id is set)
+    if (options.stream || options.conversationId) {
+      const result = await sendMessageToAgent(client, agent.id, message, {
+        stream: true,
+        conversationId: options.conversationId,
+      });
 
       if (!result.success) {
         throw new Error(result.error);

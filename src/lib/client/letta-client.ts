@@ -513,4 +513,53 @@ export class LettaClientWrapper {
   async searchAgentArchival(agentId: string, query: string, limit?: number) {
     return await this.client.agents.passages.search(agentId, { query, top_k: limit || 50 });
   }
+
+  // === Conversation Operations ===
+
+  async createConversation(agentId: string, opts?: any) {
+    return await this.client.conversations.create({ agent_id: agentId, ...opts });
+  }
+
+  async listConversations(agentId: string, opts?: any) {
+    const response = await this.client.conversations.list({ agent_id: agentId, ...opts });
+    return Array.isArray(response) ? response : (response as any).conversations || [response];
+  }
+
+  async getConversation(id: string) {
+    return await this.client.conversations.retrieve(id);
+  }
+
+  async updateConversation(id: string, data: any) {
+    return await this.client.conversations.update(id, data);
+  }
+
+  async deleteConversation(_id: string) {
+    // The Letta API does not currently expose a DELETE /v1/conversations/{id} endpoint.
+    // Conversations are cleaned up automatically when the parent agent is deleted.
+    throw new Error('Conversation deletion is not supported by the Letta API. Delete the parent agent to remove all conversations.');
+  }
+
+  async cancelConversation(id: string) {
+    return await this.client.conversations.cancel(id);
+  }
+
+  async streamConversationMessage(id: string, params: any) {
+    return await this.client.conversations.messages.create(id, params);
+  }
+
+  async listConversationMessages(id: string, opts?: any) {
+    const allMessages: any[] = [];
+    for await (const msg of this.client.conversations.messages.list(id, opts)) {
+      allMessages.push(msg);
+    }
+    return allMessages;
+  }
+
+  async compactConversationMessages(id: string, opts?: any) {
+    return await this.client.conversations.messages.compact(id, opts);
+  }
+
+  async resumeConversationStream(id: string, opts?: any) {
+    return await this.client.conversations.messages.stream(id, opts);
+  }
 }

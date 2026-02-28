@@ -700,6 +700,76 @@ function displayFilesPlain(files: FileData[], wide: boolean = false): string {
   return lines.join('\n');
 }
 
+// ============================================================================
+// Conversation Display
+// ============================================================================
+
+export interface ConversationData {
+  id: string;
+  agentId: string;
+  summary: string;
+  messageCount: number;
+  created?: string;
+  updated?: string;
+}
+
+export function displayConversations(conversations: ConversationData[]): string {
+  if (!shouldUseFancyUx()) {
+    return displayConversationsPlain(conversations);
+  }
+
+  const rows: string[] = [];
+  const idW = 14; // truncated UUID
+  const summaryW = 40;
+  const msgsW = 8;
+  const width = idW + summaryW + msgsW + 20;
+
+  for (const conv of conversations) {
+    const id = truncate(conv.id, idW - 1);
+    const summary = truncate(conv.summary || '-', summaryW - 1);
+    const msgs = conv.messageCount.toString().padStart(msgsW);
+    const created = formatDate(conv.created);
+
+    const row = STATUS.ok + '  ' +
+      chalk.dim(id.padEnd(idW)) + ' ' +
+      chalk.white(summary.padEnd(summaryW)) + ' ' +
+      chalk.white(msgs) + '  ' +
+      chalk.dim(created);
+
+    rows.push(row);
+  }
+
+  const header = '   ' +
+    chalk.dim('ID'.padEnd(idW)) + ' ' +
+    chalk.dim('SUMMARY'.padEnd(summaryW)) + ' ' +
+    chalk.dim('MESSAGES'.padStart(msgsW)) + '  ' +
+    chalk.dim('CREATED');
+
+  const boxLines = createBoxWithRows(`Conversations (${conversations.length})`, [header, ...rows], width);
+  return boxLines.join('\n');
+}
+
+function displayConversationsPlain(conversations: ConversationData[]): string {
+  const lines: string[] = [];
+  const idW = 14;
+  const summaryW = 40;
+
+  const header = 'ID'.padEnd(idW) + ' ' + 'SUMMARY'.padEnd(summaryW) + ' MESSAGES  CREATED';
+  lines.push(header);
+  lines.push('-'.repeat(header.length));
+
+  for (const conv of conversations) {
+    const id = truncate(conv.id, idW - 1).padEnd(idW);
+    const summary = truncate(conv.summary || '-', summaryW - 1).padEnd(summaryW);
+    const msgs = conv.messageCount.toString().padStart(8);
+    const created = formatDate(conv.created);
+
+    lines.push(`${id} ${summary} ${msgs}  ${created}`);
+  }
+
+  return lines.join('\n');
+}
+
 function displayFilesPlainWide(files: FileData[]): string {
   const lines: string[] = [];
 

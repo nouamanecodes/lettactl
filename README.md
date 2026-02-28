@@ -505,6 +505,60 @@ lettactl compact-messages my-agent
 lettactl cancel-messages my-agent --run-ids "run1,run2"
 ```
 
+### Conversations
+
+Conversations let an agent maintain separate message histories (e.g. one per end-user, or one per workflow step) while sharing archival memory, blocks, and tools. Messages sent within a conversation are isolated from the agent's default message history and from other conversations.
+
+**Declarative (YAML) — recommended:** Declare conversations in your fleet YAML. They're created automatically on `lettactl apply` and are idempotent — re-applying won't duplicate them. Conversations are matched by `summary`.
+
+```yaml
+agents:
+  - name: support-agent
+    # ... config ...
+    conversations:
+      - summary: "Ticket #101"
+      - summary: "Ticket #102"
+        isolated_blocks: [customer_context]  # per-conversation block copies
+```
+
+```bash
+# Deploy — conversations created automatically
+lettactl apply -f fleet.yaml
+
+# Re-apply is idempotent (no duplicates)
+lettactl apply -f fleet.yaml --dry-run  # shows 0 new conversations
+
+# Add a new conversation to YAML and re-apply — only the new one is created
+```
+
+**Imperative (CLI):** Create conversations on the fly for dynamic use cases.
+
+```bash
+# List conversations for an agent
+lettactl get conversations my-agent
+
+# Create a new conversation
+lettactl create conversation my-agent
+
+# Send a message scoped to a conversation (always streams)
+lettactl send my-agent "Hello" --conversation-id <conv-id>
+
+# List messages within a conversation
+lettactl get messages my-agent --conversation-id <conv-id>
+
+# Describe a conversation
+lettactl describe conversation <conv-id>
+
+# Compact a conversation's message history
+lettactl compact-messages my-agent --conversation-id <conv-id>
+lettactl compact-messages my-agent --conversation-id <conv-id> --model openai/gpt-4o
+
+# Delete a conversation
+lettactl delete conversation <conv-id> --force
+```
+
+**Migrating an existing agent to conversations:** Agents that were used via the legacy message API can start using conversations at any time. Legacy messages remain accessible via `lettactl get messages` (without `--conversation-id`). New conversation-scoped messages are isolated. No migration step is needed — just create a conversation and start sending to it. YAML re-applies preserve existing conversations.
+
 ### Fleet Reports
 ```bash
 # Memory usage report
@@ -1172,6 +1226,12 @@ agents:
         files:
           - "files/*"                   # Auto-discover files
           - "files/specific-file.pdf"   # Specific files
+
+    # Conversations (optional) - declarative isolated message histories
+    conversations:
+      - summary: "Ticket #101"         # Required: matched by summary on re-apply
+      - summary: "Ticket #102"
+        isolated_blocks: [block_name]  # Optional: per-conversation block copies
 
     embedding: "openai/text-embedding-3-small"       # Optional: embedding model
 
