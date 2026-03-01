@@ -43,5 +43,7 @@ export function warn(...args: any[]): void {
  * This is for final output the user requested, not progress info
  */
 export function output(...args: any[]): void {
-  console.log(...args);
+  if (!quietMode) {
+    console.log(...args);
+  }
 }

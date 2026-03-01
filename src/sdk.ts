@@ -13,6 +13,7 @@ import * as yaml from 'js-yaml';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
+import { setQuietMode } from './lib/shared/logger';
 
 export interface LettaCtlOptions {
   lettaBaseUrl?: string;
@@ -75,20 +76,26 @@ export class LettaCtl {
       const yamlContent = yaml.dump(config);
       fs.writeFileSync(tempFile, yamlContent);
 
-      const result = await applyCommand(
-        {
-          file: tempFile,
-          agent: options?.agentPattern,
-          match: options?.match,
-          dryRun: options?.dryRun || false,
-          root: this.root
-        },
-        {
-          parent: {
-            opts: () => ({ verbose: false })
+      setQuietMode(true);
+      let result: DeployResult;
+      try {
+        result = await applyCommand(
+          {
+            file: tempFile,
+            agent: options?.agentPattern,
+            match: options?.match,
+            dryRun: options?.dryRun || false,
+            root: this.root
+          },
+          {
+            parent: {
+              opts: () => ({ verbose: false, noSpinner: true, quiet: true })
+            }
           }
-        }
-      );
+        );
+      } finally {
+        setQuietMode(false);
+      }
 
       if (!options?.dryRun) {
         this.writeFleetFile(config);
@@ -114,20 +121,25 @@ export class LettaCtl {
   }
 
   async deployFromYaml(yamlPath: string, options?: { dryRun?: boolean; agentPattern?: string; match?: string; rootPath?: string }): Promise<DeployResult> {
-    return await applyCommand(
-      {
-        file: yamlPath,
-        agent: options?.agentPattern,
-        match: options?.match,
-        dryRun: options?.dryRun || false,
-        root: options?.rootPath
-      },
-      {
-        parent: {
-          opts: () => ({ verbose: false })
+    setQuietMode(true);
+    try {
+      return await applyCommand(
+        {
+          file: yamlPath,
+          agent: options?.agentPattern,
+          match: options?.match,
+          dryRun: options?.dryRun || false,
+          root: options?.rootPath
+        },
+        {
+          parent: {
+            opts: () => ({ verbose: false, noSpinner: true, quiet: true })
+          }
         }
-      }
-    );
+      );
+    } finally {
+      setQuietMode(false);
+    }
   }
 
   async deployFromYamlString(yamlContent: string, options?: { dryRun?: boolean; agentPattern?: string; match?: string }): Promise<DeployResult> {
