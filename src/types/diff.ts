@@ -27,7 +27,7 @@ export interface FolderDiff {
 }
 
 export interface ArchiveDiff {
-  toAttach: Array<{ name: string; id: string }>;
+  toAttach: Array<{ name: string; id: string; passages?: Array<{ text: string; metadata?: Record<string, unknown> }> }>;
   toDetach: Array<{ name: string; id: string }>;
   toUpdate: Array<{ name: string; id: string; description?: string | null }>;
   unchanged: Array<{ name: string; id: string }>;

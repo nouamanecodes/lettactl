@@ -419,6 +419,9 @@ lettactl export agent my-agent -f yaml -o agents.yml
 # Export YAML without first_message (for canary/fast deploys)
 lettactl export agent my-agent -f yaml --skip-first-message -o agents.yml
 
+# Export YAML with archival memory passages (for full round-trip fidelity)
+lettactl export agent my-agent -f yaml --include-archival -o agents.yml
+
 # Bulk export: all agents to a single fleet YAML
 lettactl export agents --all -f yaml -o fleet.yaml
 
@@ -439,6 +442,18 @@ lettactl import my-agent-backup.json \
   --name restored-agent \
   --append-copy
 ```
+
+### Duplicate Agents
+
+```bash
+# Full clone including archival memory passages
+lettactl duplicate my-agent my-agent-copy
+
+# Clone without archival memory (config + blocks only)
+lettactl duplicate my-agent my-agent-copy --no-archival
+```
+
+Creates an independent copy with new blocks and archives (for data isolation), reuses shared tools and folders. Archival passages are cloned by default.
 
 ### Git-Native Versioning & Rollback
 

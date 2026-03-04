@@ -215,6 +215,12 @@ export class DiffApplier {
       for (const archive of operations.archives.toAttach) {
         if (verbose) log(`  Attaching archive: ${archive.name}`);
         await this.client.attachArchiveToAgent(agentId, archive.id);
+
+        // Insert passages if present on the archive diff entry
+        if (archive.passages && archive.passages.length > 0) {
+          if (verbose) log(`  Inserting ${archive.passages.length} passages into archive ${archive.name}`);
+          await this.client.createArchivePassages(archive.id, archive.passages);
+        }
       }
 
       if (force) {

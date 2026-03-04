@@ -7,6 +7,7 @@ export interface ApplyOptions {
   root?: string;
   manifest?: string;
   skipFirstMessage?: boolean;
+  includeArchival?: boolean;
   canary?: boolean;
   canaryPrefix?: string;
   promote?: boolean;

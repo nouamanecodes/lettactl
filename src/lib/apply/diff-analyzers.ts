@@ -339,7 +339,7 @@ const ARCHIVAL_TOOLS = new Set(['archival_memory_insert', 'archival_memory_searc
 
 export async function analyzeArchiveChanges(
   currentArchives: any[],
-  desiredArchives: Array<{ name: string; description?: string; embedding?: string; embedding_config?: Record<string, any> }>,
+  desiredArchives: Array<{ name: string; description?: string; embedding?: string; embedding_config?: Record<string, any>; passages?: Array<{ text: string; metadata?: Record<string, unknown> }> }>,
   archiveManager: ArchiveManager,
   dryRun: boolean = false,
   agentTools: any[] = []
@@ -370,7 +370,7 @@ export async function analyzeArchiveChanges(
 
   const desiredArchiveNames = new Set(desiredArchives.map(a => a.name));
 
-  const toAttach: Array<{ name: string; id: string }> = [];
+  const toAttach: Array<{ name: string; id: string; passages?: Array<{ text: string; metadata?: Record<string, unknown> }> }> = [];
   const toDetach: Array<{ name: string; id: string }> = [];
   const toUpdate: Array<{ name: string; id: string; description?: string | null }> = [];
   const unchanged: Array<{ name: string; id: string }> = [];
@@ -381,7 +381,7 @@ export async function analyzeArchiveChanges(
 
       if (!archiveId) {
         if (dryRun) {
-          toAttach.push({ name: archiveConfig.name, id: '(new)' });
+          toAttach.push({ name: archiveConfig.name, id: '(new)', ...(archiveConfig.passages && { passages: archiveConfig.passages }) });
           continue;
         }
         archiveId = await archiveManager.getOrCreateArchive({
@@ -393,7 +393,7 @@ export async function analyzeArchiveChanges(
       }
 
       if (archiveId) {
-        toAttach.push({ name: archiveConfig.name, id: archiveId });
+        toAttach.push({ name: archiveConfig.name, id: archiveId, ...(archiveConfig.passages && { passages: archiveConfig.passages }) });
       }
     } else {
       const current = currentByName.get(archiveConfig.name);

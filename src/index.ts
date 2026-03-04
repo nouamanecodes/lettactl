@@ -25,6 +25,7 @@ import { contextCommand } from './commands/context';
 import { listRunsCommand, getRunCommand, deleteRunCommand, trackRunsCommand } from './commands/runs';
 import { completionCommand } from './commands/completion';
 import reportCommand from './commands/report';
+import { duplicateCommand } from './commands/duplicate';
 
 import { setQuietMode, output, error } from './lib/shared/logger';
 import { printFancyHelp } from './lib/ux/help-formatter';
@@ -107,6 +108,7 @@ program
   .option('--root <path>', 'root directory for resolving file paths')
   .option('--manifest [path]', 'write agent manifest (default: <config>.manifest.json)')
   .option('--skip-first-message', 'skip sending first_message on agent creation')
+  .option('--include-archival', 'include archival memory passages when deploying (e.g., for canary)')
   .option('--canary', 'deploy canary copies of agents (CANARY- prefix)')
   .option('--canary-prefix <prefix>', 'custom canary prefix (default: CANARY-)')
   .option('--promote', 'promote canary config to production (use with --canary)')
@@ -325,6 +327,7 @@ program
   .option('--max-steps <number>', 'maximum steps to export', parseInt)
   .option('--legacy-format', 'use legacy v1 format (json only)')
   .option('--skip-first-message', 'omit first_message from exported YAML')
+  .option('--include-archival', 'include archival memory passages in YAML export')
   .option('--all', 'export all agents')
   .option('--match <pattern>', 'export agents matching glob pattern')
   .option('--tags <tags>', 'filter agents by tags (comma-separated, AND logic)')
@@ -449,6 +452,15 @@ program
   .option('--analyze', 'LLM-powered analysis (messages agents, costs tokens)')
   .option('--confirm', 'skip confirmation prompt for --analyze')
   .action(reportCommand);
+
+// Duplicate command - full agent cloning
+program
+  .command('duplicate')
+  .description('Duplicate an agent (full clone including archival memory)')
+  .argument('<source>', 'source agent name')
+  .argument('<target-name>', 'name for the duplicated agent')
+  .option('--no-archival', 'skip cloning archival memory passages')
+  .action(duplicateCommand);
 
 // Completion command - generate shell completions
 program

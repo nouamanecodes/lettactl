@@ -1,5 +1,6 @@
 import { FleetParser } from '../../lib/apply/fleet-parser';
 import { LettaClientWrapper } from '../../lib/client/letta-client';
+import { AgentResolver } from '../../lib/client/agent-resolver';
 import { BlockManager } from '../../lib/managers/block-manager';
 import { ArchiveManager } from '../../lib/managers/archive-manager';
 import { FolderManager } from '../../lib/managers/folder-manager';
@@ -119,6 +120,59 @@ export async function applyCommand(options: ApplyOptions, command: any): Promise
       config.agents = rewrittenAgents;
       canaryMode = true;
       log(`Canary mode: deploying with prefix "${canaryPrefix}"`);
+
+      // When --include-archival is set, fetch passages from production agents
+      // and inject them into the canary config's archive definitions
+      if (options.includeArchival) {
+        const canaryClient = new LettaClientWrapper();
+        const canaryResolver = new AgentResolver(canaryClient);
+
+        for (const agent of config.agents) {
+          const originalName = (agent as any)._originalName;
+          if (!originalName || !agent.archives || agent.archives.length === 0) continue;
+
+          try {
+            const { agent: prodAgent } = await canaryResolver.findAgentByName(originalName);
+            const allPassages = await canaryClient.listAllAgentPassages(prodAgent.id);
+
+            if (allPassages.length === 0) continue;
+
+            // Group passages by archive_id
+            const passagesByArchive = new Map<string, any[]>();
+            for (const p of allPassages) {
+              const archiveId = p.archive_id || p.source_id;
+              if (archiveId) {
+                if (!passagesByArchive.has(archiveId)) passagesByArchive.set(archiveId, []);
+                passagesByArchive.get(archiveId)!.push(p);
+              }
+            }
+
+            // Resolve archive names → IDs from the production agent
+            const prodArchives = await canaryClient.listAgentArchives(prodAgent.id);
+            const prodArchiveList = Array.isArray(prodArchives) ? prodArchives : (prodArchives as any).items || [];
+
+            for (const archive of agent.archives) {
+              const prodArchive = prodArchiveList.find((a: any) => a.name === archive.name);
+              if (!prodArchive) continue;
+
+              const passages = passagesByArchive.get(prodArchive.id) || [];
+              if (passages.length > 0) {
+                archive.passages = passages.map((p: any) => {
+                  const entry: any = { text: p.text };
+                  if (p.metadata && Object.keys(p.metadata).length > 0) {
+                    entry.metadata = p.metadata;
+                  }
+                  return entry;
+                });
+              }
+            }
+
+            if (verbose) log(`  Injected archival passages from ${originalName} into canary config`);
+          } catch {
+            // Production agent may not exist yet, skip
+          }
+        }
+      }
     }
 
     // Canary deploy skips first_message by default (testing, not calibration)
@@ -311,6 +365,9 @@ export async function applyCommand(options: ApplyOptions, command: any): Promise
               resolved.embedding = archive.embedding;
             } else if (!archive.embedding_config && agent.embedding) {
               resolved.embedding = agent.embedding;
+            }
+            if (archive.passages && archive.passages.length > 0) {
+              resolved.passages = archive.passages;
             }
             return resolved;
           }),

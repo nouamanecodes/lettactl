@@ -20,6 +20,7 @@ export default async function exportCommand(
     legacyFormat?: boolean;
     format?: string;
     skipFirstMessage?: boolean;
+    includeArchival?: boolean;
     all?: boolean;
     match?: string;
     tags?: string;
@@ -153,7 +154,7 @@ export default async function exportCommand(
 async function buildAgentYamlConfig(
   client: LettaClientWrapper,
   agent: { id: string; name: string },
-  options: { skipFirstMessage?: boolean }
+  options: { skipFirstMessage?: boolean; includeArchival?: boolean }
 ): Promise<any> {
   // Fetch full agent details
   const fullAgent = await client.getAgent(agent.id);
@@ -251,10 +252,41 @@ async function buildAgentYamlConfig(
 
   // Add archives
   if (archives.length > 0) {
+    // When includeArchival, fetch all passages grouped by archive
+    let passagesByArchive: Map<string, any[]> | undefined;
+    if (options.includeArchival) {
+      passagesByArchive = new Map();
+      try {
+        const allPassages = await client.listAllAgentPassages(agent.id);
+        for (const p of allPassages) {
+          const archiveId = p.archive_id || p.source_id;
+          if (archiveId) {
+            if (!passagesByArchive.has(archiveId)) passagesByArchive.set(archiveId, []);
+            passagesByArchive.get(archiveId)!.push(p);
+          }
+        }
+      } catch {
+        // If passage listing fails, continue without passages
+      }
+    }
+
     agentConfig.archives = archives.map((a: any) => {
       const archive: any = { name: a.name };
       if (a.description) archive.description = a.description;
       if (a.embedding) archive.embedding = a.embedding;
+      // Include passages when --include-archival is set
+      if (passagesByArchive) {
+        const passages = passagesByArchive.get(a.id) || [];
+        if (passages.length > 0) {
+          archive.passages = passages.map((p: any) => {
+            const entry: any = { text: p.text };
+            if (p.metadata && Object.keys(p.metadata).length > 0) {
+              entry.metadata = p.metadata;
+            }
+            return entry;
+          });
+        }
+      }
       return archive;
     });
   }
@@ -298,7 +330,7 @@ function writeYamlOutput(
 async function exportAsYaml(
   client: LettaClientWrapper,
   agent: any,
-  options: { output?: string; skipFirstMessage?: boolean },
+  options: { output?: string; skipFirstMessage?: boolean; includeArchival?: boolean },
   verbose: boolean
 ): Promise<void> {
   const agentConfig = await buildAgentYamlConfig(client, agent, options);
@@ -350,7 +382,7 @@ async function resolveExportAgents(
 async function exportBulkAsYaml(
   client: LettaClientWrapper,
   agents: Array<{ id: string; name: string }>,
-  options: { output?: string; skipFirstMessage?: boolean },
+  options: { output?: string; skipFirstMessage?: boolean; includeArchival?: boolean },
   verbose: boolean,
   spinnerEnabled: boolean
 ): Promise<void> {

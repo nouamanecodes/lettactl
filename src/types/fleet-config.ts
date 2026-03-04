@@ -104,6 +104,12 @@ export interface ArchiveConfig {
   description?: string;
   embedding?: string;
   embedding_config?: Record<string, any>;
+  passages?: ArchivePassageConfig[];
+}
+
+export interface ArchivePassageConfig {
+  text: string;
+  metadata?: Record<string, unknown>;
 }
 
 export interface ConversationConfig {

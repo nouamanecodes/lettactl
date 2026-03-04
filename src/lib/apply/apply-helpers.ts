@@ -435,10 +435,21 @@ export async function createNewAgent(
 
     const createdAgent = await client.createAgent(createPayload);
 
-    // Attach archives
-    for (const archiveId of archiveIds) {
+    // Attach archives and insert passages
+    for (let i = 0; i < archiveIds.length; i++) {
+      const archiveId = archiveIds[i];
       if (verbose) log(`  Attaching archive: ${archiveId}`);
       await client.attachArchiveToAgent(createdAgent.id, archiveId);
+
+      // Insert passages if the archive config has them
+      const archiveConfig = agent.archives?.[i];
+      if (archiveConfig?.passages && archiveConfig.passages.length > 0) {
+        if (verbose) log(`  Inserting ${archiveConfig.passages.length} passages into archive ${archiveConfig.name}`);
+        await client.createArchivePassages(archiveId, archiveConfig.passages.map((p: any) => ({
+          text: p.text,
+          ...(p.metadata && { metadata: p.metadata })
+        })));
+      }
     }
 
     // Update registry
