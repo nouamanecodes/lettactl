@@ -421,6 +421,65 @@ export class FleetParser {
     return { toolNameToId, updatedTools, builtinTools };
   }
 
+  /**
+   * Read-only detection of tool source code changes (for dry-run mode).
+   * Compares local source hashes against server tool source_code without
+   * creating or updating any tools on the server.
+   */
+  async detectToolSourceChanges(
+    config: FleetConfig,
+    client: any,
+    verbose: boolean = false
+  ): Promise<Set<string>> {
+    const updatedTools = new Set<string>();
+
+    const existingTools = await client.listTools();
+    const existingToolsArray = Array.isArray(existingTools)
+      ? existingTools
+      : ((existingTools as any).items || []);
+
+    const requiredToolNames = new Set<string>();
+    if (config.agents) {
+      for (const agent of config.agents) {
+        if (agent.tools) {
+          agent.tools.forEach(toolName => requiredToolNames.add(toolName));
+        }
+      }
+    }
+
+    for (const toolName of requiredToolNames) {
+      if (isBuiltinTool(toolName)) continue;
+
+      const tool = existingToolsArray.find((t: any) => t.name === toolName);
+      if (!tool) continue; // New tool — will be caught by analyzeToolChanges as toAdd
+
+      const toolConfig = this.toolConfigs.get(toolName);
+      const defaultPath = path.join(this.basePath, 'tools', `${toolName}.py`);
+
+      try {
+        const newSourceCode = await this.resolveContent(
+          typeof toolConfig === 'object' ? toolConfig : {},
+          defaultPath,
+          `tool: ${toolName}`
+        );
+
+        const newHash = crypto.createHash('md5').update(newSourceCode).digest('hex').substring(0, 12);
+        const existingHash = tool.source_code
+          ? crypto.createHash('md5').update(tool.source_code).digest('hex').substring(0, 12)
+          : '';
+
+        if (newHash !== existingHash) {
+          updatedTools.add(toolName);
+          if (verbose) log(`Tool ${toolName} source changed (dry-run detection)`);
+        }
+      } catch {
+        // Local source not found for existing tool — not a change
+      }
+    }
+
+    return updatedTools;
+  }
+
   async registerMcpServers(
     config: FleetConfig,
     client: any,

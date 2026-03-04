@@ -55,6 +55,9 @@ export async function computeDryRunDiffs(
   const mcpServerNameToId = await buildMcpServerRegistry(client);
   await expandMcpToolsForAgents(config, client, mcpServerNameToId, ctx.verbose);
 
+  // Detect tool source code changes (read-only, no server mutations)
+  const updatedTools = await parser.detectToolSourceChanges(config, client, ctx.verbose);
+
   const results: DryRunResult[] = [];
 
   for (const agent of config.agents) {
@@ -68,7 +71,8 @@ export async function computeDryRunDiffs(
       parser,
       toolNameToId,
       folderNameToId,
-      sharedBlockIds
+      sharedBlockIds,
+      updatedTools
     });
 
     results.push(result);
@@ -110,9 +114,10 @@ async function computeAgentDiff(
     toolNameToId: Map<string, string>;
     folderNameToId: Map<string, string>;
     sharedBlockIds: Map<string, string>;
+    updatedTools: Set<string>;
   }
 ): Promise<DryRunResult> {
-  const { client, agentManager, diffEngine, fileTracker, parser, toolNameToId, folderNameToId, sharedBlockIds } = ctx;
+  const { client, agentManager, diffEngine, fileTracker, parser, toolNameToId, folderNameToId, sharedBlockIds, updatedTools } = ctx;
 
   // Build agent config
   const folderContentHashes = await fileTracker.generateFolderFileHashes(agent.folders || []);
@@ -210,7 +215,7 @@ async function computeAgentDiff(
     folderNameToId,
     false,
     sharedBlockIds,
-    new Set<string>(),
+    updatedTools,
     previousFolderFileHashes,
     true  // dryRun - don't create resources
   );
