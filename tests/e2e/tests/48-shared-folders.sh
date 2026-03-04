@@ -1,29 +1,28 @@
 #!/bin/bash
-
-# Test: Shared folders - define once, reference across agents
-# Issue: #207
-
+# Test: Shared folders — define once, reference across agents + idempotent deploy
+# Merged from: 48-shared-folders, 65-shared-folder-idempotent
 set -e
-
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/../lib/common.sh"
 
 AGENT_A="e2e-48-shared-folder-a"
 AGENT_B="e2e-48-shared-folder-b"
+AGENT_C="e2e-65-shared-idem-a"
+AGENT_D="e2e-65-shared-idem-b"
 
-section "Test: Shared Folders (#207)"
-
-# Setup
+section "Test: Shared Folders (#207, #259)"
 preflight_check
 mkdir -p "$LOG_DIR"
 
-# Cleanup before test
-info "Cleaning up test agents if they exist..."
+# Cleanup
 delete_agent_if_exists "$AGENT_A"
 delete_agent_if_exists "$AGENT_B"
+delete_agent_if_exists "$AGENT_C"
+delete_agent_if_exists "$AGENT_D"
 
-# Apply config with shared_folders
-section "Apply Shared Folders Config"
+# === Part 1: Shared folders basic (#207) ===
+section "Shared Folders — Basic"
+
 if $CLI apply -f "$FIXTURES/fleet-shared-folders-test.yml" --root "$FIXTURES" > $OUT 2>&1; then
     pass "Applied fleet-shared-folders-test.yml"
 else
@@ -32,39 +31,10 @@ else
     exit 1
 fi
 
-# Verify both agents created
-if agent_exists "$AGENT_A"; then
-    pass "Agent A exists: $AGENT_A"
-else
-    fail "Agent A not created: $AGENT_A"
-fi
-
-if agent_exists "$AGENT_B"; then
-    pass "Agent B exists: $AGENT_B"
-else
-    fail "Agent B not created: $AGENT_B"
-fi
-
-# Verify shared folder attached to agent A
-section "Verify Shared Folder on Agent A"
-$CLI get blocks --agent "$AGENT_A" > $OUT 2>&1 || true
-$CLI get agents > $OUT 2>&1
-if agent_exists "$AGENT_A"; then
-    pass "Agent A accessible"
-else
-    fail "Agent A not accessible"
-fi
-
-# Verify shared folder attached to agent B
-section "Verify Shared Folder on Agent B"
-if agent_exists "$AGENT_B"; then
-    pass "Agent B accessible"
-else
-    fail "Agent B not accessible"
-fi
+agent_exists "$AGENT_A" && pass "Agent A exists" || fail "Agent A not created"
+agent_exists "$AGENT_B" && pass "Agent B exists" || fail "Agent B not created"
 
 # Verify idempotent re-apply
-section "Verify Idempotent"
 if $CLI apply -f "$FIXTURES/fleet-shared-folders-test.yml" --root "$FIXTURES" --dry-run > $OUT 2>&1; then
     if output_contains "No changes" || output_not_contains "Would"; then
         pass "Re-apply shows no changes (idempotent)"
@@ -77,11 +47,36 @@ else
     cat $OUT
 fi
 
-# Cleanup
-section "Cleanup"
 delete_agent_if_exists "$AGENT_A"
 delete_agent_if_exists "$AGENT_B"
-pass "Cleaned up test agents"
 
-# Summary
+# === Part 2: Shared folder idempotent deploy — no duplicate constraint (#259) ===
+section "Shared Folders — Idempotent Deploy"
+
+if $CLI apply -f "$FIXTURES/fleet-shared-folder-idempotent.yml" --root "$FIXTURES" > $OUT 2>&1; then
+    pass "First apply succeeded"
+else
+    fail "First apply failed"
+    cat $OUT
+    exit 1
+fi
+
+agent_exists "$AGENT_C" && pass "Agent C exists" || fail "Agent C not created"
+agent_exists "$AGENT_D" && pass "Agent D exists" || fail "Agent D not created"
+
+# Second apply — must NOT fail with duplicate constraint error
+if $CLI apply -f "$FIXTURES/fleet-shared-folder-idempotent.yml" --root "$FIXTURES" > $OUT 2>&1; then
+    pass "Second apply succeeded (no duplicate constraint error)"
+else
+    fail "Second apply failed — possible duplicate folder constraint"
+    cat $OUT
+    exit 1
+fi
+
+agent_exists "$AGENT_C" && pass "Agent C still exists after re-apply" || fail "Agent C missing after re-apply"
+agent_exists "$AGENT_D" && pass "Agent D still exists after re-apply" || fail "Agent D missing after re-apply"
+
+# Cleanup
+delete_agent_if_exists "$AGENT_C"
+delete_agent_if_exists "$AGENT_D"
 print_summary

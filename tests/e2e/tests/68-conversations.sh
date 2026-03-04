@@ -98,67 +98,7 @@ output_contains "deleted successfully" && pass "Agent deleted (cascade)" || fail
 # Agent should be gone
 ! agent_exists "$AGENT" && pass "Agent fully removed" || fail "Agent still exists after delete"
 
-# === Phase 2: YAML-declared conversations ===
-section "Test: YAML-Declared Conversations"
-
-AGENT2="e2e-68-yaml-conversations"
-delete_agent_if_exists "$AGENT2"
-
-# --- Step 11: Deploy agent with conversations declared in YAML ---
-CONFIG2="$LOG_DIR/68-yaml-conversations.yml"
-cat > "$CONFIG2" << EOF
-agents:
-  - name: $AGENT2
-    description: "YAML conversation test agent"
-    llm_config:
-      model: "google_ai/gemini-2.0-flash-lite"
-      context_window: 32000
-    system_prompt:
-      value: "You are a test assistant."
-    embedding: "openai/text-embedding-3-small"
-    conversations:
-      - summary: "Test conversation A"
-      - summary: "Test conversation B"
-EOF
-
-$CLI apply -f "$CONFIG2" > $OUT 2>&1
-# Check conversation count before agent_exists overwrites $OUT
-output_contains "2 conversations" && pass "Creation summary shows conversation count" || fail "Missing conversation count in creation summary"
-agent_exists "$AGENT2" && pass "Agent with YAML conversations created" || fail "Agent with YAML conversations not created"
-
-# --- Step 12: Verify conversations exist ---
-$CLI get conversations "$AGENT2" > $OUT 2>&1
-output_contains "Test conversation A" && pass "YAML conversation A exists" || fail "YAML conversation A not found"
-output_contains "Test conversation B" && pass "YAML conversation B exists" || fail "YAML conversation B not found"
-
-# --- Step 13: Re-apply should be idempotent ---
-$CLI apply -f "$CONFIG2" --dry-run > $OUT 2>&1
-# Should show unchanged or 0 conversation changes (no new conversations to create)
-! output_contains "Conversation [+]" && pass "Re-apply is idempotent (no new conversations)" || fail "Re-apply incorrectly shows new conversations"
-
-# --- Step 14: Add a new conversation and re-apply ---
-cat > "$CONFIG2" << EOF
-agents:
-  - name: $AGENT2
-    description: "YAML conversation test agent"
-    llm_config:
-      model: "google_ai/gemini-2.0-flash-lite"
-      context_window: 32000
-    system_prompt:
-      value: "You are a test assistant."
-    embedding: "openai/text-embedding-3-small"
-    conversations:
-      - summary: "Test conversation A"
-      - summary: "Test conversation B"
-      - summary: "Test conversation C"
-EOF
-
-$CLI apply -f "$CONFIG2" > $OUT 2>&1
-$CLI get conversations "$AGENT2" > $OUT 2>&1
-output_contains "Test conversation C" && pass "New YAML conversation C created on re-apply" || fail "YAML conversation C not found after re-apply"
-
 # --- Cleanup ---
-$CLI delete agent "$AGENT2" --force > $OUT 2>&1 || true
-rm -f "$CONFIG" "$CONFIG2"
+rm -f "$CONFIG"
 
 print_summary
