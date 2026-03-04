@@ -22,7 +22,7 @@ import { validateCommand } from './commands/validate';
 import { healthCommand } from './commands/health';
 import { filesCommand } from './commands/files';
 import { contextCommand } from './commands/context';
-import { listRunsCommand, getRunCommand, deleteRunCommand } from './commands/runs';
+import { listRunsCommand, getRunCommand, deleteRunCommand, trackRunsCommand } from './commands/runs';
 import { completionCommand } from './commands/completion';
 import reportCommand from './commands/report';
 
@@ -220,6 +220,7 @@ getCmd
   .option('--active', 'show only active runs')
   .option('-a, --agent <name>', 'filter by agent name')
   .option('-l, --limit <number>', 'limit number of results', parseInt)
+  .option('-w, --watch', 'continuously poll and refresh the run list')
   .option('-o, --output <format>', 'output format (table|json)', 'table')
   .action(listRunsCommand);
 
@@ -425,6 +426,15 @@ program
   .description('Delete/cancel a run')
   .argument('<run-id>', 'run ID')
   .action(deleteRunCommand);
+
+// Track runs - monitor async runs until completion
+program
+  .command('track')
+  .description('Track async runs until completion')
+  .argument('[run-ids...]', 'run IDs to track')
+  .option('-a, --agent <name>', 'track all active runs for an agent')
+  .option('-o, --output <format>', 'output format (table|json)', 'table')
+  .action(trackRunsCommand);
 
 // Report command - fleet reporting
 program

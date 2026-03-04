@@ -717,12 +717,16 @@ lettactl get messages my-agent --all       # Full history
 lettactl get runs                         # List async job runs
 lettactl get runs --active                # Show only active runs
 lettactl get runs -a my-agent             # Filter by agent
+lettactl get runs --watch                 # Live-updating dashboard (2s refresh)
+lettactl get runs --watch --active        # Watch only active runs
 lettactl get runs -o json                 # JSON output for scripting
 lettactl get run <run-id>                 # Get run details
 lettactl get run <run-id> --wait          # Wait for run to complete
 lettactl get run <run-id> --messages      # Show run messages
 lettactl get run <run-id> -o json         # JSON output
-lettactl run-delete <run-id>          # Cancel/delete a run
+lettactl track <id1> <id2>               # Track runs until completion
+lettactl track --agent my-agent           # Track all active runs for an agent
+lettactl run-delete <run-id>              # Cancel/delete a run
 ```
 
 ### Observability

@@ -168,7 +168,8 @@ export async function sendMessageCommand(
     const runId = result.response.id;
 
     // If --no-wait, just return the run ID
-    if (options.noWait) {
+    // Commander maps --no-wait to options.wait = false
+    if (options.noWait || options.wait === false) {
       spinner.succeed(`Message sent. Run ID: ${runId}`);
       output(`Check status with: lettactl run ${runId}`);
       return;

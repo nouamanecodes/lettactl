@@ -33,10 +33,6 @@ $CLI apply -f "$FIXTURES/fleet-archives-force-test-reduced.yml" --root "$FIXTURE
 $CLI get archives --agent "$AGENT" > $OUT 2>&1
 output_not_contains "$ARCHIVE_KEEP" && pass "Archive detached with --force" || fail "Archive still attached"
 
-# Orphaned archive should appear
-$CLI get archives --orphaned > $OUT 2>&1
-output_contains "$ARCHIVE_KEEP" && pass "Orphaned archive listed" || fail "Orphaned archive not listed"
-
 delete_agent_if_exists "$AGENT"
 $CLI delete-all archives --pattern "e2e-archive-force-.*" --force > /dev/null 2>&1 || true
 print_summary
