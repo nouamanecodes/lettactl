@@ -122,8 +122,9 @@ agents:
 EOF
 
 $CLI apply -f "$CONFIG2" > $OUT 2>&1
-agent_exists "$AGENT2" && pass "Agent with YAML conversations created" || fail "Agent with YAML conversations not created"
+# Check conversation count before agent_exists overwrites $OUT
 output_contains "2 conversations" && pass "Creation summary shows conversation count" || fail "Missing conversation count in creation summary"
+agent_exists "$AGENT2" && pass "Agent with YAML conversations created" || fail "Agent with YAML conversations not created"
 
 # --- Step 12: Verify conversations exist ---
 $CLI get conversations "$AGENT2" > $OUT 2>&1

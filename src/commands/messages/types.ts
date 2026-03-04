@@ -13,6 +13,7 @@ export interface SendOptions {
   stream?: boolean;
   sync?: boolean;
   noWait?: boolean;
+  wait?: boolean;  // Commander maps --no-wait to wait=false
   maxSteps?: number;
   enableThinking?: boolean;
   all?: string;

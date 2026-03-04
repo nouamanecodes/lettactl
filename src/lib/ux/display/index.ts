@@ -8,6 +8,7 @@ export {
   displayMcpServers, McpServerData,
   displayFiles, FileData,
   displayConversations, ConversationData,
+  displayRuns, displayRunsPlain, RunData,
 } from './resources';
 
 // Block content display (full values)

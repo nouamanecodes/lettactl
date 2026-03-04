@@ -47,19 +47,19 @@ section() {
     echo "================================================================"
 }
 
-# Check if agent exists by name
+# Check if agent exists by name (-a treats binary/spinner output as text)
 agent_exists() {
-    $CLI get agents > "$OUT" 2>&1 && grep -q "$1" "$OUT"
+    $CLI get agents > "$OUT" 2>&1 && grep -aq "$1" "$OUT"
 }
 
-# Check output contains string
+# Check output contains string (-a treats binary/spinner output as text)
 output_contains() {
-    grep -q "$1" "$OUT"
+    grep -aq "$1" "$OUT"
 }
 
-# Check output does NOT contain string
+# Check output does NOT contain string (-a treats binary/spinner output as text)
 output_not_contains() {
-    ! grep -q "$1" "$OUT"
+    ! grep -aq "$1" "$OUT"
 }
 
 # Delete agent if exists (silent)

@@ -770,6 +770,105 @@ function displayConversationsPlain(conversations: ConversationData[]): string {
   return lines.join('\n');
 }
 
+// ============================================================================
+// Run Display
+// ============================================================================
+
+export interface RunData {
+  id: string;
+  agentName: string;
+  status: string;       // 'running' | 'completed' | 'failed' | 'cancelled'
+  elapsed: string;      // e.g. "2m 34s"
+  stopReason?: string;
+}
+
+function statusIndicator(status: string): string {
+  switch (status) {
+    case 'completed': return STATUS.ok;
+    case 'failed': return STATUS.fail;
+    case 'cancelled': return STATUS.warn;
+    case 'running': return STATUS.info;
+    default: return STATUS.info;
+  }
+}
+
+function colorStatus(status: string): string {
+  switch (status) {
+    case 'completed': return chalk.green(status);
+    case 'failed': return chalk.red(status);
+    case 'cancelled': return chalk.yellow(status);
+    case 'running': return chalk.cyan(status);
+    default: return chalk.dim(status);
+  }
+}
+
+export function displayRuns(runs: RunData[]): string {
+  if (!shouldUseFancyUx()) {
+    return displayRunsPlain(runs);
+  }
+
+  const rows: string[] = [];
+  const idW = 14;
+  const maxAgentLen = Math.max(...runs.map(r => r.agentName.length), 5);
+  const agentW = Math.min(maxAgentLen + 1, 30);
+  const statusW = 10;
+  const elapsedW = 10;
+  const width = idW + agentW + statusW + elapsedW + 30;
+
+  for (const run of runs) {
+    const indicator = statusIndicator(run.status);
+    const id = truncate(run.id, idW - 1);
+    const agent = truncate(run.agentName, agentW - 1);
+    const status = colorStatus(run.status);
+    const elapsed = run.elapsed.padStart(elapsedW);
+    const stopReason = run.stopReason || '';
+
+    const row = indicator + '  ' +
+      chalk.dim(id.padEnd(idW)) + ' ' +
+      chalk.white(agent.padEnd(agentW)) + ' ' +
+      status.padEnd(statusW + 10) + ' ' + // extra for ANSI color codes
+      chalk.white(elapsed) + '  ' +
+      chalk.dim(stopReason);
+
+    rows.push(row);
+  }
+
+  const header = '   ' +
+    chalk.dim('ID'.padEnd(idW)) + ' ' +
+    chalk.dim('AGENT'.padEnd(agentW)) + ' ' +
+    chalk.dim('STATUS'.padEnd(statusW)) + ' ' +
+    chalk.dim('ELAPSED'.padStart(elapsedW)) + '  ' +
+    chalk.dim('STOP REASON');
+
+  const boxLines = createBoxWithRows(`Runs (${runs.length})`, [header, ...rows], width);
+  return boxLines.join('\n');
+}
+
+export function displayRunsPlain(runs: RunData[]): string {
+  const lines: string[] = [];
+  const idW = 14;
+  const maxAgentLen = Math.max(...runs.map(r => r.agentName.length), 5);
+  const agentW = Math.min(maxAgentLen + 1, 30);
+  const statusW = 10;
+  const elapsedW = 10;
+
+  const header = 'ID'.padEnd(idW) + ' ' + 'AGENT'.padEnd(agentW) + ' ' + 'STATUS'.padEnd(statusW) + ' ' + 'ELAPSED'.padStart(elapsedW) + '  STOP REASON';
+  lines.push(header);
+  lines.push('-'.repeat(header.length));
+
+  for (const run of runs) {
+    const id = truncate(run.id, idW - 1).padEnd(idW);
+    const agent = truncate(run.agentName, agentW - 1).padEnd(agentW);
+    const status = run.status.padEnd(statusW);
+    const elapsed = run.elapsed.padStart(elapsedW);
+    const stopReason = run.stopReason || '';
+
+    lines.push(`${id} ${agent} ${status} ${elapsed}  ${stopReason}`);
+  }
+
+  return lines.join('\n');
+}
+
 function displayFilesPlainWide(files: FileData[]): string {
   const lines: string[] = [];
 
