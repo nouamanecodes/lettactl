@@ -481,12 +481,9 @@ export function displayToolDetails(data: ToolDetailsData): string {
 
   if (data.sourceCode) {
     lines.push('');
-    const codeLines = data.sourceCode.split('\n').slice(0, 20).map(line =>
+    const codeLines = data.sourceCode.split('\n').map(line =>
       truncate(line, width - 4)
     );
-    if (data.sourceCode.split('\n').length > 20) {
-      codeLines.push(chalk.dim('...(truncated)'));
-    }
     lines.push(...createBoxWithRows('Source Code', codeLines, width));
   }
 
@@ -517,10 +514,7 @@ function displayToolDetailsPlain(data: ToolDetailsData): string {
   if (data.sourceCode) {
     lines.push('');
     lines.push('Source Code:');
-    const preview = data.sourceCode.length > 1000
-      ? data.sourceCode.substring(0, 1000) + '\n...(truncated)'
-      : data.sourceCode;
-    lines.push(preview);
+    lines.push(data.sourceCode);
   }
 
   return lines.join('\n');
