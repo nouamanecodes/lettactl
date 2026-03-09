@@ -25,6 +25,15 @@ import { contextCommand } from './commands/context';
 import { listRunsCommand, getRunCommand, deleteRunCommand, trackRunsCommand } from './commands/runs';
 import { completionCommand } from './commands/completion';
 import reportCommand from './commands/report';
+import {
+  remoteAddCommand,
+  remoteRemoveCommand,
+  remoteUseCommand,
+  remoteListCommand,
+  remoteEnvCommand,
+  remoteShowCommand,
+  loadActiveRemote
+} from './commands/remote';
 
 import { setQuietMode, output, error } from './lib/shared/logger';
 import { printFancyHelp } from './lib/ux/help-formatter';
@@ -32,6 +41,9 @@ import { printFancyHelp } from './lib/ux/help-formatter';
 // Global verbose flag for error handling
 let verboseMode = false;
 let noUxMode = false;
+
+// Load active remote config into env vars (explicit env vars take precedence)
+loadActiveRemote();
 
 // Validate required environment variables
 function validateEnvironment(thisCommand: any, actionCommand: any) {
@@ -41,8 +53,9 @@ function validateEnvironment(thisCommand: any, actionCommand: any) {
   // Set quiet mode globally
   setQuietMode(thisCommand.opts().quiet || false);
 
-  // Skip validation for completion command (doesn't need API access)
-  if (actionCommand.name() === 'completion') {
+  // Skip validation for commands that don't need API access
+  const parentName = actionCommand.parent?.name();
+  if (actionCommand.name() === 'completion' || parentName === 'remote') {
     return;
   }
 
@@ -412,6 +425,45 @@ program
   .description('Check Letta server connectivity and status')
   .option('-o, --output <format>', 'output format (table|json)', 'table')
   .action(healthCommand);
+
+// Remote - manage named server environments
+const remoteCmd = program.command('remote').description('Manage Letta server remotes');
+
+remoteCmd
+  .command('add')
+  .description('Add a named remote server')
+  .argument('<name>', 'remote name (e.g., local, staging, production)')
+  .argument('<url>', 'server URL (e.g., http://localhost:8283)')
+  .option('--api-key <key>', 'API key for authentication')
+  .action(remoteAddCommand);
+
+remoteCmd
+  .command('remove')
+  .description('Remove a remote')
+  .argument('<name>', 'remote name')
+  .action(remoteRemoveCommand);
+
+remoteCmd
+  .command('use')
+  .description('Set the active remote')
+  .argument('<name>', 'remote name')
+  .action(remoteUseCommand);
+
+remoteCmd
+  .command('list')
+  .description('List all remotes')
+  .action(remoteListCommand);
+
+remoteCmd
+  .command('show')
+  .description('Show details of a remote')
+  .argument('<name>', 'remote name')
+  .action(remoteShowCommand);
+
+remoteCmd
+  .command('env')
+  .description('Output shell exports for active remote (use with eval)')
+  .action(remoteEnvCommand);
 
 // Files - show agent file state
 program

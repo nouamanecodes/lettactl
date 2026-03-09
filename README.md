@@ -72,6 +72,27 @@ export LETTA_BASE_URL=http://localhost:8283
 # API key is optional for self-hosting
 ```
 
+### Named Remotes (Recommended)
+
+Manage multiple Letta servers like git remotes — no more juggling environment variables:
+
+```bash
+# Add your servers
+lettactl remote add local http://localhost:8283
+lettactl remote add staging https://staging.example.com --api-key sk-stg-xxx
+lettactl remote add production https://api.letta.com --api-key sk-prod-xxx
+
+# Switch between them
+lettactl remote use staging
+
+# All commands now target the active remote
+lettactl get agents
+lettactl health
+
+# Or apply to current shell session
+eval $(lettactl remote env)
+```
+
 ### Minimal Config
 
 The minimum required fields for an agent:
@@ -1439,13 +1460,16 @@ your-project/
 ### Environment Management
 
 ```bash
-# Self-hosting Letta
-export LETTA_BASE_URL=http://localhost:8283
-# API key is optional for self-hosting
+# Option 1: Named remotes (recommended)
+lettactl remote add local http://localhost:8283
+lettactl remote add cloud https://api.letta.com --api-key sk-xxx
+lettactl remote use local          # Switch active remote
+lettactl remote list               # See all remotes (* = active)
+eval $(lettactl remote env)        # Export to current shell
 
-# Letta Cloud
-export LETTA_BASE_URL=https://api.letta.com
-export LETTA_API_KEY=your_cloud_key  # Required for cloud
+# Option 2: Environment variables (overrides active remote)
+export LETTA_BASE_URL=http://localhost:8283
+export LETTA_API_KEY=your_cloud_key  # Required for Letta Cloud
 ```
 
 ### Conversation Search (Turbopuffer)
