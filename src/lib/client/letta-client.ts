@@ -514,6 +514,75 @@ export class LettaClientWrapper {
     return await this.client.agents.passages.search(agentId, { query, top_k: limit || 50 });
   }
 
+  /**
+   * List all archival passages for an agent with cursor pagination.
+   */
+  async listArchivePassages(archiveId: string): Promise<any[]> {
+    const baseUrl = process.env.LETTA_BASE_URL;
+    const headers = this.getAuthHeaders();
+
+    const response = await fetch(`${baseUrl}/v1/passages/search`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ archive_id: archiveId, limit: 100 }),
+    });
+    if (!response.ok) throw new Error(`Failed to list archive passages: ${response.statusText}`);
+
+    const results = await response.json() as any[];
+    // Search endpoint wraps each result in { passage: {...} }
+    return results.map((r: any) => r.passage || r);
+  }
+
+  async listAllAgentPassages(agentId: string): Promise<any[]> {
+    const baseUrl = process.env.LETTA_BASE_URL;
+    const headers = this.getAuthHeaders();
+    const allPassages: any[] = [];
+    let after: string | null = null;
+
+    while (true) {
+      const url = new URL(`/v1/agents/${agentId}/archival-memory`, baseUrl!);
+      url.searchParams.set('limit', '100');
+      url.searchParams.set('ascending', 'true');
+      if (after) url.searchParams.set('after', after);
+
+      const response = await fetch(url.toString(), { headers });
+      if (!response.ok) throw new Error(`Failed to list passages: ${response.statusText}`);
+
+      const page = await response.json() as any[];
+      if (!Array.isArray(page) || page.length === 0) break;
+      allPassages.push(...page);
+      after = page[page.length - 1].id;
+      if (page.length < 100) break;
+    }
+
+    return allPassages;
+  }
+
+  /**
+   * Batch-create passages in an archive.
+   */
+  async createArchivePassagesBatch(
+    archiveId: string,
+    passages: Array<{ text: string; metadata?: Record<string, unknown> }>
+  ): Promise<void> {
+    const baseUrl = process.env.LETTA_BASE_URL;
+    const headers = this.getAuthHeaders();
+    const batchSize = 100;
+
+    for (let i = 0; i < passages.length; i += batchSize) {
+      const batch = passages.slice(i, i + batchSize);
+      const response = await fetch(`${baseUrl}/v1/archives/${archiveId}/passages/batch`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ passages: batch })
+      });
+      if (!response.ok) {
+        const text = await response.text().catch(() => '');
+        throw new Error(`Failed to create passages batch: ${response.statusText} ${text}`);
+      }
+    }
+  }
+
   // === Conversation Operations ===
 
   async createConversation(agentId: string, opts?: any) {

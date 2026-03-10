@@ -429,6 +429,27 @@ lettactl update agent my-agent \
   --tags "updated,specialized"
 ```
 
+### Duplicate Resources
+```bash
+# Full copy of an agent (blocks cloned, tools/folders shared, archives cloned with passages)
+lettactl duplicate agent my-agent my-agent-copy
+
+# Duplicate without copying archival memory passages (faster, archives still cloned)
+lettactl duplicate agent my-agent my-agent-copy --no-archival
+
+# Duplicate a block
+lettactl duplicate block my-block my-block-copy
+
+# Duplicate an archive (with passages)
+lettactl duplicate archive my-archive my-archive-copy
+
+# Duplicate an archive without passages
+lettactl duplicate archive my-archive my-archive-copy --no-archival
+
+# Duplicate a folder (copies all files)
+lettactl duplicate folder my-folder my-folder-copy
+```
+
 ### Export/Import Agents
 ```bash
 # Export agent to JSON (Letta native format, includes conversation history)

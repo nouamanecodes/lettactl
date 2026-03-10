@@ -25,6 +25,7 @@ import { contextCommand } from './commands/context';
 import { listRunsCommand, getRunCommand, deleteRunCommand, trackRunsCommand } from './commands/runs';
 import { completionCommand } from './commands/completion';
 import reportCommand from './commands/report';
+import { duplicateCommand } from './commands/duplicate';
 import {
   remoteAddCommand,
   remoteRemoveCommand,
@@ -281,6 +282,16 @@ program
   .option('--pattern <pattern>', 'regex pattern to match resource names/IDs')
   .option('--force', 'force deletion without confirmation')
   .action(deleteAllCommand);
+
+// Duplicate command - clone resources
+program
+  .command('duplicate')
+  .description('Create a full copy of a resource')
+  .argument('<resource>', 'resource type (agent, block, archive, folder)')
+  .argument('<source>', 'source resource name')
+  .argument('<target-name>', 'name for the duplicate')
+  .option('--no-archival', 'skip copying archival memory passages')
+  .action(duplicateCommand);
 
 // Cleanup command - remove orphaned resources
 program

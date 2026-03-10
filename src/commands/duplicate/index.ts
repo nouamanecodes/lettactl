@@ -1,0 +1,1 @@
+export { duplicateCommand } from './duplicate';
