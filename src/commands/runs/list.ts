@@ -9,15 +9,19 @@ import { ListRunsOptions } from './types';
 import { AgentNameCache, runToDisplayData, renderRunTable } from './run-tracker';
 
 export async function listRunsCommand(
+  agentArg: string | undefined,
   options: ListRunsOptions,
   command: any
 ) {
   const client = new LettaClientWrapper();
 
+  // Positional arg takes precedence, fall back to --agent flag
+  const agentName = agentArg || options.agent;
+
   let agentId: string | undefined;
-  if (options.agent) {
+  if (agentName) {
     const resolver = new AgentResolver(client);
-    const { agent } = await resolver.findAgentByName(options.agent);
+    const { agent } = await resolver.findAgentByName(agentName);
     agentId = agent.id;
   }
 
@@ -41,7 +45,7 @@ export async function listRunsCommand(
   await cache.load();
 
   if (options.watch) {
-    await watchRuns(fetchRuns, cache, options);
+    await watchRuns(fetchRuns, cache, { ...options, agent: agentName });
     return;
   }
 

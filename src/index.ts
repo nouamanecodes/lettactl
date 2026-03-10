@@ -231,8 +231,9 @@ getCmd
 getCmd
   .command('runs')
   .description('List async job runs')
+  .argument('[agent]', 'filter by agent name')
   .option('--active', 'show only active runs')
-  .option('-a, --agent <name>', 'filter by agent name')
+  .option('-a, --agent <name>', 'filter by agent name (alias for positional)')
   .option('-l, --limit <number>', 'limit number of results', parseInt)
   .option('-w, --watch', 'continuously poll and refresh the run list')
   .option('-o, --output <format>', 'output format (table|json)', 'table')
