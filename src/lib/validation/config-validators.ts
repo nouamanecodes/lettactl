@@ -457,6 +457,14 @@ export class MemoryBlockValidator {
       BucketConfigValidator.validate(block.from_bucket);
     }
 
+    // Validate value fits within limit (only for inline values; from_file resolved later)
+    if (hasValue && block.value && block.limit && block.value.length > block.limit) {
+      throw new Error(
+        `Memory block "${block.name}" value length (${block.value.length}) exceeds limit (${block.limit}). ` +
+        `Increase the limit to at least ${block.value.length}.`
+      );
+    }
+
     // agent_owned is required - no silent defaults
     if (!('agent_owned' in block)) {
       throw new Error(

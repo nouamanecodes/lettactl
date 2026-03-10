@@ -83,6 +83,28 @@ output_contains "Updated synced policies" && pass "Description updated" || fail 
 $CLI apply -f "$FIXTURE_DIR/fleet-updated.yml" --root "$FIXTURE_DIR" --dry-run > $OUT 2>&1
 output_not_contains "Block [~]" && pass "No drift after apply" || fail "Unexpected drift after apply"
 
+# Step 9: Validation — value exceeds limit should fail at parse time
+cat > "$FIXTURE_DIR/fleet-bad.yml" <<'EOF'
+agents:
+- name: e2e-75-block-limit
+  description: Block limit sync test
+  embedding: openai/text-embedding-3-small
+  system_prompt:
+    value: Agent for block limit test.
+  llm_config:
+    model: google_ai/gemini-2.5-pro
+    context_window: 32000
+  memory_blocks:
+  - name: policies
+    description: Bad block
+    limit: 50
+    value: "This value is definitely longer than fifty characters and should fail validation."
+    agent_owned: false
+EOF
+
+$CLI apply -f "$FIXTURE_DIR/fleet-bad.yml" --root "$FIXTURE_DIR" --dry-run > $OUT 2>&1 || true
+output_contains "exceeds limit" && pass "Validation rejects value > limit" || fail "Validation missed value > limit"
+
 # Cleanup
 delete_agent_if_exists "$AGENT"
 rm -rf "$FIXTURE_DIR"

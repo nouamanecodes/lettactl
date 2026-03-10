@@ -122,6 +122,14 @@ export class FleetParser {
   private async resolveBlockContent(block: any): Promise<void> {
     const defaultPath = path.resolve(this.basePath, 'memory-blocks', `${block.name}.md`);
     block.value = await this.resolveContent(block, defaultPath, `memory block: ${block.name}`);
+
+    // Validate resolved value fits within limit
+    if (block.limit && block.value && block.value.length > block.limit) {
+      throw new Error(
+        `Memory block "${block.name}" value length (${block.value.length}) exceeds limit (${block.limit}). ` +
+        `Increase the limit to at least ${block.value.length}.`
+      );
+    }
   }
 
   private async resolvePromptContent(prompt: any): Promise<void> {
