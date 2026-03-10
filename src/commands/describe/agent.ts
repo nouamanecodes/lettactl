@@ -72,6 +72,25 @@ export async function describeAgent(
       // Messages unavailable
     }
 
+    // Determine attached MCP servers by cross-referencing tools
+    const mcpServerData: { name: string; type?: string }[] = [];
+    try {
+      const agentToolIds = new Set((agentDetails.tools || []).map((t: any) => t.id));
+      const allMcpServers = normalizeToArray(await client.listMcpServers());
+      for (const server of allMcpServers) {
+        const serverTools = normalizeToArray(await client.listMcpServerTools(server.id));
+        const hasOverlap = serverTools.some((t: any) => agentToolIds.has(t.id));
+        if (hasOverlap) {
+          mcpServerData.push({
+            name: server.name || server.server_name || server.id,
+            type: server.server_type || server.type,
+          });
+        }
+      }
+    } catch {
+      // MCP servers unavailable
+    }
+
     // Get archival memory count
     let archivalCount = 0;
     try {
@@ -112,6 +131,7 @@ export async function describeAgent(
       })),
       folders: folderData,
       archives: archiveData,
+      mcpServers: mcpServerData,
       messages,
       archivalCount,
     };

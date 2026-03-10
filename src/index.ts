@@ -256,6 +256,12 @@ getCmd
   .option('-o, --output <format>', 'output format (table|json)', 'table')
   .action(contextCommand);
 
+getCmd
+  .command('all')
+  .description('Show server overview with resource counts')
+  .option('-o, --output <format>', 'output format (table|json)', 'table')
+  .action((options, command) => getCommand('all', undefined, options, command));
+
 // Describe command - detailed agent info
 program
   .command('describe')

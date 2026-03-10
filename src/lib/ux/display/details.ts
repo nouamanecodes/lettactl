@@ -20,6 +20,7 @@ export interface AgentDetailsData {
   tools?: { name: string; description?: string }[];
   folders?: { name: string; id: string; fileCount?: number; files?: string[] }[];
   archives?: { name: string; id: string; embedding?: string }[];
+  mcpServers?: { name: string; type?: string }[];
   messages?: { createdAt?: string; role?: string; preview?: string }[];
   archivalCount?: number;
 }
@@ -178,6 +179,14 @@ export function displayAgentDetails(data: AgentDetailsData, verbose: boolean = f
     lines.push(...createBoxWithRows(`Archives (${data.archives.length})`, archiveRows, width));
   }
 
+  if (data.mcpServers && data.mcpServers.length > 0) {
+    lines.push('');
+    const mcpRows: string[] = data.mcpServers.map(s =>
+      chalk.white(s.name) + (s.type ? chalk.dim(` (${s.type})`) : '')
+    );
+    lines.push(...createBoxWithRows(`MCP Servers (${data.mcpServers.length})`, mcpRows, width));
+  }
+
   if (data.archivalCount !== undefined && data.archivalCount > 0) {
     lines.push('');
     const archivalLabel = data.archivalCount >= 100 ? '100+ entries' : `${data.archivalCount} entries`;
@@ -281,6 +290,14 @@ function displayAgentDetailsPlain(data: AgentDetailsData, _verbose: boolean = fa
     for (const archive of data.archives) {
       lines.push(`  - ${archive.name}`);
       lines.push(`    Embedding: ${archive.embedding || 'default'}`);
+    }
+  }
+
+  if (data.mcpServers && data.mcpServers.length > 0) {
+    lines.push('');
+    lines.push(`MCP Servers (${data.mcpServers.length}):`);
+    for (const server of data.mcpServers) {
+      lines.push(`  - ${server.name}${server.type ? ` (${server.type})` : ''}`);
     }
   }
 

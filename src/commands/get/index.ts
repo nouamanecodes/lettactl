@@ -15,6 +15,7 @@ import { getMcpServers } from './mcp-servers';
 import { getArchival } from './archival';
 import { getArchives } from './archives';
 import { getConversations } from './conversations';
+import { getAll } from './all';
 
 async function getCommandImpl(resource: string, name?: string, options?: GetOptions, command?: any) {
   validateResourceType(resource, SUPPORTED_RESOURCES);
@@ -96,6 +97,9 @@ async function getCommandImpl(resource: string, name?: string, options?: GetOpti
       break;
     case 'conversations':
       await getConversations(client, resolver, options, spinnerEnabled, agentId, agentName);
+      break;
+    case 'all':
+      await getAll(client, resolver, options, spinnerEnabled);
       break;
   }
 }

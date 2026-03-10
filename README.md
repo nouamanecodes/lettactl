@@ -711,6 +711,7 @@ lettactl get tools                     # List all tools
 lettactl get folders                   # List all folders (with file counts)
 lettactl get files                     # List all files (deduplicated by name)
 lettactl get mcp-servers               # List all MCP servers
+lettactl get all                       # Server overview — resource counts + agent list
 lettactl get archival my-agent         # List archival memory entries (truncated)
 lettactl get archival my-agent --full  # Full archival entry text
 lettactl get archival my-agent --query "pricing"  # Semantic search
