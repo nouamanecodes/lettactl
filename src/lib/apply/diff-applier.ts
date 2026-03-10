@@ -143,7 +143,16 @@ export class DiffApplier {
 
       for (const block of operations.blocks.toUpdateValue) {
         if (verbose) log(`  Syncing block value: ${block.name}`);
-        await this.client.updateBlock(block.id, { value: block.newValue });
+        // Update limit first if increasing (avoids value-exceeds-limit errors)
+        if (block.newLimit) {
+          await this.client.updateBlock(block.id, { limit: block.newLimit });
+        }
+        const updateData: { value?: string; description?: string } = {};
+        if (block.oldValue !== block.newValue) updateData.value = block.newValue;
+        if (block.newDescription) updateData.description = block.newDescription;
+        if (Object.keys(updateData).length > 0) {
+          await this.client.updateBlock(block.id, updateData);
+        }
       }
     }
 

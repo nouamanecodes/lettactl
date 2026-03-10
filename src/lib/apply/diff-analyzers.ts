@@ -111,7 +111,7 @@ export async function analyzeBlockChanges(
   const toAdd: Array<{ name: string; id: string }> = [];
   const toRemove: Array<{ name: string; id: string }> = [];
   const toUpdate: Array<{ name: string; currentId: string; newId: string }> = [];
-  const toUpdateValue: Array<{ name: string; id: string; oldValue: string; newValue: string }> = [];
+  const toUpdateValue: Array<{ name: string; id: string; oldValue: string; newValue: string; newLimit?: number; newDescription?: string }> = [];
   const unchanged: Array<{ name: string; id: string }> = [];
 
   // Find blocks to add
@@ -151,13 +151,23 @@ export async function analyzeBlockChanges(
       // Block exists on both sides - check if value needs updating
       const desiredConfig = desiredBlocks.find(b => b.name === block.label);
 
-      // For agent_owned: false blocks, compare values and update if different
+      // For agent_owned: false blocks, compare values, limits, and descriptions
       if (desiredConfig && desiredConfig.agent_owned === false && !desiredConfig.isShared) {
         const desiredValue = desiredConfig.value || '';
         const currentValue = block.value || '';
+        const limitChanged = desiredConfig.limit != null && desiredConfig.limit !== block.limit;
+        const descriptionChanged = desiredConfig.description != null && desiredConfig.description !== block.description;
+        const valueChanged = desiredValue !== currentValue;
 
-        if (desiredValue !== currentValue) {
-          toUpdateValue.push({ name: block.label, id: block.id, oldValue: currentValue, newValue: desiredValue });
+        if (valueChanged || limitChanged || descriptionChanged) {
+          toUpdateValue.push({
+            name: block.label,
+            id: block.id,
+            oldValue: currentValue,
+            newValue: desiredValue,
+            newLimit: limitChanged ? desiredConfig.limit : undefined,
+            newDescription: descriptionChanged ? desiredConfig.description : undefined,
+          });
           continue;
         }
       }

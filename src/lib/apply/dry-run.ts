@@ -397,9 +397,13 @@ function formatUpdateDetails(ops: AgentUpdateOperations, verbose: boolean, fancy
     for (const b of ops.blocks.toRemove) output(`    ${red('Block [-]:')} ${b.name} ${dim('(requires --force)')}`);
     for (const b of ops.blocks.toUpdate) output(`    ${colorPurple('Block [~]:')} ${b.name}`);
     for (const b of ops.blocks.toUpdateValue) {
-      output(`    ${colorPurple('Block [~]:')} ${b.name} ${dim('(value sync)')}`);
-      output(`      ${red('- ' + collapseTruncate(b.oldValue, 60))}`);
-      output(`      ${green('+ ' + collapseTruncate(b.newValue, 60))}`);
+      const changes = [b.oldValue !== b.newValue ? 'value' : '', b.newLimit ? 'limit' : '', b.newDescription ? 'description' : ''].filter(Boolean).join(', ');
+      output(`    ${colorPurple('Block [~]:')} ${b.name} ${dim(`(sync ${changes})`)}`);
+      if (b.oldValue !== b.newValue) {
+        output(`      ${red('- ' + collapseTruncate(b.oldValue, 60))}`);
+        output(`      ${green('+ ' + collapseTruncate(b.newValue, 60))}`);
+      }
+      if (b.newLimit) output(`      ${dim('limit →')} ${b.newLimit}`);
     }
     if (verbose && ops.blocks.unchanged.length > 0) {
       output(`    ${dim(`Blocks unchanged: ${ops.blocks.unchanged.length}`)}`);
