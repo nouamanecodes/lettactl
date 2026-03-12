@@ -87,6 +87,35 @@ describe('DiffEngine', () => {
       expect(result.toRemove).toEqual([]);
       expect(result.toUpdate).toEqual([]);
     });
+
+    it('detects per-agent → shared migration when block IDs differ', async () => {
+      // Agent has per-agent block (id-agent), but shared block exists with different ID
+      mockBlockManager.getSharedBlockId.mockReturnValue('id-shared');
+      const result = await analyzeBlockChanges(
+        [{ label: 'guidelines', id: 'id-agent' }],
+        [{ name: 'guidelines', isShared: true }],
+        mockBlockManager
+      );
+      expect(result.toUpdate).toEqual([{
+        name: 'guidelines',
+        currentId: 'id-agent',
+        newId: 'id-shared',
+        reason: 'per-agent → shared'
+      }]);
+      expect(result.unchanged).toEqual([]);
+    });
+
+    it('marks shared block unchanged when IDs match', async () => {
+      // Agent already has the shared block (same ID)
+      mockBlockManager.getSharedBlockId.mockReturnValue('id-1');
+      const result = await analyzeBlockChanges(
+        [{ label: 'guidelines', id: 'id-1' }],
+        [{ name: 'guidelines', isShared: true }],
+        mockBlockManager
+      );
+      expect(result.toUpdate).toEqual([]);
+      expect(result.unchanged).toEqual([{ name: 'guidelines', id: 'id-1' }]);
+    });
   });
 
   describe('analyzeFolderChanges', () => {

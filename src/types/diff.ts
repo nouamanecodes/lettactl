@@ -8,7 +8,7 @@ export interface ToolDiff {
 export interface BlockDiff {
   toAdd: Array<{ name: string; id: string }>;
   toRemove: Array<{ name: string; id: string }>;
-  toUpdate: Array<{ name: string; currentId: string; newId: string }>;
+  toUpdate: Array<{ name: string; currentId: string; newId: string; reason?: string }>;
   toUpdateValue: Array<{ name: string; id: string; oldValue: string; newValue: string; newLimit?: number; newDescription?: string }>; // For agent_owned: false blocks
   unchanged: Array<{ name: string; id: string }>;
 }

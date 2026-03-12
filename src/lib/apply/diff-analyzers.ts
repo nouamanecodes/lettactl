@@ -110,7 +110,7 @@ export async function analyzeBlockChanges(
 
   const toAdd: Array<{ name: string; id: string }> = [];
   const toRemove: Array<{ name: string; id: string }> = [];
-  const toUpdate: Array<{ name: string; currentId: string; newId: string }> = [];
+  const toUpdate: Array<{ name: string; currentId: string; newId: string; reason?: string }> = [];
   const toUpdateValue: Array<{ name: string; id: string; oldValue: string; newValue: string; newLimit?: number; newDescription?: string }> = [];
   const unchanged: Array<{ name: string; id: string }> = [];
 
@@ -150,6 +150,22 @@ export async function analyzeBlockChanges(
     if (desiredBlockNames.has(block.label)) {
       // Block exists on both sides - check if value needs updating
       const desiredConfig = desiredBlocks.find(b => b.name === block.label);
+
+      // Detect ownership migration: per-agent block → shared block
+      // When a block moves from memory_blocks to shared_blocks, the agent's
+      // per-agent block (unique ID) must be swapped with the fleet shared block
+      if (desiredConfig?.isShared) {
+        const sharedBlockId = blockManager.getSharedBlockId(desiredConfig.name);
+        if (sharedBlockId && sharedBlockId !== block.id) {
+          toUpdate.push({
+            name: block.label,
+            currentId: block.id,
+            newId: sharedBlockId,
+            reason: 'per-agent → shared'
+          });
+          continue;
+        }
+      }
 
       // For agent_owned: false blocks, compare values, limits, and descriptions
       if (desiredConfig && desiredConfig.agent_owned === false && !desiredConfig.isShared) {

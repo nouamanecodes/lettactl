@@ -302,7 +302,7 @@ export class OutputFormatter {
 
         toAdd.forEach(block => log(`    + Added block: ${block.name}`));
         toRemove.forEach(block => log(`    - Removed block: ${block.name}${force ? '' : ' (requires --force)'}`));
-        toUpdate.forEach(block => log(`    ~ Updated block: ${block.name}`));
+        toUpdate.forEach(block => log(`    ~ Updated block: ${block.name}${block.reason ? ` (${block.reason})` : ''}`));
         toUpdateValue.forEach(block => log(`    ~ Synced block: ${block.name} (value from YAML)`));
       } else {
         log(`  = Memory blocks: unchanged`);

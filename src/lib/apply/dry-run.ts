@@ -395,7 +395,10 @@ function formatUpdateDetails(ops: AgentUpdateOperations, verbose: boolean, fancy
   if (ops.blocks) {
     for (const b of ops.blocks.toAdd) output(`    ${green('Block [+]:')} ${b.name}`);
     for (const b of ops.blocks.toRemove) output(`    ${red('Block [-]:')} ${b.name} ${dim('(requires --force)')}`);
-    for (const b of ops.blocks.toUpdate) output(`    ${colorPurple('Block [~]:')} ${b.name}`);
+    for (const b of ops.blocks.toUpdate) {
+      const detail = b.reason ? ` ${dim(`(${b.reason})`)}` : '';
+      output(`    ${colorPurple('Block [~]:')} ${b.name}${detail}`);
+    }
     for (const b of ops.blocks.toUpdateValue) {
       const changes = [b.oldValue !== b.newValue ? 'value' : '', b.newLimit ? 'limit' : '', b.newDescription ? 'description' : ''].filter(Boolean).join(', ');
       output(`    ${colorPurple('Block [~]:')} ${b.name} ${dim(`(sync ${changes})`)}`);
