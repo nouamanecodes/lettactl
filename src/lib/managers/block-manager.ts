@@ -77,9 +77,35 @@ export class BlockManager {
     const existing = this.blockRegistry.get(sharedKey);
 
     if (existing) {
-      // Shared blocks are always agent_owned - never overwrite
-      log(`Using existing shared block: ${existing.label}`);
-      // Also register under shared key for future lookups
+      // For agent_owned: false shared blocks, sync value/limit/description from YAML
+      if (blockConfig.agent_owned === false) {
+        const valueChanged = blockConfig.value !== existing.value;
+        const limitChanged = blockConfig.limit != null && blockConfig.limit !== existing.limit;
+        const descriptionChanged = blockConfig.description != null && blockConfig.description !== existing.description;
+
+        if (valueChanged || limitChanged || descriptionChanged) {
+          log(`Syncing shared block: ${existing.label}`);
+          // Update limit first if increasing (avoids value-exceeds-limit errors)
+          if (limitChanged && blockConfig.limit > (existing.limit || 0)) {
+            await this.client.updateBlock(existing.id, { limit: blockConfig.limit });
+          }
+          const updateData: { value?: string; description?: string; limit?: number } = {};
+          if (valueChanged) updateData.value = blockConfig.value;
+          if (descriptionChanged) updateData.description = blockConfig.description;
+          if (limitChanged) updateData.limit = blockConfig.limit;
+          if (Object.keys(updateData).length > 0) {
+            await this.client.updateBlock(existing.id, updateData);
+          }
+          existing.value = blockConfig.value;
+          existing.contentHash = contentHash;
+          existing.description = blockConfig.description || existing.description;
+          existing.limit = blockConfig.limit || existing.limit;
+        } else {
+          log(`Shared block unchanged: ${existing.label}`);
+        }
+      } else {
+        log(`Using existing shared block: ${existing.label}`);
+      }
       existing.isShared = true;
       this.blockRegistry.set(sharedKey, existing);
       return existing.id;
