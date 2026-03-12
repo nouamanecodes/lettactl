@@ -678,10 +678,8 @@ export class SharedBlockValidator {
       try {
         MemoryBlockValidator['validateBlock'](block); // Reuse memory block validation
 
-        // Shared blocks are always agent_owned - warn if explicitly set
-        if ('agent_owned' in block) {
-          warn(`Shared block "${block.name}": agent_owned is ignored for shared blocks (always agent_owned)`);
-        }
+        // agent_owned: false on shared blocks enables YAML value sync on apply
+        // agent_owned: true (default) means the block value is never overwritten
       } catch (err: any) {
         throw new Error(`Shared block ${index + 1}: ${err.message}`);
       }
