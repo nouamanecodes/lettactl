@@ -6,6 +6,7 @@ import { applyCommand } from './commands/apply';
 import { DeployResult } from './commands/apply/types';
 import { deleteAgentWithCleanup } from './commands/delete';
 import { LettaClientWrapper } from './lib/client/letta-client';
+import { normalizeResponse } from './lib/shared/response-normalizer';
 import { AgentResolver } from './lib/client/agent-resolver';
 import { isRunTerminal, getEffectiveRunStatus } from './lib/messaging/run-utils';
 import { Run } from './types/run';
@@ -188,6 +189,23 @@ export class LettaCtl {
   async getRun(runId: string): Promise<Run> {
     const client = new LettaClientWrapper();
     return await client.getRun(runId) as Run;
+  }
+
+  /**
+   * Delete/cancel a run
+   */
+  async deleteRun(runId: string): Promise<void> {
+    const client = new LettaClientWrapper();
+    await client.deleteRun(runId);
+  }
+
+  /**
+   * List runs, optionally filtered by agent
+   */
+  async listRuns(agentId?: string, options?: { active?: boolean; limit?: number }): Promise<Run[]> {
+    const client = new LettaClientWrapper();
+    const runsResponse = await client.listRuns({ agentId, ...options });
+    return normalizeResponse(runsResponse) as Run[];
   }
 
   /**
