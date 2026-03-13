@@ -231,7 +231,8 @@ export class DiffEngine {
       ],
       this.blockManager,
       existingAgent.name,
-      dryRun
+      dryRun,
+      sharedBlockIds
     );
     operations.operationCount += operations.blocks.toAdd.length + operations.blocks.toRemove.length + operations.blocks.toUpdate.length + operations.blocks.toUpdateValue.length;
 

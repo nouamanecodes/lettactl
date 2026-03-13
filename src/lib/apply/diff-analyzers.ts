@@ -103,7 +103,8 @@ export async function analyzeBlockChanges(
   desiredBlocks: Array<{ name: string; isShared?: boolean; description?: string; limit?: number; value?: string; agent_owned?: boolean }>,
   blockManager: BlockManager,
   agentName?: string,
-  dryRun: boolean = false
+  dryRun: boolean = false,
+  sharedBlockIds?: Map<string, string>
 ): Promise<BlockDiff> {
   const currentBlockNames = new Set(currentBlocks.map(b => b.label));
   const desiredBlockNames = new Set(desiredBlocks.map(b => b.name));
@@ -118,7 +119,7 @@ export async function analyzeBlockChanges(
   for (const blockConfig of desiredBlocks) {
     if (!currentBlockNames.has(blockConfig.name)) {
       let blockId = blockConfig.isShared
-        ? blockManager.getSharedBlockId(blockConfig.name)
+        ? (blockManager.getSharedBlockId(blockConfig.name) ?? sharedBlockIds?.get(blockConfig.name) ?? null)
         : blockManager.getAgentBlockId(blockConfig.name, agentName);
 
       // If block doesn't exist yet, handle based on mode and type
@@ -158,7 +159,7 @@ export async function analyzeBlockChanges(
       // When a block moves from memory_blocks to shared_blocks, the agent's
       // per-agent block (unique ID) must be swapped with the fleet shared block
       if (desiredConfig?.isShared) {
-        const sharedBlockId = blockManager.getSharedBlockId(desiredConfig.name);
+        const sharedBlockId = blockManager.getSharedBlockId(desiredConfig.name) ?? sharedBlockIds?.get(desiredConfig.name) ?? null;
         if (sharedBlockId && sharedBlockId !== block.id) {
           toUpdate.push({
             name: block.label,
