@@ -3,6 +3,7 @@ import { AgentResolver } from '../../lib/client/agent-resolver';
 import { normalizeResponse } from '../../lib/shared/response-normalizer';
 import { output, error } from '../../lib/shared/logger';
 import { displayMessages, MessageDisplayData } from '../../lib/ux/display';
+import { createSpinner, getSpinnerEnabled } from '../../lib/ux/spinner';
 import { ListOptions } from './types';
 import { getMessageContent } from './utils';
 
@@ -14,10 +15,13 @@ export async function listMessagesCommand(
   command: any
 ) {
   const verbose = command.parent?.opts().verbose || false;
+  const spinnerEnabled = getSpinnerEnabled(command);
 
   try {
     const client = new LettaClientWrapper();
     const resolver = new AgentResolver(client);
+
+    const spinner = createSpinner('Loading messages...', spinnerEnabled).start();
 
     // Find the agent
     const { agent } = await resolver.findAgentByName(agentName);
@@ -45,6 +49,8 @@ export async function listMessagesCommand(
       response = await client.listMessages(agent.id, queryOptions);
     }
     let messages = normalizeResponse(response);
+
+    spinner.stop();
 
     if (options.output === 'json') {
       output(JSON.stringify(messages, null, 2));
@@ -104,4 +110,5 @@ export async function listMessagesCommand(
     error(`Failed to list messages for agent ${agentName}:`, err.message);
     throw err;
   }
+
 }
