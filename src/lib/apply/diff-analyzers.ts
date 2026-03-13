@@ -168,7 +168,7 @@ export async function analyzeBlockChanges(
       }
 
       // For agent_owned: false blocks, compare values, limits, and descriptions
-      if (desiredConfig && desiredConfig.agent_owned === false && !desiredConfig.isShared) {
+      if (desiredConfig && desiredConfig.agent_owned === false) {
         const desiredValue = desiredConfig.value || '';
         const currentValue = block.value || '';
         const limitChanged = desiredConfig.limit != null && desiredConfig.limit !== block.limit;

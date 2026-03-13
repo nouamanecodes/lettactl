@@ -51,6 +51,7 @@ export class DiffEngine {
       folders?: Array<{name: string; files: string[]; fileContentHashes?: Record<string, string>}>;
       archives?: Array<{name: string; description?: string; embedding?: string; embedding_config?: Record<string, any>}>;
       sharedBlocks?: string[];
+      sharedBlockConfigs?: Array<{name: string; description?: string; limit?: number; value?: string; agent_owned?: boolean}>;
       tags?: string[];
       lettabotConfig?: Record<string, any> | null;
       conversations?: Array<{ summary: string; isolated_blocks?: string[] }>;
@@ -221,7 +222,12 @@ export class DiffEngine {
       currentBlocks,
       [
         ...(desiredConfig.memoryBlocks || []),
-        ...(desiredConfig.sharedBlocks || []).map(name => ({ name, isShared: true }))
+        ...(desiredConfig.sharedBlocks || []).map(name => {
+          const cfg = desiredConfig.sharedBlockConfigs?.find(b => b.name === name);
+          return cfg
+            ? { name, isShared: true, value: cfg.value, limit: cfg.limit, description: cfg.description, agent_owned: cfg.agent_owned }
+            : { name, isShared: true };
+        })
       ],
       this.blockManager,
       existingAgent.name,
