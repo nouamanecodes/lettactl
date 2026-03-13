@@ -105,6 +105,24 @@ describe('DiffEngine', () => {
       expect(result.unchanged).toEqual([]);
     });
 
+    it('detects value drift on shared blocks with agent_owned false', async () => {
+      mockBlockManager.getSharedBlockId.mockReturnValue('id-1');
+      const result = await analyzeBlockChanges(
+        [{ label: 'credit_rules', id: 'id-1', value: 'old value', limit: 2000, description: 'desc' }],
+        [{ name: 'credit_rules', isShared: true, agent_owned: false, value: 'new value', limit: 2000, description: 'desc' }],
+        mockBlockManager
+      );
+      expect(result.toUpdateValue).toEqual([{
+        name: 'credit_rules',
+        id: 'id-1',
+        oldValue: 'old value',
+        newValue: 'new value',
+        newLimit: undefined,
+        newDescription: undefined,
+      }]);
+      expect(result.unchanged).toEqual([]);
+    });
+
     it('marks shared block unchanged when IDs match', async () => {
       // Agent already has the shared block (same ID)
       mockBlockManager.getSharedBlockId.mockReturnValue('id-1');

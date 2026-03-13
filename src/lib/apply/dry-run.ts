@@ -72,6 +72,7 @@ export async function computeDryRunDiffs(
       toolNameToId,
       folderNameToId,
       sharedBlockIds,
+      sharedBlockConfigs: config.shared_blocks || [],
       updatedTools
     });
 
@@ -114,10 +115,11 @@ async function computeAgentDiff(
     toolNameToId: Map<string, string>;
     folderNameToId: Map<string, string>;
     sharedBlockIds: Map<string, string>;
+    sharedBlockConfigs: any[];
     updatedTools: Set<string>;
   }
 ): Promise<DryRunResult> {
-  const { client, agentManager, diffEngine, fileTracker, parser, toolNameToId, folderNameToId, sharedBlockIds, updatedTools } = ctx;
+  const { client, agentManager, diffEngine, fileTracker, parser, toolNameToId, folderNameToId, sharedBlockIds, sharedBlockConfigs, updatedTools } = ctx;
 
   // Build agent config
   const folderContentHashes = await fileTracker.generateFolderFileHashes(agent.folders || []);
@@ -160,6 +162,9 @@ async function computeAgentDiff(
       fileContentHashes: folderContentHashes.get(f.name) || {}
     })),
     sharedBlocks: agent.shared_blocks || [],
+    sharedBlockConfigs: (agent.shared_blocks || []).map((name: string) =>
+      sharedBlockConfigs.find((b: any) => b.name === name)
+    ).filter(Boolean),
     tags: agent.tags || [],
     lettabotConfig: agent.lettabot || null,
     firstMessage: agent.first_message || null,

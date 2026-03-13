@@ -321,6 +321,9 @@ export async function applyCommand(options: ApplyOptions, command: any): Promise
             fileContentHashes: folderContentHashes.get(folder.name) || {}
           })),
           sharedBlocks: agent.shared_blocks || [],
+          sharedBlockConfigs: (agent.shared_blocks || []).map((name: string) =>
+            (config.shared_blocks || []).find((b: any) => b.name === name)
+          ).filter(Boolean),
           tags: agent.tags || [],
           lettabotConfig: agent.lettabot || null,
           conversations: agent.conversations || undefined
