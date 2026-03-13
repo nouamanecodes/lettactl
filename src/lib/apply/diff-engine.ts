@@ -234,6 +234,23 @@ export class DiffEngine {
       dryRun,
       sharedBlockIds
     );
+    // Safety net: ensure all shared blocks are accounted for in the diff
+    // The diff engine may miss unattached shared blocks in certain edge cases
+    const currentBlockIds = new Set(currentBlocks.map((b: any) => b.id));
+    const diffBlockNames = new Set([
+      ...operations.blocks.toAdd.map(b => b.name),
+      ...operations.blocks.toUpdate.map(b => b.name),
+      ...operations.blocks.toUpdateValue.map(b => b.name),
+      ...operations.blocks.unchanged.map(b => b.name),
+    ]);
+    for (const name of desiredConfig.sharedBlocks || []) {
+      if (!diffBlockNames.has(name)) {
+        const blockId = this.blockManager.getSharedBlockId(name) ?? sharedBlockIds?.get(name);
+        if (blockId && !currentBlockIds.has(blockId)) {
+          operations.blocks.toAdd.push({ name, id: dryRun ? '(new)' : blockId });
+        }
+      }
+    }
     operations.operationCount += operations.blocks.toAdd.length + operations.blocks.toRemove.length + operations.blocks.toUpdate.length + operations.blocks.toUpdateValue.length;
 
     // Analyze folder changes
