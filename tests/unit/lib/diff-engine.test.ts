@@ -88,6 +88,18 @@ describe('DiffEngine', () => {
       expect(result.toUpdate).toEqual([]);
     });
 
+    it('marks new shared block as toAdd in dry-run even without server ID', async () => {
+      mockBlockManager.getSharedBlockId.mockReturnValue(null);
+      const result = await analyzeBlockChanges(
+        [],
+        [{ name: 'new-shared', isShared: true }],
+        mockBlockManager,
+        'agent-1',
+        true // dryRun
+      );
+      expect(result.toAdd).toEqual([{ name: 'new-shared', id: '(new)' }]);
+    });
+
     it('detects per-agent → shared migration when block IDs differ', async () => {
       // Agent has per-agent block (id-agent), but shared block exists with different ID
       mockBlockManager.getSharedBlockId.mockReturnValue('id-shared');

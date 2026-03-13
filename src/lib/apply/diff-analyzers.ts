@@ -121,22 +121,25 @@ export async function analyzeBlockChanges(
         ? blockManager.getSharedBlockId(blockConfig.name)
         : blockManager.getAgentBlockId(blockConfig.name, agentName);
 
-      // If block doesn't exist yet, create it (unless dry-run)
-      if (!blockId && !blockConfig.isShared && blockConfig.description && agentName) {
+      // If block doesn't exist yet, handle based on mode and type
+      if (!blockId) {
         if (dryRun) {
           // In dry-run, just mark as new without creating
           toAdd.push({ name: blockConfig.name, id: '(new)' });
           continue;
         }
-        blockId = await blockManager.getOrCreateAgentBlock(
-          {
-            name: blockConfig.name,
-            description: blockConfig.description,
-            limit: blockConfig.limit || 2000,
-            value: blockConfig.value || ''
-          },
-          agentName
-        );
+        // For non-shared blocks, create on the fly
+        if (!blockConfig.isShared && blockConfig.description && agentName) {
+          blockId = await blockManager.getOrCreateAgentBlock(
+            {
+              name: blockConfig.name,
+              description: blockConfig.description,
+              limit: blockConfig.limit || 2000,
+              value: blockConfig.value || ''
+            },
+            agentName
+          );
+        }
       }
 
       if (blockId) {
