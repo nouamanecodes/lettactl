@@ -115,14 +115,15 @@ export default async function exportCommand(
       return;
     }
 
-    // Default: Letta's native export format (JSON)
+    // Default: Letta's native export format (.af agentfile)
     const exportResponse = await client.exportAgent(agent.id, {
       max_steps: options.maxSteps,
       use_legacy_format: options.legacyFormat || false
     });
 
-    // Determine output filename
-    const outputFile = options.output || `${agent.name}-export.json`;
+    // Determine output filename — .af is the default extension for agentfiles
+    const defaultExt = options.format === 'json' ? '.json' : '.af';
+    const outputFile = options.output || `${agent.name}${defaultExt}`;
     const resolvedPath = path.resolve(outputFile);
 
     if (verbose) {
