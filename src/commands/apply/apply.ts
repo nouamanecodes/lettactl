@@ -346,63 +346,35 @@ export async function applyCommand(options: ApplyOptions, command: any): Promise
               resolvedName: existingAgent.name
             });
             if (verbose) log(`Agent ${agent.name} already up to date`);
-          } else {
-            // Read previous folder file hashes from agent metadata
-            const fullAgent = await client.getAgent(existingAgent.id);
-            const previousFolderFileHashes = (fullAgent as any).metadata?.['lettactl.folderFileHashes'] || {};
-
-            // Update existing agent
-            await updateExistingAgent(agent, existingAgent, agentConfig, {
-              client,
-              diffEngine,
-              agentManager,
-              toolNameToId,
-              updatedTools,
-              builtinTools,
-              createdFolders,
-              sharedBlockIds,
-              archiveManager,
-              spinnerEnabled,
-              verbose,
-              force: options.force || false,
-              previousFolderFileHashes
-            });
-            succeeded.push(agent.name);
-            updated.push(agent.name);
-            appliedAgents.set(agent.name, {
-              id: existingAgent.id,
-              resolvedName: existingAgent.name
-            });
+            continue;
           }
 
-          // Ensure all shared blocks are attached — runs for ALL existing agents
-          // regardless of whether they were updated or skipped
-          const agentSharedBlocks: string[] = agent.shared_blocks || [];
-          if (verbose) log(`  Shared block check: ${agentSharedBlocks.length} configured, ${sharedBlockIds.size} resolved`);
-          if (agentSharedBlocks.length > 0 && sharedBlockIds.size > 0) {
-            const currentAgent = await client.getAgent(existingAgent.id);
-            const currentBlocks = (currentAgent as any).blocks || [];
-            const attachedBlockIds = new Set(currentBlocks.map((b: any) => b.id));
-            const attachedBlockLabels = new Set(currentBlocks.map((b: any) => b.label));
-            if (verbose) log(`  Agent has ${attachedBlockIds.size} blocks attached`);
-            for (const sharedBlockName of agentSharedBlocks) {
-              const blockId = sharedBlockIds.get(sharedBlockName);
-              if (!blockId) {
-                if (verbose) log(`  Shared block ${sharedBlockName}: no ID in sharedBlockIds`);
-                continue;
-              }
-              if (attachedBlockIds.has(blockId)) {
-                continue;
-              }
-              // Block ID not attached — check by label too (block may have been recreated with new ID)
-              if (attachedBlockLabels.has(sharedBlockName)) {
-                if (verbose) log(`  Shared block ${sharedBlockName}: attached by label (different ID)`);
-                continue;
-              }
-              log(`Attaching shared block: ${sharedBlockName} → ${agent.name}`);
-              await client.attachBlockToAgent(existingAgent.id, blockId);
-            }
-          }
+          // Read previous folder file hashes from agent metadata
+          const fullAgent = await client.getAgent(existingAgent.id);
+          const previousFolderFileHashes = (fullAgent as any).metadata?.['lettactl.folderFileHashes'] || {};
+
+          // Update existing agent
+          await updateExistingAgent(agent, existingAgent, agentConfig, {
+            client,
+            diffEngine,
+            agentManager,
+            toolNameToId,
+            updatedTools,
+            builtinTools,
+            createdFolders,
+            sharedBlockIds,
+            archiveManager,
+            spinnerEnabled,
+            verbose,
+            force: options.force || false,
+            previousFolderFileHashes
+          });
+          succeeded.push(agent.name);
+          updated.push(agent.name);
+          appliedAgents.set(agent.name, {
+            id: existingAgent.id,
+            resolvedName: existingAgent.name
+          });
         } else {
           // Create new agent
           const createdAgent = await createNewAgent(agent, agentName, {

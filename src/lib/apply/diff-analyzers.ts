@@ -103,8 +103,7 @@ export async function analyzeBlockChanges(
   desiredBlocks: Array<{ name: string; isShared?: boolean; description?: string; limit?: number; value?: string; agent_owned?: boolean }>,
   blockManager: BlockManager,
   agentName?: string,
-  dryRun: boolean = false,
-  sharedBlockIds?: Map<string, string>
+  dryRun: boolean = false
 ): Promise<BlockDiff> {
   const currentBlockNames = new Set(currentBlocks.map(b => b.label));
   const desiredBlockNames = new Set(desiredBlocks.map(b => b.name));
@@ -119,28 +118,25 @@ export async function analyzeBlockChanges(
   for (const blockConfig of desiredBlocks) {
     if (!currentBlockNames.has(blockConfig.name)) {
       let blockId = blockConfig.isShared
-        ? (blockManager.getSharedBlockId(blockConfig.name) ?? sharedBlockIds?.get(blockConfig.name) ?? null)
+        ? blockManager.getSharedBlockId(blockConfig.name)
         : blockManager.getAgentBlockId(blockConfig.name, agentName);
 
-      // If block doesn't exist yet, handle based on mode and type
-      if (!blockId) {
+      // If block doesn't exist yet, create it (unless dry-run)
+      if (!blockId && !blockConfig.isShared && blockConfig.description && agentName) {
         if (dryRun) {
           // In dry-run, just mark as new without creating
           toAdd.push({ name: blockConfig.name, id: '(new)' });
           continue;
         }
-        // For non-shared blocks, create on the fly
-        if (!blockConfig.isShared && blockConfig.description && agentName) {
-          blockId = await blockManager.getOrCreateAgentBlock(
-            {
-              name: blockConfig.name,
-              description: blockConfig.description,
-              limit: blockConfig.limit || 2000,
-              value: blockConfig.value || ''
-            },
-            agentName
-          );
-        }
+        blockId = await blockManager.getOrCreateAgentBlock(
+          {
+            name: blockConfig.name,
+            description: blockConfig.description,
+            limit: blockConfig.limit || 2000,
+            value: blockConfig.value || ''
+          },
+          agentName
+        );
       }
 
       if (blockId) {
@@ -159,7 +155,7 @@ export async function analyzeBlockChanges(
       // When a block moves from memory_blocks to shared_blocks, the agent's
       // per-agent block (unique ID) must be swapped with the fleet shared block
       if (desiredConfig?.isShared) {
-        const sharedBlockId = blockManager.getSharedBlockId(desiredConfig.name) ?? sharedBlockIds?.get(desiredConfig.name) ?? null;
+        const sharedBlockId = blockManager.getSharedBlockId(desiredConfig.name);
         if (sharedBlockId && sharedBlockId !== block.id) {
           toUpdate.push({
             name: block.label,
