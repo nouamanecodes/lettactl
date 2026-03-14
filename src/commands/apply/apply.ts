@@ -471,11 +471,22 @@ export async function applyCommand(options: ApplyOptions, command: any): Promise
           }
           log('Recalibration messages sent (not waiting for responses)');
         } else {
-          await bulkSendMessage(calibrationMessage, {
+          const results = await bulkSendMessage(calibrationMessage, {
             agents: recalibrateAgents,
             confirm: true,  // skip confirmation — user already opted in via --recalibrate
             verbose,
+            collectResponse: true,
           }, (msg) => log(msg));
+
+          // Display agent responses
+          const responded = results.filter(r => r.responseText);
+          if (responded.length > 0) {
+            log('');
+            for (const r of responded) {
+              log(`${r.agentName}:`);
+              log(`  ${r.responseText!.replace(/\n/g, '\n  ')}`);
+            }
+          }
         }
       } else {
         if (verbose) log('No agents matched recalibration filters');

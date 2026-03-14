@@ -155,7 +155,8 @@ export async function bulkSendMessage(
     // Print status line
     const durationStr = result.duration.toFixed(1);
     if (result.status === 'completed') {
-      outputFn(`OK ${agent.name} (${durationStr}s)`);
+      const preview = result.responseText ? `: ${result.responseText.replace(/\n/g, ' ').slice(0, 80)}` : '';
+      outputFn(`OK ${agent.name} (${durationStr}s)${preview}`);
     } else if (result.status === 'failed' && result.responseText) {
       outputFn(`WARN ${agent.name}: ${result.error || 'unknown error'} (response recovered)`);
     } else {
