@@ -89,16 +89,12 @@ agents:
 
       mockedFs.existsSync.mockImplementation((filePath: any) => {
         return filePath === configPath ||
-               filePath.toString().includes('base-letta-system.md') || 
                filePath.toString().includes('test-prompt.md');
       });
-      
+
       mockedFs.readFileSync.mockImplementation((filePath: any) => {
         if (filePath === configPath) {
           return yamlContent;
-        }
-        if (filePath.toString().includes('base-letta-system.md')) {
-          return 'Base system instructions';
         }
         if (filePath.toString().includes('test-prompt.md')) {
           return 'Custom prompt content';
@@ -108,11 +104,7 @@ agents:
 
       const config = await parser.parseFleetConfig(configPath);
 
-      expect(config.agents[0].system_prompt.value).toBe('Base system instructions\n\nCustom prompt content');
-      expect(mockedFs.readFileSync).toHaveBeenCalledWith(
-        expect.stringContaining('base-letta-system.md'),
-        'utf8'
-      );
+      expect(config.agents[0].system_prompt.value).toBe('Custom prompt content');
     });
 
     it('should expand shared folder references into agent folders', async () => {

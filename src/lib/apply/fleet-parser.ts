@@ -141,25 +141,7 @@ export class FleetParser {
       userPrompt = userPrompt.slice(3, -3).trim();
     }
     
-    // Check if base prompt combination should be disabled
-    if (prompt.disable_base_prompt) {
-      prompt.value = userPrompt;
-      return;
-    }
-    
-    // Load base Letta system instructions
-    const basePath = path.resolve(this.basePath, 'config', 'base-letta-system.md');
-    let baseInstructions = '';
-    if (fs.existsSync(basePath)) {
-      baseInstructions = fs.readFileSync(basePath, 'utf8').trim();
-    }
-    
-    // Concatenate base instructions with user prompt
-    if (baseInstructions) {
-      prompt.value = baseInstructions + '\n\n' + userPrompt;
-    } else {
-      prompt.value = userPrompt;
-    }
+    prompt.value = userPrompt;
   }
 
   private expandSharedFolders(config: FleetConfig): void {
