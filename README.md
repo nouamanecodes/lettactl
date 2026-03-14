@@ -208,7 +208,7 @@ await ctl.deleteAgent('my-agent');
 | **Lifecycle** | `duplicate`, `delete`, `delete-all`, `cleanup` |
 | **Export** | `export agent`, `export agents`, `export lettabot`, `import` |
 | **Runs** | `get runs`, `get run`, `track`, `run-delete` |
-| **Fleet** | `report memory`, `--canary`, `--compact`, `--recalibrate`, `--match` |
+| **Fleet** | `report memory`, `--canary`, `--fresh-context`, `--compact`, `--recalibrate`, `--match` |
 | **Config** | `remote add/use/list/remove`, `completion` |
 
 Run `lettactl --help` or visit [lettactl.dev](https://lettactl.dev) for full documentation.

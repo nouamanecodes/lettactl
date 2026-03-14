@@ -428,11 +428,50 @@ export async function applyCommand(options: ApplyOptions, command: any): Promise
       await cleanupCanaryAgents(config, canaryPrefix, client, options, spinnerEnabled, verbose);
     }
 
+    // Post-apply fresh context: reset message buffer so agent reads blocks fresh
+    let freshContextAgentIds = new Set<string>();
+    if (options.freshContext && updated.length > 0) {
+      let freshAgents = updated
+        .filter(name => appliedAgents.has(name))
+        .map(name => ({ id: appliedAgents.get(name)!.id, name: appliedAgents.get(name)!.resolvedName }));
+
+      if (options.freshContextTags) {
+        const tagFilter = options.freshContextTags.split(',').map(t => t.trim()).filter(Boolean);
+        const taggedAgents = await client.listAgents({ tags: tagFilter });
+        const taggedIds = new Set(
+          (Array.isArray(taggedAgents) ? taggedAgents : (taggedAgents as any).items || [])
+            .map((a: any) => a.id)
+        );
+        freshAgents = freshAgents.filter(a => taggedIds.has(a.id));
+      }
+
+      if (options.freshContextMatch) {
+        freshAgents = freshAgents.filter(a => minimatch(a.name, options.freshContextMatch!));
+      }
+
+      if (freshAgents.length > 0) {
+        log(`\nResetting context for ${freshAgents.length} updated agent(s)...`);
+        for (const agent of freshAgents) {
+          try {
+            await client.resetMessages(agent.id, true);
+            log(`  OK ${agent.name}`);
+            freshContextAgentIds.add(agent.id);
+          } catch (err: any) {
+            warn(`  FAIL ${agent.name}: ${err.message}`);
+          }
+        }
+      } else {
+        if (verbose) log('No agents matched fresh-context filters');
+      }
+    }
+
     // Post-apply compaction: compact conversation history to clear stale context
+    // Skip agents that already had fresh-context (no point compacting an empty buffer)
     if (options.compact && updated.length > 0) {
       let compactAgents = updated
         .filter(name => appliedAgents.has(name))
-        .map(name => ({ id: appliedAgents.get(name)!.id, name: appliedAgents.get(name)!.resolvedName }));
+        .map(name => ({ id: appliedAgents.get(name)!.id, name: appliedAgents.get(name)!.resolvedName }))
+        .filter(a => !freshContextAgentIds.has(a.id));
 
       if (options.compactTags) {
         const tagFilter = options.compactTags.split(',').map(t => t.trim()).filter(Boolean);
