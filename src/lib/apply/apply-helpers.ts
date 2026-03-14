@@ -294,20 +294,6 @@ export async function updateExistingAgent(
 
     await diffEngine.applyUpdateOperations(existingAgent.id, updateOperations, verbose, force);
 
-    // Safety net: ensure all shared blocks are attached to the agent
-    // The diff engine may miss unattached shared blocks in certain edge cases
-    if (sharedBlockIds.size > 0 && agent.shared_blocks?.length > 0) {
-      const updatedAgent = await client.getAgent(existingAgent.id);
-      const attachedBlockIds = new Set(((updatedAgent as any).blocks || []).map((b: any) => b.id));
-      for (const sharedBlockName of agent.shared_blocks) {
-        const blockId = sharedBlockIds.get(sharedBlockName);
-        if (blockId && !attachedBlockIds.has(blockId)) {
-          log(`  Attaching missing shared block: ${sharedBlockName}`);
-          await client.attachBlockToAgent(existingAgent.id, blockId);
-        }
-      }
-    }
-
     // Store folder file hashes in agent metadata for next apply
     const newFolderFileHashes: Record<string, Record<string, string>> = {};
     for (const folder of agentConfig.folders || []) {

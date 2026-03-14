@@ -31,20 +31,19 @@ export class BlockManager {
     const blockList = normalizeResponse(blocks);
 
     for (const block of blockList) {
-      if (block.label) {
+      if (block.label && block.value) {
         // Skip blocks not in the current fleet config to prevent cross-tenant contamination
         if (desiredNames && !desiredNames.has(block.label)) {
           continue;
         }
 
-        const blockValue = block.value || '';
-        const contentHash = generateContentHash(blockValue);
+        const contentHash = generateContentHash(block.value);
 
         const blockInfo: BlockInfo = {
           id: block.id,
           label: block.label,
           description: block.description || '',
-          value: blockValue,
+          value: block.value,
           limit: block.limit || 0,
           contentHash,
           isShared: false
