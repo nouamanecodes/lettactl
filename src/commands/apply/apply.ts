@@ -428,6 +428,45 @@ export async function applyCommand(options: ApplyOptions, command: any): Promise
       await cleanupCanaryAgents(config, canaryPrefix, client, options, spinnerEnabled, verbose);
     }
 
+    // Post-apply compaction: compact conversation history to clear stale context
+    if (options.compact && updated.length > 0) {
+      let compactAgents = updated
+        .filter(name => appliedAgents.has(name))
+        .map(name => ({ id: appliedAgents.get(name)!.id, name: appliedAgents.get(name)!.resolvedName }));
+
+      if (options.compactTags) {
+        const tagFilter = options.compactTags.split(',').map(t => t.trim()).filter(Boolean);
+        const taggedAgents = await client.listAgents({ tags: tagFilter });
+        const taggedIds = new Set(
+          (Array.isArray(taggedAgents) ? taggedAgents : (taggedAgents as any).items || [])
+            .map((a: any) => a.id)
+        );
+        compactAgents = compactAgents.filter(a => taggedIds.has(a.id));
+      }
+
+      if (options.compactMatch) {
+        compactAgents = compactAgents.filter(a => minimatch(a.name, options.compactMatch!));
+      }
+
+      if (compactAgents.length > 0) {
+        log(`\nCompacting ${compactAgents.length} updated agent(s)...`);
+        for (const agent of compactAgents) {
+          try {
+            const startTime = Date.now();
+            const result = await client.compactMessages(agent.id);
+            const duration = ((Date.now() - startTime) / 1000).toFixed(1);
+            const before = (result as any).num_messages_before ?? '?';
+            const after = (result as any).num_messages_after ?? '?';
+            log(`  OK ${agent.name} (${duration}s, ${before} → ${after} messages)`);
+          } catch (err: any) {
+            warn(`  FAIL ${agent.name}: ${err.message}`);
+          }
+        }
+      } else {
+        if (verbose) log('No agents matched compaction filters');
+      }
+    }
+
     // Post-apply recalibration: send calibration message to updated agents
     if (options.recalibrate && updated.length > 0) {
       // Collect agents that had changes applied
