@@ -378,15 +378,29 @@ export async function applyCommand(options: ApplyOptions, command: any): Promise
           // Ensure all shared blocks are attached — runs for ALL existing agents
           // regardless of whether they were updated or skipped
           const agentSharedBlocks: string[] = agent.shared_blocks || [];
+          if (verbose) log(`  Shared block check: ${agentSharedBlocks.length} configured, ${sharedBlockIds.size} resolved`);
           if (agentSharedBlocks.length > 0 && sharedBlockIds.size > 0) {
             const currentAgent = await client.getAgent(existingAgent.id);
-            const attachedBlockIds = new Set(((currentAgent as any).blocks || []).map((b: any) => b.id));
+            const currentBlocks = (currentAgent as any).blocks || [];
+            const attachedBlockIds = new Set(currentBlocks.map((b: any) => b.id));
+            const attachedBlockLabels = new Set(currentBlocks.map((b: any) => b.label));
+            if (verbose) log(`  Agent has ${attachedBlockIds.size} blocks attached`);
             for (const sharedBlockName of agentSharedBlocks) {
               const blockId = sharedBlockIds.get(sharedBlockName);
-              if (blockId && !attachedBlockIds.has(blockId)) {
-                log(`Attaching shared block: ${sharedBlockName} → ${agent.name}`);
-                await client.attachBlockToAgent(existingAgent.id, blockId);
+              if (!blockId) {
+                if (verbose) log(`  Shared block ${sharedBlockName}: no ID in sharedBlockIds`);
+                continue;
               }
+              if (attachedBlockIds.has(blockId)) {
+                continue;
+              }
+              // Block ID not attached — check by label too (block may have been recreated with new ID)
+              if (attachedBlockLabels.has(sharedBlockName)) {
+                if (verbose) log(`  Shared block ${sharedBlockName}: attached by label (different ID)`);
+                continue;
+              }
+              log(`Attaching shared block: ${sharedBlockName} → ${agent.name}`);
+              await client.attachBlockToAgent(existingAgent.id, blockId);
             }
           }
         } else {
