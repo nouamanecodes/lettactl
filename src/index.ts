@@ -211,6 +211,11 @@ getCmd
   .option('-a, --agent <name>', 'filter by agent name')
   .option('--full', 'show full archival entry text')
   .option('--query <text>', 'search archival memory by semantic similarity')
+  .option('--archival-tags <tags>', 'filter by tags (comma-separated)')
+  .option('--tag-match-mode <mode>', 'tag match mode (any|all)', 'any')
+  .option('--after <datetime>', 'filter entries after this ISO datetime')
+  .option('--before <datetime>', 'filter entries before this ISO datetime')
+  .option('-l, --limit <number>', 'limit number of results', parseInt)
   .action((name, options, command) => getCommand('archival', name, options, command));
 
 getCmd

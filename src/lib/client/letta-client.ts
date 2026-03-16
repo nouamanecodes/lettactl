@@ -510,8 +510,21 @@ export class LettaClientWrapper {
     return await this.client.agents.passages.list(agentId, { limit: limit || 100, ascending: false });
   }
 
-  async searchAgentArchival(agentId: string, query: string, limit?: number) {
-    return await this.client.agents.passages.search(agentId, { query, top_k: limit || 50 });
+  async searchAgentArchival(agentId: string, query: string, options?: {
+    limit?: number;
+    tags?: string[];
+    tagMatchMode?: 'any' | 'all';
+    startDatetime?: string;
+    endDatetime?: string;
+  }) {
+    return await this.client.agents.passages.search(agentId, {
+      query,
+      top_k: options?.limit || 50,
+      ...(options?.tags && { tags: options.tags }),
+      ...(options?.tagMatchMode && { tag_match_mode: options.tagMatchMode }),
+      ...(options?.startDatetime && { start_datetime: options.startDatetime }),
+      ...(options?.endDatetime && { end_datetime: options.endDatetime }),
+    });
   }
 
   /**

@@ -10,4 +10,10 @@ export interface GetOptions {
   query?: string;
   tags?: string;
   canary?: boolean;
+  // Archival filtering
+  archivalTags?: string;
+  tagMatchMode?: string;
+  after?: string;
+  before?: string;
+  limit?: number;
 }
