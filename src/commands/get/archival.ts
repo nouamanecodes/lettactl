@@ -17,16 +17,25 @@ export async function getArchival(
     throw new Error('Agent name is required for archival memory. Usage: lettactl get archival <agent>');
   }
 
-  const isSearch = !!options?.query;
-  const label = isSearch ? `Searching archival memory for "${options!.query}"...` : 'Loading archival memory...';
+  const hasFilters = !!(options?.archivalTags || options?.after || options?.before);
+  const isSearch = !!(options?.query || hasFilters);
+  const label = isSearch ? `Searching archival memory...` : 'Loading archival memory...';
   const spinner = createSpinner(label, spinnerEnabled).start();
 
   try {
     let entries: any[];
 
     if (isSearch) {
-      const result = await client.searchAgentArchival(agentId, options!.query!);
-      // Search returns { count, results: [{ id, content, timestamp, tags }] }
+      // Use search endpoint — supports tags, datetime, and semantic query
+      const query = options?.query || '*';
+      const tags = options?.archivalTags?.split(',').map(t => t.trim()).filter(Boolean);
+      const result = await client.searchAgentArchival(agentId, query, {
+        limit: options?.limit,
+        tags,
+        tagMatchMode: options?.tagMatchMode as 'any' | 'all' | undefined,
+        startDatetime: options?.after,
+        endDatetime: options?.before,
+      });
       entries = (result as any).results?.map((r: any) => ({
         ...r,
         text: r.content || r.text,
@@ -34,7 +43,7 @@ export async function getArchival(
         score: r.score,
       })) || [];
     } else {
-      const result = await client.listAgentArchival(agentId);
+      const result = await client.listAgentArchival(agentId, options?.limit);
       entries = Array.isArray(result) ? result : [];
     }
 
@@ -45,7 +54,7 @@ export async function getArchival(
     }
 
     if (entries.length === 0) {
-      if (isSearch) output(`No archival entries matching "${options!.query}" for ${agentName}`);
+      if (isSearch) output(`No archival entries found for ${agentName}`);
       else output(`No archival memory entries for ${agentName}`);
       return;
     }
