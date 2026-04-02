@@ -75,7 +75,14 @@
     "overrides": {
       "glob@<9": "^10.4.0",
       "inflight": "npm:@pnpm/noop@1.0.0",
-      "minimatch@<10.2.1": "^10.2.1"
+      "minimatch@<10.2.1": "^10.2.1",
+      "handlebars@>=4.0.0 <=4.7.8": ">=4.7.9",
+      "brace-expansion@>=4.0.0 <5.0.5": ">=5.0.5",
+      "handlebars@>=4.0.0 <4.7.9": ">=4.7.9",
+      "picomatch@<2.3.2": ">=2.3.2",
+      "picomatch@>=4.0.0 <4.0.4": ">=4.0.4",
+      "picomatch": ">=4.0.4",
+      "handlebars@>=4.6.0 <=4.7.8": ">=4.7.9"
     }
   }
 }

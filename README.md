@@ -204,7 +204,7 @@ await ctl.deleteAgent('my-agent');
 |----------|----------|
 | **Deploy** | `apply`, `validate`, `create agent`, `update agent` |
 | **Inspect** | `get <resource>`, `describe <resource>`, `health`, `context`, `files` |
-| **Message** | `send`, `get messages`, `reset-messages`, `compact-messages` |
+| **Message** | `send`, `get messages`, `reset-messages`, `compact-messages`, `--conversation-id` |
 | **Lifecycle** | `duplicate`, `delete`, `delete-all`, `cleanup` |
 | **Export** | `export agent`, `export agents`, `export lettabot`, `import` |
 | **Runs** | `get runs`, `get run`, `track`, `run-delete` |

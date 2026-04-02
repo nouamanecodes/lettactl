@@ -26,6 +26,7 @@ export interface SendOptions {
 
 export interface ResetOptions {
   addDefault?: boolean;
+  conversationId?: string;
 }
 
 export interface CompactOptions {

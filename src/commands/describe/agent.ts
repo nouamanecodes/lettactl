@@ -102,6 +102,22 @@ export async function describeAgent(
       // Archival unavailable
     }
 
+    let conversations: Array<{ id: string; summary?: string; messageCount?: number; created?: string; updated?: string }> = [];
+    try {
+      spinner.text = 'Loading conversations...';
+      const convList = await client.listConversations(agentDetails.id);
+      const convArray = Array.isArray(convList) ? convList : [];
+      conversations = convArray.map((c: any) => ({
+        id: c.id,
+        summary: c.summary || c.name,
+        messageCount: c.message_ids?.length || c.message_count,
+        created: c.created_at,
+        updated: c.updated_at,
+      }));
+    } catch {
+      // Conversations unavailable
+    }
+
     spinner.stop();
 
     if (OutputFormatter.handleJsonOutput(agentDetails, options?.output)) {
@@ -134,6 +150,7 @@ export async function describeAgent(
       mcpServers: mcpServerData,
       messages,
       archivalCount,
+      conversations,
     };
 
     output(displayAgentDetails(displayData, verbose));

@@ -418,6 +418,7 @@ program
   .description('Reset an agent\'s conversation history')
   .argument('<agent>', 'agent name')
   .option('--add-default', 'add default initial messages after reset')
+  .option('--conversation-id <id>', 'reset a specific conversation instead of all')
   .action(resetMessagesCommand);
 
 // Compact agent messages
