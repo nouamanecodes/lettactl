@@ -450,11 +450,22 @@ export async function applyCommand(options: ApplyOptions, command: any): Promise
       }
 
       if (freshAgents.length > 0) {
-        log(`\nResetting context for ${freshAgents.length} updated agent(s)...`);
+        log(`\nRecompiling context for ${freshAgents.length} updated agent(s)...`);
         for (const agent of freshAgents) {
           try {
-            await client.resetMessages(agent.id, true);
-            log(`  OK ${agent.name}`);
+            const convList = await client.listConversations(agent.id);
+            const conversations = Array.isArray(convList) ? convList : [];
+            if (conversations.length === 0) {
+              // No conversations — fall back to agent-level reset
+              await client.resetMessages(agent.id, true);
+              log(`  OK ${agent.name} (reset, no conversations)`);
+            } else {
+              let ok = 0;
+              for (const conv of conversations) {
+                try { await client.recompileConversation(conv.id); ok++; } catch { /* skip */ }
+              }
+              log(`  OK ${agent.name} (${ok}/${conversations.length} conversations recompiled)`);
+            }
             freshContextAgentIds.add(agent.id);
           } catch (err: any) {
             warn(`  FAIL ${agent.name}: ${err.message}`);
