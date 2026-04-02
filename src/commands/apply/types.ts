@@ -11,6 +11,7 @@ export interface ApplyOptions {
   canaryPrefix?: string;
   promote?: boolean;
   cleanup?: boolean;
+  skipRecompile?: boolean;
   freshContext?: boolean;
   freshContextTags?: string;
   freshContextMatch?: string;

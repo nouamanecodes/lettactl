@@ -53,7 +53,8 @@ describe('BlockManager', () => {
 
       const result = await manager.getOrCreateSharedBlock({ name: 'test', description: 'new-desc', limit: 2000, value: 'new-val', agent_owned: false });
 
-      expect(result).toBe('id-1');
+      expect(result.id).toBe('id-1');
+      expect(result.synced).toBe(true);
       expect(mockClient.updateBlock).toHaveBeenCalled();
     });
 
@@ -65,7 +66,8 @@ describe('BlockManager', () => {
 
       const result = await manager.getOrCreateSharedBlock({ name: 'test', description: 'new-desc', limit: 2000, value: 'new-val', agent_owned: true });
 
-      expect(result).toBe('id-1');
+      expect(result.id).toBe('id-1');
+      expect(result.synced).toBe(false);
       expect(mockClient.updateBlock).not.toHaveBeenCalled();
     });
 
@@ -92,7 +94,7 @@ describe('BlockManager', () => {
       });
 
       // Should create a new block, NOT reuse the plain-label one
-      expect(result).toBe('new-block-id');
+      expect(result.id).toBe('new-block-id');
       expect(mockClient.createBlock).toHaveBeenCalledWith({
         label: 'brand_identity',
         description: 'my tenant',
@@ -109,7 +111,8 @@ describe('BlockManager', () => {
 
       const result = await manager.getOrCreateSharedBlock({ name: 'test', description: 'desc', limit: 1000, value: 'same-val' });
 
-      expect(result).toBe('id-1');
+      expect(result.id).toBe('id-1');
+      expect(result.synced).toBe(false);
       expect(mockClient.createBlock).not.toHaveBeenCalled();
       expect(mockClient.updateBlock).not.toHaveBeenCalled();
     });

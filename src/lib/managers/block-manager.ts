@@ -69,7 +69,7 @@ export class BlockManager {
   /**
    * Gets or creates a shared block, updating in-place if content changed
    */
-  async getOrCreateSharedBlock(blockConfig: any): Promise<string> {
+  async getOrCreateSharedBlock(blockConfig: any): Promise<{ id: string; synced: boolean }> {
     const sharedKey = this.getBlockKey(blockConfig.name, true);
     const contentHash = generateContentHash(blockConfig.value);
 
@@ -100,6 +100,9 @@ export class BlockManager {
           existing.contentHash = contentHash;
           existing.description = blockConfig.description || existing.description;
           existing.limit = blockConfig.limit || existing.limit;
+          existing.isShared = true;
+          this.blockRegistry.set(sharedKey, existing);
+          return { id: existing.id, synced: true };
         } else {
           log(`Shared block unchanged: ${existing.label}`);
         }
@@ -108,7 +111,7 @@ export class BlockManager {
       }
       existing.isShared = true;
       this.blockRegistry.set(sharedKey, existing);
-      return existing.id;
+      return { id: existing.id, synced: false };
     }
 
     // Create new block
@@ -131,7 +134,7 @@ export class BlockManager {
     };
 
     this.blockRegistry.set(sharedKey, blockInfo);
-    return newBlock.id;
+    return { id: newBlock.id, synced: true };
   }
 
   /**

@@ -126,6 +126,7 @@ program
   .option('--canary-prefix <prefix>', 'custom canary prefix (default: CANARY-)')
   .option('--promote', 'promote canary config to production (use with --canary)')
   .option('--cleanup', 'remove canary agents (use with --canary)')
+  .option('--skip-recompile', 'skip automatic conversation recompilation after block changes')
   .option('--fresh-context', 'reset message buffer for agents that had changes (agent reads blocks fresh)')
   .option('--fresh-context-tags <tags>', 'filter context reset to agents matching tags (comma-separated, AND logic)')
   .option('--fresh-context-match <pattern>', 'filter context reset to agents matching glob pattern')

@@ -177,8 +177,8 @@ export async function applyCommand(options: ApplyOptions, command: any): Promise
 
     // Process shared blocks
     const blockSpinner = createSpinner('Processing shared blocks...', spinnerEnabled).start();
-    const sharedBlockIds = await processSharedBlocks(config, blockManager, verbose);
-    blockSpinner.succeed(`Processed ${sharedBlockIds.size} shared blocks`);
+    const { sharedBlockIds, syncedBlocks } = await processSharedBlocks(config, blockManager, verbose);
+    blockSpinner.succeed(`Processed ${sharedBlockIds.size} shared blocks${syncedBlocks.size > 0 ? ` (${syncedBlocks.size} synced)` : ''}`);
 
     // Register MCP servers
     let mcpServerNameToId = new Map<string, string>();
@@ -354,7 +354,7 @@ export async function applyCommand(options: ApplyOptions, command: any): Promise
           const previousFolderFileHashes = (fullAgent as any).metadata?.['lettactl.folderFileHashes'] || {};
 
           // Update existing agent
-          await updateExistingAgent(agent, existingAgent, agentConfig, {
+          const updateResult = await updateExistingAgent(agent, existingAgent, agentConfig, {
             client,
             diffEngine,
             agentManager,
@@ -369,6 +369,26 @@ export async function applyCommand(options: ApplyOptions, command: any): Promise
             force: options.force || false,
             previousFolderFileHashes
           });
+
+          // Auto-recompile conversations when blocks changed (diff engine or shared block sync)
+          const agentSharedBlocks: string[] = agent.shared_blocks || [];
+          const hadSharedBlockSync = agentSharedBlocks.some((name: string) => syncedBlocks.has(name));
+          if ((updateResult.hasBlockChanges || hadSharedBlockSync) && !options.skipRecompile) {
+            try {
+              const convList = await client.listConversations(existingAgent.id);
+              const conversations = Array.isArray(convList) ? convList : [];
+              if (conversations.length > 0) {
+                let ok = 0;
+                for (const conv of conversations) {
+                  try { await client.recompileConversation(conv.id); ok++; } catch { /* skip */ }
+                }
+                log(`  Recompiled ${ok}/${conversations.length} conversation(s)`);
+              }
+            } catch {
+              // Recompile unavailable — skip silently
+            }
+          }
+
           succeeded.push(agent.name);
           updated.push(agent.name);
           appliedAgents.set(agent.name, {
