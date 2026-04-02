@@ -26,6 +26,7 @@ import { listRunsCommand, getRunCommand, deleteRunCommand, trackRunsCommand } fr
 import { completionCommand } from './commands/completion';
 import reportCommand from './commands/report';
 import { duplicateCommand } from './commands/duplicate';
+import { recompileCommand } from './commands/recompile';
 import {
   remoteAddCommand,
   remoteRemoveCommand,
@@ -420,6 +421,15 @@ program
   .option('--add-default', 'add default initial messages after reset')
   .option('--conversation-id <id>', 'reset a specific conversation instead of all')
   .action(resetMessagesCommand);
+
+// Recompile conversation(s) — propagate block changes without losing history
+program
+  .command('recompile')
+  .description('Recompile conversation(s) with current block values')
+  .argument('<agent>', 'agent name')
+  .option('--conversation-id <id>', 'recompile a specific conversation')
+  .option('--all', 'recompile all conversations for the agent')
+  .action(recompileCommand);
 
 // Compact agent messages
 program
