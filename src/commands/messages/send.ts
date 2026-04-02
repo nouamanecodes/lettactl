@@ -92,8 +92,8 @@ export async function sendMessageCommand(
       output(`Options: ${JSON.stringify(options, null, 2)}`);
     }
 
-    // Streaming mode (also forced when --conversation-id is set)
-    if (options.stream || options.conversationId) {
+    // Streaming mode
+    if (options.stream) {
       const result = await sendMessageToAgent(client, agent.id, message, {
         stream: true,
         conversationId: options.conversationId,
@@ -138,6 +138,7 @@ export async function sendMessageCommand(
       const result = await sendMessageToAgent(client, agent.id, message, {
         maxSteps: options.maxSteps,
         enableThinking: options.enableThinking,
+        conversationId: options.conversationId,
       });
 
       if (!result.success) {
@@ -152,6 +153,24 @@ export async function sendMessageCommand(
 
     // Default: Async mode with polling (runs indefinitely until complete)
     const spinner = createSpinner(`Sending message to ${agent.name}...`, spinnerEnabled).start();
+
+    // Conversation messages are collected synchronously (API only supports streaming)
+    if (options.conversationId) {
+      const result = await sendMessageToAgent(client, agent.id, message, {
+        maxSteps: options.maxSteps,
+        enableThinking: options.enableThinking,
+        conversationId: options.conversationId,
+      });
+
+      if (!result.success) {
+        spinner.fail(`Failed to send message to ${agent.name}`);
+        throw new Error(result.error);
+      }
+
+      spinner.succeed(`Response from ${agent.name}:`);
+      displaySyncResponse(result.response, verbose, options.output);
+      return;
+    }
 
     // Send async message
     const result = await sendMessageToAgent(client, agent.id, message, {

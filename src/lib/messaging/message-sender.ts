@@ -40,14 +40,22 @@ export async function sendMessageToAgent(
 
     let response;
 
-    // Conversation-scoped streaming
+    // Conversation messages only support streaming via the Letta API.
+    // For non-streaming modes, we stream internally and collect the result.
     if (options.conversationId) {
-      response = await client.streamConversationMessage(options.conversationId, { ...params, streaming: true });
-      return { success: true, response };
-    }
-
-    // Call the underlying SDK methods exactly like the CLI
-    if (options.async) {
+      if (options.stream) {
+        // Streaming: return the stream for the caller to iterate
+        response = await client.streamConversationMessage(options.conversationId, { ...params, streaming: true });
+      } else {
+        // Sync/async: stream internally and collect assistant messages
+        const stream = await client.streamConversationMessage(options.conversationId, { ...params, streaming: true });
+        const messages: any[] = [];
+        for await (const chunk of stream as any) {
+          messages.push(chunk);
+        }
+        response = { messages };
+      }
+    } else if (options.async) {
       response = await client.createAsyncMessage(agentId, params);
     } else if (options.stream) {
       response = await client.streamMessage(agentId, { ...params, streaming: true });
