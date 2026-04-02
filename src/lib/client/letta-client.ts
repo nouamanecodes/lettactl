@@ -655,4 +655,14 @@ export class LettaClientWrapper {
   async resumeConversationStream(id: string, opts?: any) {
     return await this.client.conversations.messages.stream(id, opts);
   }
+
+  async recompileConversation(conversationId: string) {
+    const baseUrl = process.env.LETTA_BASE_URL;
+    const response = await fetch(`${baseUrl}/v1/conversations/${conversationId}/recompile`, {
+      method: 'POST',
+      headers: this.getAuthHeaders(),
+    });
+    if (!response.ok) throw new Error(`Failed to recompile conversation: ${response.statusText}`);
+    return await response.json();
+  }
 }
