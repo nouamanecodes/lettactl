@@ -23,6 +23,7 @@ export interface AgentDetailsData {
   mcpServers?: { name: string; type?: string }[];
   messages?: { createdAt?: string; role?: string; preview?: string }[];
   archivalCount?: number;
+  conversations?: { id: string; summary?: string; messageCount?: number; created?: string; updated?: string }[];
 }
 
 export interface BlockDetailsData {
@@ -195,6 +196,20 @@ export function displayAgentDetails(data: AgentDetailsData, verbose: boolean = f
     ], width));
   }
 
+  if (data.conversations && data.conversations.length > 0) {
+    lines.push('');
+    const convRows: string[] = data.conversations.slice(0, 5).map(c => {
+      const summary = truncate(c.summary || c.id, 40);
+      const msgs = c.messageCount !== undefined ? chalk.dim(` (${c.messageCount} msgs)`) : '';
+      const updated = c.updated ? chalk.dim(`  ${formatDate(c.updated)}`) : '';
+      return chalk.white(summary) + msgs + updated;
+    });
+    if (data.conversations.length > 5) {
+      convRows.push(chalk.dim(`... and ${data.conversations.length - 5} more`));
+    }
+    lines.push(...createBoxWithRows(`Conversations (${data.conversations.length})`, convRows, width));
+  }
+
   if (data.messages && data.messages.length > 0) {
     lines.push('');
     const title = 'Recent Messages';
@@ -306,6 +321,19 @@ function displayAgentDetailsPlain(data: AgentDetailsData, _verbose: boolean = fa
     const archivalLabel = data.archivalCount >= 100 ? '100+' : String(data.archivalCount);
     lines.push(`Archival Memory: ${archivalLabel} entries`);
     lines.push(`  (use: lettactl get archival <agent>)`);
+  }
+
+  if (data.conversations && data.conversations.length > 0) {
+    lines.push('');
+    lines.push(`Conversations (${data.conversations.length}):`);
+    for (const c of data.conversations.slice(0, 5)) {
+      const summary = c.summary || c.id;
+      const msgs = c.messageCount !== undefined ? ` (${c.messageCount} msgs)` : '';
+      lines.push(`  - ${summary}${msgs}`);
+    }
+    if (data.conversations.length > 5) {
+      lines.push(`  ... and ${data.conversations.length - 5} more`);
+    }
   }
 
   if (data.messages && data.messages.length > 0) {

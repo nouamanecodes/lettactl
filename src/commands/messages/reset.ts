@@ -17,17 +17,23 @@ export async function resetMessagesCommand(
     // Find the agent
     const { agent } = await resolver.findAgentByName(agentName);
 
-    if (verbose) {
-      output(`Resetting messages for agent: ${agent.name} (${agent.id})`);
-      output(`Add default messages: ${options.addDefault || false}`);
-    }
+    if (options.conversationId) {
+      if (verbose) {
+        output(`Resetting messages for conversation: ${options.conversationId}`);
+      }
+      await client.resetConversationMessages(options.conversationId);
+      output(`Messages reset for conversation ${options.conversationId}`);
+    } else {
+      if (verbose) {
+        output(`Resetting messages for agent: ${agent.name} (${agent.id})`);
+        output(`Add default messages: ${options.addDefault || false}`);
+      }
+      const response = await client.resetMessages(agent.id, options.addDefault);
+      output(`Messages reset for agent ${agent.name}`);
 
-    const response = await client.resetMessages(agent.id, options.addDefault);
-
-    output(`Messages reset for agent ${agent.name}`);
-
-    if (verbose && response) {
-      output('Agent state after reset:', JSON.stringify(response, null, 2));
+      if (verbose && response) {
+        output('Agent state after reset:', JSON.stringify(response, null, 2));
+      }
     }
 
   } catch (err: any) {

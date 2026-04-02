@@ -637,6 +637,17 @@ export class LettaClientWrapper {
     return allMessages;
   }
 
+  async resetConversationMessages(id: string, addDefault?: boolean) {
+    const baseUrl = process.env.LETTA_BASE_URL;
+    const response = await fetch(`${baseUrl}/v1/conversations/${id}/reset-messages`, {
+      method: 'PATCH',
+      headers: { ...this.getAuthHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ add_default_initial_messages: addDefault ?? true }),
+    });
+    if (!response.ok) throw new Error(`Failed to reset conversation messages: ${response.statusText}`);
+    return await response.json();
+  }
+
   async compactConversationMessages(id: string, opts?: any) {
     return await this.client.conversations.messages.compact(id, opts);
   }

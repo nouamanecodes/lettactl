@@ -168,7 +168,7 @@ describe('conversation commands', () => {
   });
 
   describe('sendMessageCommand with --conversation-id', () => {
-    it('should route to conversation streaming when conversationId is set', async () => {
+    it('should route to conversation streaming when conversationId and stream are set', async () => {
       const { sendMessageCommand } = await import('../../../src/commands/messages');
       const mockAgent = { id: 'agent-123', name: 'test-agent' };
       const mockStream = {
@@ -180,7 +180,7 @@ describe('conversation commands', () => {
       mockResolver.findAgentByName.mockResolvedValue({ agent: mockAgent, allAgents: [] });
       mockClient.streamConversationMessage.mockResolvedValue(mockStream as any);
 
-      await sendMessageCommand('test-agent', 'Hello', { conversationId: 'conv-1' }, mockCommand);
+      await sendMessageCommand('test-agent', 'Hello', { conversationId: 'conv-1', stream: true }, mockCommand);
 
       expect(mockClient.streamConversationMessage).toHaveBeenCalledWith('conv-1', {
         messages: [{ role: 'user', content: 'Hello' }],
