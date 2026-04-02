@@ -60,5 +60,13 @@ export function formatLettaError(message: string, context?: { blockName?: string
       `See: https://docs.letta.com/guides/server/providers/${provider}`;
   }
 
+  // Check for connection failures
+  if (message.includes('fetch failed') || message.includes('ECONNREFUSED') || message.includes('ECONNRESET') || message.includes('ETIMEDOUT')) {
+    const url = process.env.LETTA_BASE_URL || '(not set)';
+    return `Could not connect to Letta server at ${url}\n` +
+      `  Is your Letta server running? Or are you connected to Letta Cloud correctly?\n` +
+      `  Check with: curl ${url}/v1/health`;
+  }
+
   return message;
 }
