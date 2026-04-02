@@ -61,16 +61,20 @@ export async function processSharedBlocks(
   config: any,
   blockManager: BlockManager,
   verbose: boolean
-): Promise<Map<string, string>> {
+): Promise<{ sharedBlockIds: Map<string, string>; syncedBlocks: Set<string> }> {
   const sharedBlockIds = new Map<string, string>();
+  const syncedBlocks = new Set<string>();
   if (config.shared_blocks) {
     if (verbose) log('Processing shared blocks...');
     for (const sharedBlock of config.shared_blocks) {
-      const blockId = await blockManager.getOrCreateSharedBlock(sharedBlock);
-      sharedBlockIds.set(sharedBlock.name, blockId);
+      const result = await blockManager.getOrCreateSharedBlock(sharedBlock);
+      sharedBlockIds.set(sharedBlock.name, result.id);
+      if (result.synced) {
+        syncedBlocks.add(sharedBlock.name);
+      }
     }
   }
-  return sharedBlockIds;
+  return { sharedBlockIds, syncedBlocks };
 }
 
 // Helper to check if a file config is a from_bucket config
@@ -267,7 +271,7 @@ export async function updateExistingAgent(
     force: boolean;
     previousFolderFileHashes?: Record<string, Record<string, string>>;
   }
-): Promise<void> {
+): Promise<{ hasBlockChanges: boolean }> {
   const { client, diffEngine, agentManager, toolNameToId, updatedTools, builtinTools, createdFolders, sharedBlockIds, spinnerEnabled, verbose, force, previousFolderFileHashes } = context;
 
   log(`Updating agent ${agent.name}:`);
@@ -313,7 +317,14 @@ export async function updateExistingAgent(
 
     agentManager.updateRegistry(existingAgent.name, agentConfig, existingAgent.id);
 
+    const hasBlockChanges = !!(updateOperations.blocks &&
+      (updateOperations.blocks.toAdd.length > 0 ||
+       updateOperations.blocks.toRemove.length > 0 ||
+       updateOperations.blocks.toUpdate.length > 0 ||
+       updateOperations.blocks.toUpdateValue.length > 0));
+
     updateSpinner.succeed(`Agent ${agent.name} updated successfully (conversation history preserved)`);
+    return { hasBlockChanges };
   } catch (err) {
     spinner.fail(`Failed to update agent ${agent.name}`);
     throw err;

@@ -94,9 +94,9 @@ export async function applyTemplateMode(
   if (config.shared_blocks?.length) {
     const blockSpinner = createSpinner('Processing shared blocks...', spinnerEnabled).start();
     for (const sharedBlock of config.shared_blocks) {
-      const blockId = await blockManager.getOrCreateSharedBlock(sharedBlock);
-      sharedBlockIds.set(sharedBlock.name, blockId);
-      if (verbose) output(`  ${sharedBlock.name} -> ${blockId}`);
+      const result = await blockManager.getOrCreateSharedBlock(sharedBlock);
+      sharedBlockIds.set(sharedBlock.name, result.id);
+      if (verbose) output(`  ${sharedBlock.name} -> ${result.id}`);
     }
     blockSpinner.succeed(`Processed ${config.shared_blocks.length} shared blocks`);
   }
