@@ -18,6 +18,7 @@ import { displayApplySummary } from '../../lib/ux/display';
 import { buildMcpServerRegistry, expandMcpToolsForAgents } from '../../lib/tools/mcp-tools';
 import { buildAgentManifest, getDefaultManifestPath, writeAgentManifest } from '../../lib/apply/agent-manifest';
 import { ApplyOptions, DeployResult } from './types';
+import { batchProcess } from '../../lib/shared/batch';
 import { DEFAULT_CANARY_PREFIX, rewriteAgentNamesForCanary, cleanupCanaryAgents, buildCanaryMetadata } from '../../lib/apply/canary';
 import { bulkSendMessage } from '../../lib/messaging/bulk-messenger';
 import { minimatch } from 'minimatch';
@@ -378,11 +379,11 @@ export async function applyCommand(options: ApplyOptions, command: any): Promise
               const convList = await client.listConversations(existingAgent.id);
               const conversations = Array.isArray(convList) ? convList : [];
               if (conversations.length > 0) {
-                let ok = 0;
-                for (const conv of conversations) {
-                  try { await client.recompileConversation(conv.id); ok++; } catch { /* skip */ }
-                }
-                log(`  Recompiled ${ok}/${conversations.length} conversation(s)`);
+                const { succeeded } = await batchProcess(
+                  conversations,
+                  (conv: any) => client.recompileConversation(conv.id)
+                );
+                log(`  Recompiled ${succeeded}/${conversations.length} conversation(s)`);
               }
             } catch {
               // Recompile unavailable — skip silently
@@ -480,11 +481,11 @@ export async function applyCommand(options: ApplyOptions, command: any): Promise
               await client.resetMessages(agent.id, true);
               log(`  OK ${agent.name} (reset, no conversations)`);
             } else {
-              let ok = 0;
-              for (const conv of conversations) {
-                try { await client.recompileConversation(conv.id); ok++; } catch { /* skip */ }
-              }
-              log(`  OK ${agent.name} (${ok}/${conversations.length} conversations recompiled)`);
+              const { succeeded } = await batchProcess(
+                conversations,
+                (conv: any) => client.recompileConversation(conv.id)
+              );
+              log(`  OK ${agent.name} (${succeeded}/${conversations.length} conversations recompiled)`);
             }
             freshContextAgentIds.add(agent.id);
           } catch (err: any) {
