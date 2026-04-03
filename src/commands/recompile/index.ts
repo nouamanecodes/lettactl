@@ -1,7 +1,8 @@
 import { LettaClientWrapper } from '../../lib/client/letta-client';
 import { AgentResolver } from '../../lib/client/agent-resolver';
 import { createSpinner, getSpinnerEnabled } from '../../lib/ux/spinner';
-import { log, output, warn } from '../../lib/shared/logger';
+import { warn } from '../../lib/shared/logger';
+import { batchProcess } from '../../lib/shared/batch';
 
 export async function recompileCommand(
   agentName: string,
@@ -38,14 +39,15 @@ export async function recompileCommand(
   }
 
   spinner.text = `Recompiling ${conversations.length} conversation(s)...`;
-  let succeeded = 0;
-  for (const conv of conversations) {
-    try {
-      await client.recompileConversation(conv.id);
-      succeeded++;
-      if (verbose) log(`  OK ${conv.id}`);
-    } catch (err: any) {
-      warn(`  FAIL ${conv.id}: ${err.message}`);
+
+  const { succeeded, errors } = await batchProcess(
+    conversations,
+    (conv: any) => client.recompileConversation(conv.id)
+  );
+
+  if (verbose) {
+    for (const e of errors) {
+      warn(`  FAIL ${(e.item as any).id}: ${e.error}`);
     }
   }
 
