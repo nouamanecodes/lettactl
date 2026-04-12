@@ -386,8 +386,9 @@ export class FleetParser {
               : '';
 
             if (newHash !== existingHash) {
-              // Source code actually changed - re-register
-              if (verbose) log(`Tool ${toolName} source changed (${existingHash} -> ${newHash}), re-registering`);
+              // Source code changed — delete and recreate to force schema regeneration
+              if (verbose) log(`Tool ${toolName} source changed (${existingHash} -> ${newHash}), deleting and re-creating`);
+              try { await client.deleteTool(tool.id); } catch { /* may already be gone */ }
               tool = await client.createTool({ source_code: newSourceCode });
               updatedTools.add(toolName);
             } else {
