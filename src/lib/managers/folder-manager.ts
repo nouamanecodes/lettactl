@@ -19,8 +19,16 @@ export class FolderManager {
    * Loads existing folders from the server and builds the registry.
    * When desiredNames is provided, only folders matching those names are registered,
    * preventing cross-tenant contamination via unscoped global lookups.
+   *
+   * If the caller explicitly declared an empty desired set, skip the API
+   * call entirely — the resulting registry would be empty after filtering
+   * anyway, and it spares us hitting a server endpoint that some deployments
+   * have deprecated (e.g. Letta Cloud's `GET /v1/folders`).
    */
   async loadExistingFolders(desiredNames?: Set<string>): Promise<void> {
+    if (desiredNames !== undefined && desiredNames.size === 0) {
+      return;
+    }
     const folders = await this.client.listFolders();
     const folderList = Array.isArray(folders) ? folders : (folders as any).items || [];
 
