@@ -72,10 +72,20 @@ export class DiffEngine {
 
     if (verbose) log(`  Analyzing configuration changes for agent: ${existingAgent.name}`);
 
-    // Get current agent state from server
+    // Get current agent state from server. Only fetch folders/archives when
+    // the desired config declares them — this preserves reconciliation for
+    // managed resources while skipping an unnecessary API call (and an
+    // endpoint that some deployments have deprecated, e.g. Letta Cloud's
+    // `GET /v1/agents/{id}/folders`) for agents that don't use them.
     const currentAgent = await this.client.getAgent(existingAgent.id);
-    const currentFoldersResponse = await this.client.listAgentFolders(existingAgent.id);
-    const currentArchivesResponse = await this.client.listAgentArchives(existingAgent.id);
+    const hasDesiredFolders = (desiredConfig.folders || []).length > 0;
+    const hasDesiredArchives = (desiredConfig.archives || []).length > 0;
+    const currentFoldersResponse = hasDesiredFolders
+      ? await this.client.listAgentFolders(existingAgent.id)
+      : [];
+    const currentArchivesResponse = hasDesiredArchives
+      ? await this.client.listAgentArchives(existingAgent.id)
+      : [];
 
     // Use embedded tools/blocks from agent object (more reliable than paginated list endpoints)
     const currentTools = normalizeResponse((currentAgent as any).tools || []);

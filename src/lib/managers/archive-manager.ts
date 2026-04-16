@@ -22,8 +22,15 @@ export class ArchiveManager {
    * Loads existing archives from the server and builds the registry.
    * When desiredNames is provided, only archives matching those names are registered,
    * preventing cross-tenant contamination via unscoped global lookups.
+   *
+   * If the caller explicitly declared an empty desired set, skip the API
+   * call entirely — the resulting registry would be empty after filtering
+   * anyway, and it avoids an unnecessary round trip.
    */
   async loadExistingArchives(desiredNames?: Set<string>): Promise<void> {
+    if (desiredNames !== undefined && desiredNames.size === 0) {
+      return;
+    }
     const archives = await this.client.listArchives();
     const archiveList = normalizeResponse(archives);
 
