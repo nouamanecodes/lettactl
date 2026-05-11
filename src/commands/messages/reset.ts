@@ -2,6 +2,7 @@ import { LettaClientWrapper } from '../../lib/client/letta-client';
 import { AgentResolver } from '../../lib/client/agent-resolver';
 import { output, error } from '../../lib/shared/logger';
 import { ResetOptions } from './types';
+import { waitForAgentIdle, defaultWaitLogger } from '../../lib/messaging/wait-for-idle';
 
 export async function resetMessagesCommand(
   agentName: string,
@@ -16,6 +17,12 @@ export async function resetMessagesCommand(
 
     // Find the agent
     const { agent } = await resolver.findAgentByName(agentName);
+
+    if (options.waitForIdle !== false) {
+      await waitForAgentIdle(client, agent.id, {
+        ...defaultWaitLogger(() => agent.name),
+      });
+    }
 
     if (options.conversationId) {
       if (verbose) {

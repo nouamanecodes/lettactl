@@ -22,16 +22,19 @@ export interface SendOptions {
   timeout?: number;
   output?: string;
   conversationId?: string;
+  waitForIdle?: boolean;  // Commander maps --no-wait-for-idle to waitForIdle=false
 }
 
 export interface ResetOptions {
   addDefault?: boolean;
   conversationId?: string;
+  waitForIdle?: boolean;
 }
 
 export interface CompactOptions {
   conversationId?: string;
   model?: string;
+  waitForIdle?: boolean;
 }
 
 export interface CancelOptions {

@@ -662,7 +662,11 @@ export class LettaClientWrapper {
       method: 'POST',
       headers: this.getAuthHeaders(),
     });
-    if (!response.ok) throw new Error(`Failed to recompile conversation: ${response.statusText}`);
+    if (!response.ok) {
+      const err: any = new Error(`Failed to recompile conversation: ${response.status} ${response.statusText}`);
+      err.status = response.status;
+      throw err;
+    }
     return await response.json();
   }
 }

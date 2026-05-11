@@ -3,10 +3,12 @@ import { AgentResolver } from '../../lib/client/agent-resolver';
 import { createSpinner, getSpinnerEnabled } from '../../lib/ux/spinner';
 import { warn } from '../../lib/shared/logger';
 import { batchProcess } from '../../lib/shared/batch';
+import { waitForAgentIdle, defaultWaitLogger } from '../../lib/messaging/wait-for-idle';
+import { retryOn409 } from '../../lib/shared/retry';
 
 export async function recompileCommand(
   agentName: string,
-  options: { conversationId?: string; all?: boolean },
+  options: { conversationId?: string; all?: boolean; waitForIdle?: boolean },
   command: any
 ) {
   const verbose = command.parent?.opts().verbose || false;
@@ -16,10 +18,16 @@ export async function recompileCommand(
   const resolver = new AgentResolver(client);
   const { agent } = await resolver.findAgentByName(agentName);
 
+  if (options.waitForIdle !== false) {
+    await waitForAgentIdle(client, agent.id, {
+      ...defaultWaitLogger(() => agent.name),
+    });
+  }
+
   if (options.conversationId) {
     const spinner = createSpinner(`Recompiling conversation...`, spinnerEnabled).start();
     try {
-      await client.recompileConversation(options.conversationId);
+      await retryOn409(() => client.recompileConversation(options.conversationId!));
       spinner.succeed(`Recompiled conversation ${options.conversationId}`);
     } catch (err: any) {
       spinner.fail(`Failed to recompile: ${err.message}`);
@@ -42,7 +50,7 @@ export async function recompileCommand(
 
   const { succeeded, errors } = await batchProcess(
     conversations,
-    (conv: any) => client.recompileConversation(conv.id)
+    (conv: any) => retryOn409(() => client.recompileConversation(conv.id))
   );
 
   if (verbose) {

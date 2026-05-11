@@ -138,6 +138,7 @@ program
   .option('--recalibrate-tags <tags>', 'filter recalibration to agents matching tags (comma-separated, AND logic)')
   .option('--recalibrate-match <pattern>', 'filter recalibration to agents matching glob pattern')
   .option('--no-wait', 'fire-and-forget recalibration (do not wait for agent responses)')
+  .option('--no-wait-for-idle', 'do not wait for in-flight agent runs before recompile/reset/compact/recalibrate')
   .action(async (options, command) => { await applyCommand(options, command); });
 
 // Get command - parent with subcommands
@@ -412,6 +413,7 @@ program
   .option('--timeout <seconds>', 'timeout per agent in seconds for bulk operations', parseInt)
   .option('-o, --output <format>', 'output format (table|json)', 'table')
   .option('--conversation-id <id>', 'send message within a conversation')
+  .option('--no-wait-for-idle', 'do not wait for in-flight runs on the target agent before sending')
   .action(sendMessageCommand);
 
 // Reset agent messages
@@ -421,6 +423,7 @@ program
   .argument('<agent>', 'agent name')
   .option('--add-default', 'add default initial messages after reset')
   .option('--conversation-id <id>', 'reset a specific conversation instead of all')
+  .option('--no-wait-for-idle', 'do not wait for in-flight runs on the agent before resetting')
   .action(resetMessagesCommand);
 
 // Recompile conversation(s) — propagate block changes without losing history
@@ -430,6 +433,7 @@ program
   .argument('<agent>', 'agent name')
   .option('--conversation-id <id>', 'recompile a specific conversation')
   .option('--all', 'recompile all conversations for the agent')
+  .option('--no-wait-for-idle', 'do not wait for in-flight runs on the agent before recompiling')
   .action(recompileCommand);
 
 // Compact agent messages
@@ -439,6 +443,7 @@ program
   .argument('<agent>', 'agent name')
   .option('--conversation-id <id>', 'compact messages within a conversation')
   .option('--model <model>', 'model to use for compaction (default: agent LLM model)')
+  .option('--no-wait-for-idle', 'do not wait for in-flight runs on the agent before compacting')
   .action(compactMessagesCommand);
 
 // Cancel running messages
