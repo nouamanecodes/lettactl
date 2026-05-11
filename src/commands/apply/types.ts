@@ -23,6 +23,7 @@ export interface ApplyOptions {
   recalibrateTags?: string;
   recalibrateMatch?: string;
   wait?: boolean;  // Commander maps --no-wait to wait=false
+  waitForIdle?: boolean;  // Commander maps --no-wait-for-idle to waitForIdle=false
 }
 
 export interface DeployResult {

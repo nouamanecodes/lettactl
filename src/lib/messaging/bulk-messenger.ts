@@ -7,6 +7,7 @@ import { LettaClientWrapper } from '../client/letta-client';
 import { AgentResolver } from '../client/agent-resolver';
 import { normalizeResponse } from '../shared/response-normalizer';
 import { isRunTerminal, getEffectiveRunStatus } from './run-utils';
+import { waitForAgentIdle, defaultWaitLogger } from './wait-for-idle';
 import { Run } from '../../types/run';
 
 export interface BulkMessageOptions {
@@ -18,6 +19,7 @@ export interface BulkMessageOptions {
   collectResponse?: boolean;  // extract assistant response text from completed runs
   messageFn?: (agent: { id: string; name: string }) => string;  // per-agent message builder
   agents?: Array<{ id: string; name: string }>;  // pre-resolved agents (skip resolution)
+  waitForIdle?: boolean;  // default true; pass false to bypass wait-for-idle gate
 }
 
 export interface BulkMessageResult {
@@ -82,6 +84,13 @@ export async function bulkSendMessage(
   }
 
   outputFn('');
+
+  if (options.waitForIdle !== false) {
+    const nameById = new Map(agents.map(a => [a.id, a.name]));
+    await waitForAgentIdle(client, agents.map(a => a.id), {
+      ...defaultWaitLogger(id => nameById.get(id) || id),
+    });
+  }
 
   // Process agents with concurrency limit
   const results: BulkMessageResult[] = [];

@@ -9,6 +9,7 @@ import { Run } from '../../types/run';
 import { SendOptions } from './types';
 import { getMessageContent, formatElapsedTime } from './utils';
 import { isRunTerminal, getEffectiveRunStatus } from '../../lib/messaging/run-utils';
+import { waitForAgentIdle, defaultWaitLogger } from '../../lib/messaging/wait-for-idle';
 
 /**
  * Attempt to recover assistant response from a run that was marked as failed.
@@ -62,6 +63,7 @@ export async function sendMessageCommand(
         confirm: options.confirm,
         timeout: options.timeout,
         verbose,
+        waitForIdle: options.waitForIdle,
       }, output);
       return;
     } catch (err: any) {
@@ -90,6 +92,12 @@ export async function sendMessageCommand(
       output(`Sending message to agent: ${agent.name} (${agent.id})`);
       output(`Message: ${message}`);
       output(`Options: ${JSON.stringify(options, null, 2)}`);
+    }
+
+    if (options.waitForIdle !== false) {
+      await waitForAgentIdle(client, agent.id, {
+        ...defaultWaitLogger(() => agent.name),
+      });
     }
 
     // Streaming mode

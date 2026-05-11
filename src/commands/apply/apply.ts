@@ -21,6 +21,8 @@ import { ApplyOptions, DeployResult } from './types';
 import { batchProcess } from '../../lib/shared/batch';
 import { DEFAULT_CANARY_PREFIX, rewriteAgentNamesForCanary, cleanupCanaryAgents, buildCanaryMetadata } from '../../lib/apply/canary';
 import { bulkSendMessage } from '../../lib/messaging/bulk-messenger';
+import { waitForAgentIdle, defaultWaitLogger, RequiresApprovalError } from '../../lib/messaging/wait-for-idle';
+import { retryOn409 } from '../../lib/shared/retry';
 import { minimatch } from 'minimatch';
 import * as path from 'path';
 
@@ -379,13 +381,21 @@ export async function applyCommand(options: ApplyOptions, command: any): Promise
               const convList = await client.listConversations(existingAgent.id);
               const conversations = Array.isArray(convList) ? convList : [];
               if (conversations.length > 0) {
+                if (options.waitForIdle !== false) {
+                  await waitForAgentIdle(client, existingAgent.id, {
+                    ...defaultWaitLogger(() => existingAgent.name),
+                  });
+                }
                 const { succeeded } = await batchProcess(
                   conversations,
-                  (conv: any) => client.recompileConversation(conv.id)
+                  (conv: any) => retryOn409(() => client.recompileConversation(conv.id))
                 );
                 log(`  Recompiled ${succeeded}/${conversations.length} conversation(s)`);
               }
-            } catch {
+            } catch (recompileErr: any) {
+              if (recompileErr instanceof RequiresApprovalError) {
+                throw recompileErr;
+              }
               // Recompile unavailable — skip silently
             }
           }
@@ -472,6 +482,12 @@ export async function applyCommand(options: ApplyOptions, command: any): Promise
 
       if (freshAgents.length > 0) {
         log(`\nRecompiling context for ${freshAgents.length} updated agent(s)...`);
+        if (options.waitForIdle !== false) {
+          const nameById = new Map(freshAgents.map(a => [a.id, a.name]));
+          await waitForAgentIdle(client, freshAgents.map(a => a.id), {
+            ...defaultWaitLogger(id => nameById.get(id) || id),
+          });
+        }
         for (const agent of freshAgents) {
           try {
             const convList = await client.listConversations(agent.id);
@@ -483,7 +499,7 @@ export async function applyCommand(options: ApplyOptions, command: any): Promise
             } else {
               const { succeeded } = await batchProcess(
                 conversations,
-                (conv: any) => client.recompileConversation(conv.id)
+                (conv: any) => retryOn409(() => client.recompileConversation(conv.id))
               );
               log(`  OK ${agent.name} (${succeeded}/${conversations.length} conversations recompiled)`);
             }
@@ -521,6 +537,12 @@ export async function applyCommand(options: ApplyOptions, command: any): Promise
 
       if (compactAgents.length > 0) {
         log(`\nCompacting ${compactAgents.length} updated agent(s)...`);
+        if (options.waitForIdle !== false) {
+          const nameById = new Map(compactAgents.map(a => [a.id, a.name]));
+          await waitForAgentIdle(client, compactAgents.map(a => a.id), {
+            ...defaultWaitLogger(id => nameById.get(id) || id),
+          });
+        }
         for (const agent of compactAgents) {
           try {
             const startTime = Date.now();
@@ -567,6 +589,13 @@ export async function applyCommand(options: ApplyOptions, command: any): Promise
 
         log(`\nRecalibrating ${recalibrateAgents.length} updated agent(s)...`);
 
+        if (options.waitForIdle !== false) {
+          const nameById = new Map(recalibrateAgents.map(a => [a.id, a.name]));
+          await waitForAgentIdle(client, recalibrateAgents.map(a => a.id), {
+            ...defaultWaitLogger(id => nameById.get(id) || id),
+          });
+        }
+
         if (options.wait === false) {
           // Fire-and-forget: send async messages without polling
           for (const agent of recalibrateAgents) {
@@ -586,6 +615,7 @@ export async function applyCommand(options: ApplyOptions, command: any): Promise
             confirm: true,  // skip confirmation — user already opted in via --recalibrate
             verbose,
             collectResponse: true,
+            waitForIdle: false,  // pre-waited above
           }, (msg) => log(msg));
 
           // Display agent responses
