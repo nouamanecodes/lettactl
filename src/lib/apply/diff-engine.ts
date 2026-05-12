@@ -54,6 +54,7 @@ export class DiffEngine {
       sharedBlockConfigs?: Array<{name: string; description?: string; limit?: number; value?: string; agent_owned?: boolean}>;
       tags?: string[];
       lettabotConfig?: Record<string, any> | null;
+      compactionSettings?: Record<string, any> | null;
       conversations?: Array<{ summary: string; isolated_blocks?: string[] }>;
     },
     toolRegistry: Map<string, string>,
@@ -165,6 +166,16 @@ export class DiffEngine {
     if (desiredEmbeddingConfig !== null && JSON.stringify(currentEmbeddingConfig) !== JSON.stringify(desiredEmbeddingConfig)) {
       fieldUpdates.embeddingConfig = { from: currentEmbeddingConfig, to: desiredEmbeddingConfig };
       operations.operationCount++;
+    }
+
+    // Compaction settings: only diff when YAML declares them. Absent → leave server value alone.
+    if (desiredConfig.compactionSettings !== undefined && desiredConfig.compactionSettings !== null) {
+      const currentCompactionSettings = normalizeConfig((currentAgent as any).compaction_settings);
+      const desiredCompactionSettings = normalizeConfig(desiredConfig.compactionSettings);
+      if (JSON.stringify(currentCompactionSettings) !== JSON.stringify(desiredCompactionSettings)) {
+        fieldUpdates.compactionSettings = { from: currentCompactionSettings, to: desiredCompactionSettings };
+        operations.operationCount++;
+      }
     }
 
     const desiredContextWindow = desiredConfig.contextWindow || DEFAULT_CONTEXT_WINDOW;

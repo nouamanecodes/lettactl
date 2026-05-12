@@ -444,6 +444,10 @@ export async function createNewAgent(
       createPayload.embedding = agent.embedding || DEFAULT_EMBEDDING;
     }
 
+    if (agent.compaction_settings) {
+      createPayload.compaction_settings = agent.compaction_settings;
+    }
+
     const createdAgent = await client.createAgent(createPayload);
 
     // Attach archives
@@ -470,7 +474,8 @@ export async function createNewAgent(
       })),
       archives: agent.archives || [],
       folders: agent.folders || [],
-      sharedBlocks: agent.shared_blocks || []
+      sharedBlocks: agent.shared_blocks || [],
+      compactionSettings: agent.compaction_settings || null
     }, createdAgent.id);
 
     // Attach folders

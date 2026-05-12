@@ -52,6 +52,7 @@ export class AgentManager {
           archives: '',
           tags: '',
           lettabotConfig: '',
+          compactionSettings: '',
           conversations: ''
         };
         const { baseName, version } = this.parseVersionFromName(agent.name);
@@ -93,6 +94,7 @@ export class AgentManager {
     sharedBlocks?: string[];
     tags?: string[];
     lettabotConfig?: Record<string, any> | null;
+    compactionSettings?: Record<string, any> | null;
     conversations?: Array<{ summary: string; isolated_blocks?: string[] }>;
   }): AgentConfigHashes {
     
@@ -158,6 +160,9 @@ export class AgentManager {
     // LettaBot config hash
     const lettabotConfigHash = generateContentHash(JSON.stringify(config.lettabotConfig || null));
 
+    // Compaction settings hash
+    const compactionSettingsHash = generateContentHash(JSON.stringify(config.compactionSettings || null));
+
     // Conversations hash
     const normalizedConversations = (config.conversations || [])
       .map(c => ({ summary: c.summary, isolated_blocks: c.isolated_blocks || [] }))
@@ -175,6 +180,7 @@ export class AgentManager {
       archives: archivesHash,
       tags: tagsHash,
       lettabotConfig: lettabotConfigHash,
+      compactionSettings: compactionSettingsHash,
       conversations: conversationsHash
     }));
 
@@ -189,6 +195,7 @@ export class AgentManager {
       archives: archivesHash,
       tags: tagsHash,
       lettabotConfig: lettabotConfigHash,
+      compactionSettings: compactionSettingsHash,
       conversations: conversationsHash
     };
   }
@@ -214,6 +221,7 @@ export class AgentManager {
       sharedBlocks?: string[];
       tags?: string[];
       lettabotConfig?: Record<string, any> | null;
+      compactionSettings?: Record<string, any> | null;
     },
     verbose: boolean = false
   ): Promise<{ agentName: string; shouldCreate: boolean; existingAgent?: AgentVersion }> {
@@ -262,6 +270,7 @@ export class AgentManager {
     sharedBlocks?: string[];
     tags?: string[];
     lettabotConfig?: Record<string, any> | null;
+    compactionSettings?: Record<string, any> | null;
     conversations?: Array<{ summary: string; isolated_blocks?: string[] }>;
   }): {
     hasChanges: boolean;
@@ -299,6 +308,9 @@ export class AgentManager {
     if (existing.configHashes.lettabotConfig !== newHashes.lettabotConfig) {
       changedComponents.push('lettabotConfig');
     }
+    if (existing.configHashes.compactionSettings !== newHashes.compactionSettings) {
+      changedComponents.push('compactionSettings');
+    }
     if (existing.configHashes.conversations !== newHashes.conversations) {
       changedComponents.push('conversations');
     }
@@ -327,6 +339,7 @@ export class AgentManager {
     sharedBlocks?: string[];
     tags?: string[];
     lettabotConfig?: Record<string, any> | null;
+    compactionSettings?: Record<string, any> | null;
   }, agentId: string): void {
     const configHashes = this.generateAgentConfigHashes(agentConfig);
     const { baseName, version } = this.parseVersionFromName(agentName);
