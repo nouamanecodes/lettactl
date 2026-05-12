@@ -219,7 +219,8 @@ export class AgentValidator {
       'name', 'description', 'system_prompt', 'llm_config',
       'tools', 'mcp_tools', 'memory_blocks', 'archives', 'folders',
       'embedding', 'embedding_config', 'shared_blocks', 'shared_folders',
-      'first_message', 'reasoning', 'tags', 'lettabot', 'conversations'
+      'first_message', 'reasoning', 'tags', 'lettabot', 'conversations',
+      'compaction_settings'
     ];
     
     const unknownFields = Object.keys(agent).filter(field => !allowedFields.includes(field));
