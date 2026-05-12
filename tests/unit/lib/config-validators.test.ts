@@ -117,6 +117,28 @@ describe('AgentValidator - tags', () => {
   });
 });
 
+describe('AgentValidator - compaction_settings', () => {
+  const baseAgent = (extra: any = {}) => ({
+    name: 'a',
+    description: 'd',
+    llm_config: { model: 'm', context_window: 1000 },
+    system_prompt: { value: 'p' },
+    ...extra,
+  });
+
+  it('accepts compaction_settings as a known field', () => {
+    expect(() => FleetConfigValidator.validate({
+      agents: [baseAgent({ compaction_settings: { clip_chars: 1000 } })]
+    })).not.toThrow();
+  });
+
+  it('still rejects unknown fields', () => {
+    expect(() => FleetConfigValidator.validate({
+      agents: [baseAgent({ bogus_field: 'x' })]
+    })).toThrow('Unknown fields: bogus_field');
+  });
+});
+
 describe('AgentValidator - reserved names', () => {
   const baseAgent = (name: string) => ({
     name,
