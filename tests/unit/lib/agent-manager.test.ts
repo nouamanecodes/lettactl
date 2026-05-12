@@ -49,6 +49,24 @@ describe('AgentManager', () => {
       expect(gen({ systemPrompt: 's', tools: [], archives: [{ name: 'a' }] }).archives)
         .not.toBe(gen({ systemPrompt: 's', tools: [], archives: [{ name: 'b' }] }).archives);
     });
+
+    it('differs by compactionSettings', () => {
+      const base = { systemPrompt: 's', tools: [] };
+      const hashNone = gen(base).compactionSettings;
+      const hashClip1000 = gen({ ...base, compactionSettings: { clip_chars: 1000 } }).compactionSettings;
+      const hashClip500 = gen({ ...base, compactionSettings: { clip_chars: 500 } }).compactionSettings;
+
+      expect(hashNone).not.toBe(hashClip1000);
+      expect(hashClip1000).not.toBe(hashClip500);
+      expect(hashClip1000).toBe(gen({ ...base, compactionSettings: { clip_chars: 1000 } }).compactionSettings);
+    });
+
+    it('feeds compactionSettings into overall hash', () => {
+      const base = { systemPrompt: 's', tools: [] };
+      const overallNone = gen(base).overall;
+      const overallWith = gen({ ...base, compactionSettings: { clip_chars: 1000 } }).overall;
+      expect(overallNone).not.toBe(overallWith);
+    });
   });
 
   describe('getConfigChanges', () => {
@@ -61,6 +79,20 @@ describe('AgentManager', () => {
 
       expect(manager.getConfigChanges(existing, config).hasChanges).toBe(false);
       expect(manager.getConfigChanges(existing, { systemPrompt: 'new', tools: [] }).hasChanges).toBe(true);
+    });
+
+    it('flags compactionSettings drift as a change', () => {
+      const baseConfig = { systemPrompt: 'p', tools: [], compactionSettings: { clip_chars: 1000 } };
+      const existing = {
+        id: '1', name: 'a', baseName: 'a', version: 'v1', lastUpdated: '2024-01-01',
+        configHashes: (manager as any).generateAgentConfigHashes(baseConfig)
+      };
+
+      expect(manager.getConfigChanges(existing, baseConfig).hasChanges).toBe(false);
+
+      const drifted = manager.getConfigChanges(existing, { ...baseConfig, compactionSettings: { clip_chars: 500 } });
+      expect(drifted.hasChanges).toBe(true);
+      expect(drifted.changedComponents).toContain('compactionSettings');
     });
   });
 

@@ -45,6 +45,7 @@ export interface AgentConfig {
   shared_folders?: string[];
   embedding?: string;
   embedding_config?: Record<string, any>;
+  compaction_settings?: CompactionSettingsConfig;
   first_message?: string; // Message sent to agent on first creation for auto-calibration
   reasoning?: boolean; // Enable reasoning for models that support it (default: true)
   tags?: string[]; // Tags for filtering and multi-tenancy (e.g., ["tenant:user-123", "role:support"])
@@ -114,6 +115,16 @@ export interface LLMConfig {
   model: string;
   context_window: number;
   max_tokens?: number;
+}
+
+export interface CompactionSettingsConfig {
+  clip_chars?: number;
+  mode?: string;
+  sliding_window_percentage?: number;
+  prompt?: string;
+  model?: string;
+  model_settings?: Record<string, any>;
+  prompt_acknowledgement?: string;
 }
 
 // LettaBot configuration types

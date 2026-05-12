@@ -57,6 +57,9 @@ export class DiffApplier {
       if (fields.embeddingConfig !== undefined) {
         apiFields.embedding_config = fields.embeddingConfig.to;
       }
+      if (fields.compactionSettings !== undefined) {
+        apiFields.compaction_settings = fields.compactionSettings.to;
+      }
       if (fields.contextWindow !== undefined) {
         apiFields.context_window_limit = fields.contextWindow.to;
       }

@@ -167,6 +167,7 @@ async function computeAgentDiff(
     ).filter(Boolean),
     tags: agent.tags || [],
     lettabotConfig: agent.lettabot || null,
+    compactionSettings: agent.compaction_settings || null,
     firstMessage: agent.first_message || null,
     conversations: agent.conversations || null
   };

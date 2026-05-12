@@ -51,6 +51,7 @@ export interface AgentUpdateOperations {
     model?: FieldChange<string>;
     embedding?: FieldChange<string>;
     embeddingConfig?: FieldChange<Record<string, any> | null>;
+    compactionSettings?: FieldChange<Record<string, any> | null>;
     contextWindow?: FieldChange<number>;
     maxTokens?: FieldChange<number>;
     reasoning?: FieldChange<boolean>;

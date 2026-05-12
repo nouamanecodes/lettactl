@@ -329,6 +329,7 @@ export async function applyCommand(options: ApplyOptions, command: any): Promise
           ).filter(Boolean),
           tags: agent.tags || [],
           lettabotConfig: agent.lettabot || null,
+          compactionSettings: agent.compaction_settings || null,
           conversations: agent.conversations || undefined
         };
 

@@ -9,6 +9,7 @@ export interface AgentConfigHashes {
   archives: string;          // Archives hash
   tags: string;              // Tags hash
   lettabotConfig: string;    // LettaBot config hash
+  compactionSettings: string; // Compaction settings hash
   conversations: string;     // Conversations hash
 }
 
