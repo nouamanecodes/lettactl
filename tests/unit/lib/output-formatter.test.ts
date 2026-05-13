@@ -1,4 +1,4 @@
-import { OutputFormatter } from '../../../src/lib/ux/output-formatter';
+import { OutputFormatter, diffShallowKeys } from '../../../src/lib/ux/output-formatter';
 import { AgentUpdateOperations } from '../../../src/types/diff';
 
 // Mock console.log for testing
@@ -138,6 +138,67 @@ describe('OutputFormatter', () => {
       removalLines.forEach((line: string) => {
         expect(line).not.toContain('(requires --force)');
       });
+    });
+
+    it('renders per-field compaction_settings drift', () => {
+      const ops: AgentUpdateOperations = {
+        updateFields: {
+          compactionSettings: {
+            from: { clip_chars: 50000, mode: 'sliding_window' },
+            to: { clip_chars: 1000, mode: 'sliding_window' },
+          },
+        },
+        preservesConversation: true,
+        operationCount: 1,
+      };
+      OutputFormatter.showAgentUpdateDiff(ops, undefined, false);
+      const lines = mockConsoleLog.mock.calls.map(c => c[0]);
+      const header = lines.find((l: string) => l.includes('Compaction settings'));
+      const drift = lines.find((l: string) => l.includes('clip_chars'));
+      expect(header).toContain('1 field(s) changed');
+      expect(drift).toContain('50000');
+      expect(drift).toContain('1000');
+      expect(lines.find((l: string) => l.includes('mode'))).toBeUndefined();
+    });
+
+    it('renders compaction_settings as added when from is null', () => {
+      const ops: AgentUpdateOperations = {
+        updateFields: {
+          compactionSettings: { from: null, to: { clip_chars: 1000 } },
+        },
+        preservesConversation: true,
+        operationCount: 1,
+      };
+      OutputFormatter.showAgentUpdateDiff(ops, undefined, false);
+      const lines = mockConsoleLog.mock.calls.map(c => c[0]);
+      expect(lines.some((l: string) => l.includes('+ Compaction settings: added'))).toBe(true);
+      expect(lines.some((l: string) => l.includes('clip_chars'))).toBe(true);
+    });
+  });
+
+  describe('diffShallowKeys', () => {
+    it('lists only changed keys', () => {
+      const changes = diffShallowKeys(
+        { clip_chars: 50000, mode: 'sliding_window' },
+        { clip_chars: 1000, mode: 'sliding_window' }
+      );
+      expect(changes).toEqual(['clip_chars: 50000 → 1000']);
+    });
+
+    it('handles null on either side', () => {
+      expect(diffShallowKeys(null, { clip_chars: 1000 })).toEqual([
+        'clip_chars: (unset) → 1000',
+      ]);
+      expect(diffShallowKeys({ clip_chars: 1000 }, null)).toEqual([
+        'clip_chars: 1000 → (unset)',
+      ]);
+    });
+
+    it('truncates long string values', () => {
+      const longStr = 'x'.repeat(100);
+      const changes = diffShallowKeys({ prompt: 'short' }, { prompt: longStr });
+      expect(changes[0]).toContain('...');
+      expect(changes[0].length).toBeLessThan(120);
     });
   });
 

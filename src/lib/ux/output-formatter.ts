@@ -45,6 +45,31 @@ export function formatStatus(status: string): string {
   }
 }
 
+/**
+ * Compute a shallow per-key diff between two config objects and render
+ * "key from → to" lines for any keys that differ.
+ */
+export function diffShallowKeys(from: Record<string, any> | null | undefined, to: Record<string, any> | null | undefined): string[] {
+  const fromObj = from || {};
+  const toObj = to || {};
+  const keys = new Set([...Object.keys(fromObj), ...Object.keys(toObj)]);
+  const formatVal = (v: any): string => {
+    if (v === undefined) return '(unset)';
+    if (v === null) return 'null';
+    if (typeof v === 'string') return JSON.stringify(v.length > 60 ? v.slice(0, 57) + '...' : v);
+    if (typeof v === 'object') return JSON.stringify(v);
+    return String(v);
+  };
+  const changes: string[] = [];
+  for (const key of Array.from(keys).sort()) {
+    const fromVal = fromObj[key];
+    const toVal = toObj[key];
+    if (JSON.stringify(fromVal) === JSON.stringify(toVal)) continue;
+    changes.push(`${key}: ${formatVal(fromVal)} → ${formatVal(toVal)}`);
+  }
+  return changes;
+}
+
 export class OutputFormatter {
   /**
    * Formats output based on the specified format
@@ -266,6 +291,24 @@ export class OutputFormatter {
           log(`  - LettaBot config: removed`);
         } else {
           log(`  ~ LettaBot config: updated`);
+        }
+      }
+      if (operations.updateFields.compactionSettings !== undefined) {
+        const from = operations.updateFields.compactionSettings.from;
+        const to = operations.updateFields.compactionSettings.to;
+        if (!from && to) {
+          log(`  + Compaction settings: added`);
+          for (const change of diffShallowKeys(null, to)) {
+            log(`    + ${change}`);
+          }
+        } else if (from && !to) {
+          log(`  - Compaction settings: removed`);
+        } else {
+          const changes = diffShallowKeys(from, to);
+          log(`  ~ Compaction settings: ${changes.length} field(s) changed`);
+          for (const change of changes) {
+            log(`    ~ ${change}`);
+          }
         }
       }
     } else {
