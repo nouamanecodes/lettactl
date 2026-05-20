@@ -165,6 +165,10 @@ export class AgentValidator {
     if (agent.conversations) {
       this.validateConversations(agent.conversations);
     }
+
+    if (agent.memory) {
+      AgentMemoryConfigValidator.validate(agent.memory);
+    }
   }
   
   private static validateStructure(agent: any): void {
@@ -220,7 +224,7 @@ export class AgentValidator {
       'tools', 'mcp_tools', 'memory_blocks', 'archives', 'folders',
       'embedding', 'embedding_config', 'shared_blocks', 'shared_folders',
       'first_message', 'reasoning', 'tags', 'lettabot', 'conversations',
-      'compaction_settings'
+      'compaction_settings', 'memory'
     ];
     
     const unknownFields = Object.keys(agent).filter(field => !allowedFields.includes(field));
@@ -990,6 +994,113 @@ export class LettaBotConfigValidator {
     if (attachments.maxAgeDays !== undefined &&
         (!Number.isInteger(attachments.maxAgeDays) || attachments.maxAgeDays <= 0)) {
       throw new Error('lettabot.attachments.maxAgeDays must be a positive integer.');
+    }
+  }
+}
+
+/**
+ * AgentMemoryConfigValidator — validates the optional `memory:` section on an
+ * AgentConfig. The section drives memFS migration: setting `mode: memfs` and
+ * declaring `from_blocks` causes lettactl apply to move block content into
+ * git-backed files and flip the `git-memory-enabled` tag on the agent.
+ *
+ * Round-trip: changing `mode` back to `blocks` removes the tag → block
+ * content becomes live in the agent's context again.
+ */
+export class AgentMemoryConfigValidator {
+  static validate(memory: any): void {
+    if (!memory || typeof memory !== 'object') {
+      throw new Error('memory must be an object.');
+    }
+
+    // mode is required and must be one of the two literals
+    if (memory.mode !== 'blocks' && memory.mode !== 'memfs') {
+      throw new Error(
+        `memory.mode must be "blocks" or "memfs" (got ${JSON.stringify(memory.mode)}).`
+      );
+    }
+
+    // memfs mode requires a source: either explicit from_blocks or a template_dir
+    if (memory.mode === 'memfs') {
+      const hasFromBlocks = Array.isArray(memory.from_blocks) && memory.from_blocks.length > 0;
+      const hasTemplateDir = typeof memory.template_dir === 'string' && memory.template_dir.length > 0;
+      if (!hasFromBlocks && !hasTemplateDir) {
+        throw new Error(
+          'memory.mode is "memfs" but neither from_blocks (non-empty array) nor template_dir is set. ' +
+          'At least one is required so lettactl knows what to push to the bare repo.'
+        );
+      }
+    }
+
+    if (memory.bare_repo !== undefined && memory.bare_repo !== 'auto') {
+      throw new Error(
+        `memory.bare_repo must be "auto" if set (got ${JSON.stringify(memory.bare_repo)}). ` +
+        '"auto" means lettactl resolves the bare repo via Letta /v1/git/<id>/state.git.'
+      );
+    }
+
+    if (memory.template_dir !== undefined && typeof memory.template_dir !== 'string') {
+      throw new Error('memory.template_dir must be a string (path relative to root_path).');
+    }
+
+    if (memory.capability_index_file !== undefined && typeof memory.capability_index_file !== 'string') {
+      throw new Error('memory.capability_index_file must be a string path.');
+    }
+
+    if (memory.from_blocks !== undefined) {
+      if (!Array.isArray(memory.from_blocks)) {
+        throw new Error('memory.from_blocks must be an array.');
+      }
+      const seenTargets = new Set<string>();
+      memory.from_blocks.forEach((entry: any, i: number) => {
+        if (!entry || typeof entry !== 'object') {
+          throw new Error(`memory.from_blocks[${i}] must be an object.`);
+        }
+        if (typeof entry.block !== 'string' || entry.block.length === 0) {
+          throw new Error(`memory.from_blocks[${i}].block must be a non-empty string (block label).`);
+        }
+        if (typeof entry.to !== 'string' || entry.to.length === 0) {
+          throw new Error(`memory.from_blocks[${i}].to must be a non-empty string (memfs target path).`);
+        }
+        if (entry.to.startsWith('/') || entry.to.includes('..')) {
+          throw new Error(
+            `memory.from_blocks[${i}].to must be a repo-relative path. ` +
+            `Got "${entry.to}" — no leading slash, no "..".`
+          );
+        }
+        if (!entry.to.endsWith('.md')) {
+          throw new Error(
+            `memory.from_blocks[${i}].to must end in ".md" (got "${entry.to}"). ` +
+            'memFS files are markdown.'
+          );
+        }
+        if (seenTargets.has(entry.to)) {
+          throw new Error(
+            `memory.from_blocks: duplicate target path "${entry.to}". ` +
+            'Two blocks cannot map to the same memfs file.'
+          );
+        }
+        seenTargets.add(entry.to);
+        if (entry.extract_section !== undefined && typeof entry.extract_section !== 'string') {
+          throw new Error(
+            `memory.from_blocks[${i}].extract_section must be a string if set ` +
+            '(the H2 heading text of the section to slice out of the block).'
+          );
+        }
+      });
+    }
+
+    if (memory.verify !== undefined) {
+      if (typeof memory.verify !== 'object' || memory.verify === null) {
+        throw new Error('memory.verify must be an object if set.');
+      }
+      if (memory.verify.require_core_memory_empty !== undefined &&
+          typeof memory.verify.require_core_memory_empty !== 'boolean') {
+        throw new Error('memory.verify.require_core_memory_empty must be a boolean.');
+      }
+      if (memory.verify.smoke_prompt !== undefined && typeof memory.verify.smoke_prompt !== 'string') {
+        throw new Error('memory.verify.smoke_prompt must be a string.');
+      }
     }
   }
 }

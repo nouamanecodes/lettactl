@@ -1,4 +1,4 @@
-import { ArchiveValidator, McpToolsValidator, SharedFolderValidator, FleetConfigValidator, LettaBotConfigValidator } from '../../../src/lib/validation/config-validators';
+import { ArchiveValidator, McpToolsValidator, SharedFolderValidator, FleetConfigValidator, LettaBotConfigValidator, AgentMemoryConfigValidator } from '../../../src/lib/validation/config-validators';
 
 describe('ArchiveValidator', () => {
   it('rejects more than one archive per agent', () => {
@@ -311,5 +311,98 @@ describe('McpToolsValidator', () => {
     expect(() => McpToolsValidator.validate([
       { server: 'mcp_server', tools: 5 as any }
     ])).toThrow('mcp_tools 1 tools must be an array or "all".');
+  });
+});
+
+describe('AgentMemoryConfigValidator', () => {
+  it('accepts a minimal blocks-mode config', () => {
+    expect(() => AgentMemoryConfigValidator.validate({ mode: 'blocks' })).not.toThrow();
+  });
+
+  it('accepts a memfs-mode config with from_blocks', () => {
+    expect(() => AgentMemoryConfigValidator.validate({
+      mode: 'memfs',
+      from_blocks: [
+        { block: 'persona', to: 'persona/learned-preferences.md', extract_section: 'Learned Preferences' },
+        { block: 'image_prompting', to: 'capabilities/image-prompting.md' },
+      ],
+    })).not.toThrow();
+  });
+
+  it('accepts a memfs-mode config with only template_dir', () => {
+    expect(() => AgentMemoryConfigValidator.validate({
+      mode: 'memfs',
+      template_dir: 'lib/fleet/memfs-templates/draper/',
+    })).not.toThrow();
+  });
+
+  it('rejects a non-object', () => {
+    expect(() => AgentMemoryConfigValidator.validate(null as any)).toThrow('memory must be an object.');
+    expect(() => AgentMemoryConfigValidator.validate('memfs' as any)).toThrow('memory must be an object.');
+  });
+
+  it('rejects an unknown mode', () => {
+    expect(() => AgentMemoryConfigValidator.validate({ mode: 'hybrid' as any })).toThrow('memory.mode must be "blocks" or "memfs"');
+  });
+
+  it('rejects memfs mode without from_blocks or template_dir', () => {
+    expect(() => AgentMemoryConfigValidator.validate({ mode: 'memfs' })).toThrow('neither from_blocks');
+    expect(() => AgentMemoryConfigValidator.validate({ mode: 'memfs', from_blocks: [] })).toThrow('neither from_blocks');
+  });
+
+  it('rejects bare_repo value other than "auto"', () => {
+    expect(() => AgentMemoryConfigValidator.validate({
+      mode: 'memfs',
+      from_blocks: [{ block: 'p', to: 'x.md' }],
+      bare_repo: 'github' as any,
+    })).toThrow('memory.bare_repo must be "auto"');
+  });
+
+  it('rejects target paths with leading slash or ..', () => {
+    expect(() => AgentMemoryConfigValidator.validate({
+      mode: 'memfs',
+      from_blocks: [{ block: 'p', to: '/system/identity.md' }],
+    })).toThrow('repo-relative path');
+    expect(() => AgentMemoryConfigValidator.validate({
+      mode: 'memfs',
+      from_blocks: [{ block: 'p', to: '../outside.md' }],
+    })).toThrow('repo-relative path');
+  });
+
+  it('rejects target paths that do not end in .md', () => {
+    expect(() => AgentMemoryConfigValidator.validate({
+      mode: 'memfs',
+      from_blocks: [{ block: 'p', to: 'system/identity.txt' }],
+    })).toThrow('must end in ".md"');
+  });
+
+  it('rejects duplicate target paths', () => {
+    expect(() => AgentMemoryConfigValidator.validate({
+      mode: 'memfs',
+      from_blocks: [
+        { block: 'a', to: 'system/identity.md' },
+        { block: 'b', to: 'system/identity.md' },
+      ],
+    })).toThrow('duplicate target path');
+  });
+
+  it('rejects non-string extract_section', () => {
+    expect(() => AgentMemoryConfigValidator.validate({
+      mode: 'memfs',
+      from_blocks: [{ block: 'p', to: 'x.md', extract_section: 123 as any }],
+    })).toThrow('extract_section must be a string');
+  });
+
+  it('validates verify block when set', () => {
+    expect(() => AgentMemoryConfigValidator.validate({
+      mode: 'memfs',
+      from_blocks: [{ block: 'p', to: 'x.md' }],
+      verify: { require_core_memory_empty: 'yes' as any },
+    })).toThrow('require_core_memory_empty must be a boolean');
+    expect(() => AgentMemoryConfigValidator.validate({
+      mode: 'memfs',
+      from_blocks: [{ block: 'p', to: 'x.md' }],
+      verify: { smoke_prompt: 123 as any },
+    })).toThrow('smoke_prompt must be a string');
   });
 });
