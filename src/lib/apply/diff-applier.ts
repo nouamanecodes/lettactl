@@ -70,7 +70,12 @@ export class DiffApplier {
         apiFields.reasoning = fields.reasoning.to;
       }
       if (fields.tags !== undefined) {
-        apiFields.tags = fields.tags.to;
+        // Preserve memfs-owned tag if currently set — the memfs reconciler is its sole owner,
+        // operators never write it in YAML, and a bare PATCH would silently strip it (rolling
+        // back the migration without consent).
+        const current = await this.client.getAgent(agentId);
+        const hadMemfsTag = ((current as any).tags || []).includes('git-memory-enabled');
+        apiFields.tags = hadMemfsTag ? [...fields.tags.to, 'git-memory-enabled'] : fields.tags.to;
       }
 
       await this.client.updateAgent(agentId, apiFields);

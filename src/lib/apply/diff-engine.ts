@@ -199,8 +199,13 @@ export class DiffEngine {
       operations.operationCount++;
     }
 
-    const currentTags = [...((currentAgent as any).tags || [])].sort();
-    const desiredTags = [...(desiredConfig.tags || [])].sort();
+    // Exclude memfs-owned tag from the general diff — the memfs reconciler is the
+    // sole owner of `git-memory-enabled` (adds on migrate, removes on rollback).
+    // Otherwise every re-apply against a memfs-mode agent would silently flag it
+    // for removal because operators don't write that tag in YAML.
+    const MEMFS_TAG = 'git-memory-enabled';
+    const currentTags = [...((currentAgent as any).tags || [])].filter(t => t !== MEMFS_TAG).sort();
+    const desiredTags = [...(desiredConfig.tags || [])].filter((t: string) => t !== MEMFS_TAG).sort();
     if (JSON.stringify(currentTags) !== JSON.stringify(desiredTags)) {
       fieldUpdates.tags = { from: currentTags, to: desiredTags };
       operations.operationCount++;

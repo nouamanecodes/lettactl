@@ -5,6 +5,7 @@ import {
   computeMemfsAction,
   extractMarkdownSection,
   gitBlobSha,
+  walkTemplateDir,
   GIT_MEMORY_ENABLED_TAG,
   type ServerAgentState,
   type BlockSnapshot,
@@ -254,6 +255,155 @@ describe('capability_index_file resolution', () => {
         tmpDir,
       ),
     ).toThrow('capability_index_file does not exist');
+  });
+});
+
+describe('template_dir scan', () => {
+  let tmpDir: string;
+
+  beforeEach(() => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lettactl-plan-test-'));
+  });
+
+  afterEach(() => {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  function writeFile(rel: string, content: string) {
+    const abs = path.join(tmpDir, 'templates', rel);
+    fs.mkdirSync(path.dirname(abs), { recursive: true });
+    fs.writeFileSync(abs, content);
+  }
+
+  it('merges .md files from template_dir into targetFiles', () => {
+    writeFile('system/foo.md', 'FOO');
+    writeFile('capabilities/bar.md', 'BAR');
+    const action = computeMemfsAction(
+      'test-agent',
+      mkAgent({
+        mode: 'memfs',
+        template_dir: 'templates',
+      }),
+      mkServer(),
+      tmpDir,
+    );
+    expect(action.kind).toBe('migrate-forward');
+    if (action.kind === 'migrate-forward') {
+      expect(action.targetFiles.get('system/foo.md')).toBe('FOO');
+      expect(action.targetFiles.get('capabilities/bar.md')).toBe('BAR');
+    }
+  });
+
+  it('from_blocks overwrites template_dir on path collision', () => {
+    writeFile('system/persona.md', 'TEMPLATE');
+    const action = computeMemfsAction(
+      'test-agent',
+      mkAgent({
+        mode: 'memfs',
+        template_dir: 'templates',
+        from_blocks: [{ block: 'persona', to: 'system/persona.md' }],
+      }),
+      mkServer({ blocks: [mkBlock('persona', 'FROM_BLOCK')] }),
+      tmpDir,
+    );
+    expect(action.kind).toBe('migrate-forward');
+    if (action.kind === 'migrate-forward') {
+      expect(action.targetFiles.get('system/persona.md')).toBe('FROM_BLOCK');
+    }
+  });
+
+  it('preserves .gitkeep files as empty strings', () => {
+    writeFile('brand/.gitkeep', '');
+    const action = computeMemfsAction(
+      'test-agent',
+      mkAgent({ mode: 'memfs', template_dir: 'templates' }),
+      mkServer(),
+      tmpDir,
+    );
+    expect(action.kind).toBe('migrate-forward');
+    if (action.kind === 'migrate-forward') {
+      expect(action.targetFiles.get('brand/.gitkeep')).toBe('');
+    }
+  });
+
+  it('ignores non-.md / non-.gitkeep / non-.keep files', () => {
+    writeFile('system/keep.md', 'KEEP');
+    writeFile('system/notes.txt', 'IGNORE-TXT');
+    writeFile('system/config.json', '{}');
+    const action = computeMemfsAction(
+      'test-agent',
+      mkAgent({ mode: 'memfs', template_dir: 'templates' }),
+      mkServer(),
+      tmpDir,
+    );
+    expect(action.kind).toBe('migrate-forward');
+    if (action.kind === 'migrate-forward') {
+      expect(action.targetFiles.has('system/keep.md')).toBe(true);
+      expect(action.targetFiles.has('system/notes.txt')).toBe(false);
+      expect(action.targetFiles.has('system/config.json')).toBe(false);
+    }
+  });
+
+  it('recurses into nested subdirectories', () => {
+    writeFile('a/b/c/deep.md', 'DEEP');
+    const action = computeMemfsAction(
+      'test-agent',
+      mkAgent({ mode: 'memfs', template_dir: 'templates' }),
+      mkServer(),
+      tmpDir,
+    );
+    expect(action.kind).toBe('migrate-forward');
+    if (action.kind === 'migrate-forward') {
+      expect(action.targetFiles.get('a/b/c/deep.md')).toBe('DEEP');
+    }
+  });
+
+  it('excludes dotfile dirs and root README.md but keeps nested README.md', () => {
+    writeFile('system/keep.md', 'KEEP');
+    writeFile('README.md', 'ROOT-DOCS');
+    writeFile('subdir/README.md', 'NESTED-DOCS');
+    // .git/ subdir should be skipped wholesale
+    const gitDir = path.join(tmpDir, 'templates', '.git');
+    fs.mkdirSync(gitDir, { recursive: true });
+    fs.writeFileSync(path.join(gitDir, 'HEAD'), 'ref: refs/heads/master');
+    fs.writeFileSync(path.join(tmpDir, 'templates', '.DS_Store'), 'macos junk');
+
+    const action = computeMemfsAction(
+      'test-agent',
+      mkAgent({ mode: 'memfs', template_dir: 'templates' }),
+      mkServer(),
+      tmpDir,
+    );
+    expect(action.kind).toBe('migrate-forward');
+    if (action.kind === 'migrate-forward') {
+      expect(action.targetFiles.has('system/keep.md')).toBe(true);
+      expect(action.targetFiles.has('subdir/README.md')).toBe(true);
+      expect(action.targetFiles.has('README.md')).toBe(false);
+      expect(action.targetFiles.has('.git/HEAD')).toBe(false);
+      expect(action.targetFiles.has('.DS_Store')).toBe(false);
+    }
+  });
+
+  it('throws when template_dir is set but directory does not exist', () => {
+    expect(() =>
+      computeMemfsAction(
+        'test-agent',
+        mkAgent({ mode: 'memfs', template_dir: 'doesnotexist' }),
+        mkServer(),
+        tmpDir,
+      ),
+    ).toThrow('template_dir does not exist');
+  });
+
+  it('walkTemplateDir helper: returns map for direct exercise', () => {
+    writeFile('a.md', 'A');
+    writeFile('nested/b.md', 'B');
+    writeFile('nested/.gitkeep', '');
+    const map = walkTemplateDir(path.join(tmpDir, 'templates'));
+    expect(map.get('a.md')).toBe('A');
+    expect(map.get('nested/b.md')).toBe('B');
+    expect(map.get('nested/.gitkeep')).toBe('');
+    expect(map.size).toBe(3);
   });
 });
 

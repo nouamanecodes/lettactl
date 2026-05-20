@@ -1,4 +1,5 @@
 import chalk from 'chalk';
+import * as nodePath from 'path';
 import { LettaClientWrapper } from '../client/letta-client';
 import { BlockManager } from '../managers/block-manager';
 import { ArchiveManager } from '../managers/archive-manager';
@@ -12,6 +13,10 @@ import { displayDryRunHeader, displayDryRunSummary, displayDryRunAction } from '
 import { shouldUseFancyUx, truncate } from '../ux/box';
 import { purple } from '../ux/constants';
 import { buildMcpServerRegistry, expandMcpToolsForAgents } from '../tools/mcp-tools';
+import { GitClient } from '../memfs-reconciler/git-client';
+import { MemfsReconciler, MemfsExecutionResult } from '../memfs-reconciler/executor';
+import { computeMemfsAction, MemfsAction } from '../memfs-reconciler/plan';
+import { buildServerAgentState } from '../memfs-reconciler/server-state';
 
 export interface DryRunResult {
   name: string;
@@ -20,6 +25,10 @@ export interface DryRunResult {
   operations?: AgentUpdateOperations;
   conversationCount?: number;
   conversationsToCreate?: number;
+  existingAgentId?: string;
+  memfsAction?: MemfsAction;
+  memfsResult?: MemfsExecutionResult;
+  memfsError?: string;
 }
 
 interface DryRunContext {
@@ -77,6 +86,48 @@ export async function computeDryRunDiffs(
     });
 
     results.push(result);
+  }
+
+  // Second pass: memfs reconciliation in dry-run mode for any agent with memory:
+  // Errors are caught per-agent — they don't abort the whole dry-run.
+  const memfsAgents = config.agents.filter((a: any) => a.memory);
+  if (memfsAgents.length > 0) {
+    const lettactlVersion = (() => {
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        return require('../../../package.json').version as string;
+      } catch {
+        return '0.0.0';
+      }
+    })();
+    const gitClient = new GitClient({
+      baseUrl: process.env.LETTA_BASE_URL || 'http://localhost:8283',
+      authToken: process.env.LETTA_API_KEY || null,
+    });
+    const backupDir = nodePath.resolve(config.root_path || process.cwd(), 'backups', 'memfs-migrations');
+    const memfsReconciler = new MemfsReconciler(client, gitClient, {
+      dryRun: true,
+      backupDir,
+      lettactlVersion,
+    });
+
+    for (const agent of memfsAgents) {
+      const result = results.find(r => r.name === agent.name);
+      if (!result) continue;
+      if (result.action === 'create' || !result.existingAgentId) {
+        // Agent doesn't exist yet — server state is unknowable; surface as warn.
+        result.memfsError = 'agent will be created — memfs reconcile runs on next apply';
+        continue;
+      }
+      try {
+        const serverState = await buildServerAgentState(client, gitClient, result.existingAgentId);
+        const action = computeMemfsAction(agent.name, agent, serverState, config.root_path || process.cwd());
+        result.memfsAction = action;
+        result.memfsResult = await memfsReconciler.execute(action);
+      } catch (err) {
+        result.memfsError = (err as Error).message;
+      }
+    }
   }
 
   return results;
@@ -190,7 +241,7 @@ async function computeAgentDiff(
   // Check for changes
   const changes = agentManager.getConfigChanges(existingAgent, agentConfig);
   if (!changes.hasChanges) {
-    return { name: agent.name, action: 'unchanged' };
+    return { name: agent.name, action: 'unchanged', existingAgentId: existingAgent.id };
   }
 
   // Compute detailed diff
@@ -226,7 +277,14 @@ async function computeAgentDiff(
     true  // dryRun - don't create resources
   );
 
-  return { name: agent.name, action: 'update', operations, conversationCount, conversationsToCreate };
+  return {
+    name: agent.name,
+    action: 'update',
+    operations,
+    conversationCount,
+    conversationsToCreate,
+    existingAgentId: existingAgent.id,
+  };
 }
 
 /**
@@ -248,6 +306,10 @@ export function displayDryRunResults(results: DryRunResult[], verbose: boolean, 
     } else {
       unchanged++;
     }
+    // Memfs drift counts as a change even when the agent itself has no other ops.
+    if (result.memfsAction && result.memfsAction.kind !== 'no-op') {
+      totalChanges++;
+    }
   }
 
   // Show header with drift status
@@ -259,14 +321,17 @@ export function displayDryRunResults(results: DryRunResult[], verbose: boolean, 
   created = 0; updated = 0; unchanged = 0; totalChanges = 0;
 
   for (const result of results) {
+    const hasMemfsDrift = !!(result.memfsAction && result.memfsAction.kind !== 'no-op') || !!result.memfsError;
     if (result.action === 'create') {
       created++;
       totalChanges++;
       output(displayDryRunAction(result.name, 'create'));
       formatCreateDetails(result, fancy, skipFirstMessage);
+      formatMemfsDetails(result, fancy);
     } else if (result.action === 'update' && result.operations) {
       updated++;
       totalChanges += result.operations.operationCount;
+      if (hasMemfsDrift) totalChanges++;
       const convParts: string[] = [];
       if (result.conversationsToCreate && result.conversationsToCreate > 0) {
         convParts.push(`${result.conversationsToCreate} conversation${result.conversationsToCreate !== 1 ? 's' : ''} to create`);
@@ -279,9 +344,17 @@ export function displayDryRunResults(results: DryRunResult[], verbose: boolean, 
         : `${result.operations.operationCount} changes`;
       output(displayDryRunAction(result.name, 'update', updateDetail));
       formatUpdateDetails(result.operations, verbose, fancy);
+      formatMemfsDetails(result, fancy);
+    } else if (hasMemfsDrift) {
+      // Agent itself unchanged but memfs has drift — surface it under an update header.
+      updated++;
+      totalChanges++;
+      output(displayDryRunAction(result.name, 'update', 'memfs only'));
+      formatMemfsDetails(result, fancy);
     } else if (verbose) {
       unchanged++;
       output(displayDryRunAction(result.name, 'unchanged'));
+      formatMemfsDetails(result, fancy);
     } else {
       unchanged++;
     }
@@ -289,6 +362,58 @@ export function displayDryRunResults(results: DryRunResult[], verbose: boolean, 
 
   output('');
   output(displayDryRunSummary({ created, updated, unchanged, totalChanges }));
+}
+
+function formatMemfsDetails(result: DryRunResult, fancy: boolean): void {
+  if (!result.memfsAction && !result.memfsError) return;
+  const indent = '    ';
+  const dim = fancy ? chalk.dim : (s: string) => s;
+  const red = fancy ? chalk.red : (s: string) => s;
+  const yellow = fancy ? chalk.yellow : (s: string) => s;
+  const colorPurple = fancy ? purple : (s: string) => s;
+
+  if (result.memfsError) {
+    output(`${indent}${yellow('Memfs [!]:')} ${result.memfsError}`);
+    return;
+  }
+
+  const action = result.memfsAction!;
+  switch (action.kind) {
+    case 'no-op':
+      output(`${indent}${dim('Memfs [=]:')} no-op ${dim(`(${action.reason})`)}`);
+      break;
+    case 'migrate-forward': {
+      const fileCount = action.targetFiles.size;
+      const detail = `migrate-forward (${formatMemfsFileList(fileCount, Array.from(action.targetFiles.keys()))} → bare repo, add tag git-memory-enabled)`;
+      output(`${indent}${colorPurple('Memfs [~]:')} ${detail}`);
+      if (result.memfsResult?.backupPath) {
+        output(`${indent}  ${dim('backup snapshot:')} ${result.memfsResult.backupPath}`);
+      }
+      break;
+    }
+    case 'sync-files-only': {
+      const paths = Array.from(action.changedFiles.keys());
+      const detail = `sync-files-only (${formatMemfsFileList(paths.length, paths)})`;
+      output(`${indent}${colorPurple('Memfs [~]:')} ${detail}`);
+      break;
+    }
+    case 'rollback':
+      output(`${indent}${red('Memfs [-]:')} rollback ${dim('(remove tag git-memory-enabled; files left in place)')}`);
+      break;
+  }
+}
+
+export function formatMemfsFileList(count: number, names: string[]): string {
+  if (count === 0) return '0 files';
+  if (count === 1) return `1 file: ${basename(names[0])}`;
+  if (count === 2) return `2 files: ${basename(names[0])}, ${basename(names[1])}`;
+  if (count <= 5) return `${count} files: ${basename(names[0])}, ${basename(names[1])}, +${count - 2} more`;
+  return `${count} files`;
+}
+
+function basename(p: string): string {
+  const i = p.lastIndexOf('/');
+  return i >= 0 ? p.slice(i + 1) : p;
 }
 
 function formatCreateDetails(result: DryRunResult, fancy: boolean, skipFirstMessage?: boolean): void {

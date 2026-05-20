@@ -138,14 +138,15 @@ export function computeMemfsAction(
 /**
  * Build the desired file set from YAML config + server's current block values.
  *
- * For each `from_blocks` entry:
- *   1. Look up the named block on the server (throw if missing).
- *   2. If extract_section is set, slice out that H2 section (throw if missing).
- *   3. Map to the target path.
- *
- * If capability_index_file is set, read that file from template_dir and add
- * it under `system/capability-index.md` (or whatever the file basename says
- * relative to template_dir).
+ * Sources, in evaluation order — later sources overwrite earlier on path collision:
+ *   1. `capability_index_file` — legacy, single explicit file read (kept for back-compat).
+ *      Now redundant with the template_dir scan below, but harmless when content matches.
+ *   2. `template_dir` recursive scan — walks the directory for .md/.gitkeep/.keep files,
+ *      excluding dotfiles (except .gitkeep/.keep), symlinks, and the root-level README.md.
+ *      Hand-authored files like `system/identity.md` or `persona/learned-preferences.md`
+ *      ship via this path without needing a `from_blocks` entry.
+ *   3. `from_blocks` — last so it ALWAYS wins on collision. The YAML's explicit directive
+ *      to derive a memfs file from a live block trumps any template skeleton at the same path.
  */
 export function buildTargetFiles(
   agentName: string,
@@ -154,6 +155,37 @@ export function buildTargetFiles(
   rootPath: string,
 ): Map<string, string> {
   const out = new Map<string, string>();
+
+  if (memory.capability_index_file) {
+    if (!memory.template_dir) {
+      throw new Error(
+        `[memfs-plan] Agent ${agentName}: memory.capability_index_file is set but memory.template_dir is not. ` +
+          `Set template_dir to the directory holding the index file.`,
+      );
+    }
+    const indexAbsolute = path.resolve(rootPath, memory.template_dir, memory.capability_index_file);
+    if (!fs.existsSync(indexAbsolute)) {
+      throw new Error(
+        `[memfs-plan] Agent ${agentName}: capability_index_file does not exist at ${indexAbsolute}. ` +
+          `Check memory.template_dir + memory.capability_index_file in YAML.`,
+      );
+    }
+    const content = fs.readFileSync(indexAbsolute, 'utf8');
+    out.set(memory.capability_index_file, content);
+  }
+
+  if (memory.template_dir) {
+    const absDir = path.resolve(rootPath, memory.template_dir);
+    if (!fs.existsSync(absDir)) {
+      throw new Error(
+        `[memfs-plan] Agent ${agentName}: template_dir does not exist at ${absDir}. ` +
+          `Check memory.template_dir in YAML (resolved against root_path).`,
+      );
+    }
+    for (const [filePath, content] of walkTemplateDir(absDir)) {
+      out.set(filePath, content);
+    }
+  }
 
   if (memory.from_blocks) {
     const blockByLabel = new Map(server.blocks.map((b) => [b.label, b]));
@@ -173,25 +205,43 @@ export function buildTargetFiles(
     }
   }
 
-  if (memory.capability_index_file) {
-    if (!memory.template_dir) {
-      throw new Error(
-        `[memfs-plan] Agent ${agentName}: memory.capability_index_file is set but memory.template_dir is not. ` +
-          `Set template_dir to the directory holding the index file.`,
-      );
+  return out;
+}
+
+/**
+ * Recursively walk `absDir`, returning a map of repo-relative path -> file content.
+ *
+ * Includes: .md, .gitkeep, .keep
+ * Excludes: dotfiles (except .gitkeep/.keep), symlinks, root-level README.md.
+ * Nested READMEs (e.g. subdir/README.md) are NOT excluded — operators may
+ * structure them deliberately as agent-readable docs.
+ */
+export function walkTemplateDir(absDir: string): Map<string, string> {
+  const out = new Map<string, string>();
+  const KEEP_EXT = new Set(['.md', '.gitkeep', '.keep']);
+
+  function walk(currentAbs: string, relPrefix: string) {
+    const entries = fs.readdirSync(currentAbs, { withFileTypes: true });
+    for (const entry of entries) {
+      if (entry.isSymbolicLink()) continue;
+      const name = entry.name;
+      const isKeepFile = name === '.gitkeep' || name === '.keep';
+      if (name.startsWith('.') && !isKeepFile) continue;
+      const relPath = relPrefix ? `${relPrefix}/${name}` : name;
+      const absPath = path.join(currentAbs, name);
+      if (entry.isDirectory()) {
+        walk(absPath, relPath);
+        continue;
+      }
+      if (!entry.isFile()) continue;
+      if (relPrefix === '' && name === 'README.md') continue;
+      const ext = isKeepFile ? name : path.extname(name);
+      if (!KEEP_EXT.has(ext)) continue;
+      out.set(relPath, fs.readFileSync(absPath, 'utf8'));
     }
-    const indexAbsolute = path.resolve(rootPath, memory.template_dir, memory.capability_index_file);
-    if (!fs.existsSync(indexAbsolute)) {
-      throw new Error(
-        `[memfs-plan] Agent ${agentName}: capability_index_file does not exist at ${indexAbsolute}. ` +
-          `Check memory.template_dir + memory.capability_index_file in YAML.`,
-      );
-    }
-    const content = fs.readFileSync(indexAbsolute, 'utf8');
-    // Target path is the capability_index_file relative path (e.g., "system/capability-index.md")
-    out.set(memory.capability_index_file, content);
   }
 
+  walk(absDir, '');
   return out;
 }
 
