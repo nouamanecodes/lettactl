@@ -72,6 +72,21 @@ export class LettaClientWrapper {
     return agent;
   }
 
+  // Pulls /v1/agents/<id>/context — the assembled context window summary
+  // (num_tokens_core_memory, memory_filesystem present/absent, etc.). Used by
+  // the memFS reconciler to verify a post-flip state: core_memory should be 0
+  // tokens once `git-memory-enabled` is set, since blocks stop being injected.
+  async getAgentContext(agentId: string): Promise<any> {
+    const baseUrl = process.env.LETTA_BASE_URL;
+    const response = await fetch(`${baseUrl}/v1/agents/${agentId}/context`, {
+      headers: this.getAuthHeaders(),
+    });
+    if (!response.ok) {
+      throw new Error(`Failed to get agent context (HTTP ${response.status}): ${response.statusText}`);
+    }
+    return await response.json();
+  }
+
   async createAgent(agentData: any) {
     return await this.client.agents.create(agentData);
   }

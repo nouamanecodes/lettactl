@@ -10,6 +10,11 @@ import { createSpinner, getSpinnerEnabled } from '../../lib/ux/spinner';
 import { SupabaseStorageBackend, hasSupabaseConfig } from '../../lib/storage/storage-backend';
 import { applyTemplateMode } from './template';
 import { collectDesiredResourceNames, processSharedBlocks, processFolders, updateExistingAgent, createNewAgent } from '../../lib/apply/apply-helpers';
+import { GitClient } from '../../lib/memfs-reconciler/git-client';
+import { MemfsReconciler, MemfsExecutionResult } from '../../lib/memfs-reconciler/executor';
+import { computeMemfsAction } from '../../lib/memfs-reconciler/plan';
+import { buildServerAgentState } from '../../lib/memfs-reconciler/server-state';
+import * as nodePath from 'path';
 import { formatLettaError } from '../../lib/shared/error-handler';
 import { computeDryRunDiffs, displayDryRunResults } from '../../lib/apply/dry-run';
 import { log, warn, output, isQuietMode } from '../../lib/shared/logger';
@@ -246,6 +251,28 @@ export async function applyCommand(options: ApplyOptions, command: any): Promise
     const skipped: string[] = [];
     const appliedAgents = new Map<string, { id: string; resolvedName: string }>();
 
+    // memFS reconciler — instantiated once per apply run, shared across agents.
+    // Only agents whose YAML has `memory:` will go through the reconcile flow.
+    const lettactlVersion = (() => {
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        return require('../../../package.json').version as string;
+      } catch {
+        return '0.0.0';
+      }
+    })();
+    const gitClient = new GitClient({
+      baseUrl: process.env.LETTA_BASE_URL || 'http://localhost:8283',
+      authToken: process.env.LETTA_API_KEY || null,
+    });
+    const backupDir = nodePath.resolve(config.root_path || process.cwd(), 'backups', 'memfs-migrations');
+    const memfsReconciler = new MemfsReconciler(client, gitClient, {
+      dryRun: options.dryRun || false,
+      backupDir,
+      lettactlVersion,
+    });
+    const memfsResults: MemfsExecutionResult[] = [];
+
     for (const agent of config.agents) {
       const filterName = (agent as any)._originalName || agent.name;
       if (options.agent && !filterName.includes(options.agent)) continue;
@@ -407,6 +434,20 @@ export async function applyCommand(options: ApplyOptions, command: any): Promise
             id: existingAgent.id,
             resolvedName: existingAgent.name
           });
+
+          // memFS reconciliation — only if YAML declares `memory:` section
+          if (agent.memory) {
+            const result = await reconcileMemfsForAgent(
+              agent,
+              existingAgent.id,
+              client,
+              gitClient,
+              memfsReconciler,
+              config.root_path || process.cwd(),
+            );
+            memfsResults.push(result);
+            logMemfsResult(result, agent.name);
+          }
         } else {
           // Create new agent
           const createdAgent = await createNewAgent(agent, agentName, {
@@ -436,6 +477,20 @@ export async function applyCommand(options: ApplyOptions, command: any): Promise
             id: createdAgent.id,
             resolvedName: createdAgent.name
           });
+
+          // memFS reconciliation for freshly-created agents
+          if (agent.memory) {
+            const result = await reconcileMemfsForAgent(
+              agent,
+              createdAgent.id,
+              client,
+              gitClient,
+              memfsReconciler,
+              config.root_path || process.cwd(),
+            );
+            memfsResults.push(result);
+            logMemfsResult(result, agent.name);
+          }
         }
       } catch (err: any) {
         const errorMsg = formatLettaError(err.message);
@@ -667,5 +722,65 @@ export async function applyCommand(options: ApplyOptions, command: any): Promise
 
   } catch (err: any) {
     throw new Error(`Apply failed: ${formatLettaError(err.message || err)}`);
+  }
+}
+
+/**
+ * Run the memFS reconciler for a single agent. Pulls server state, computes
+ * the diff, executes (or dry-runs). Returns the result so apply can log it.
+ *
+ * Errors here are caught and returned as failed results — they don't abort
+ * the whole apply (kubectl-style: per-agent failures continue).
+ */
+async function reconcileMemfsForAgent(
+  agent: any,
+  agentId: string,
+  client: LettaClientWrapper,
+  gitClient: GitClient,
+  memfsReconciler: MemfsReconciler,
+  rootPath: string,
+): Promise<MemfsExecutionResult> {
+  try {
+    const serverState = await buildServerAgentState(client, gitClient, agentId);
+    const action = computeMemfsAction(agent.name, agent, serverState, rootPath);
+    return await memfsReconciler.execute(action);
+  } catch (err) {
+    return {
+      kind: 'no-op',
+      agentId,
+      status: 'failed',
+      error: `memFS reconcile failed: ${(err as Error).message}`,
+    };
+  }
+}
+
+function logMemfsResult(result: MemfsExecutionResult, agentName: string): void {
+  const prefix = `  [memfs:${agentName}]`;
+  switch (result.status) {
+    case 'noop':
+      log(`${prefix} no-op`);
+      break;
+    case 'dry-run':
+      if (result.kind === 'migrate-forward') {
+        log(`${prefix} DRY-RUN migrate-forward: ${result.filesChanged?.length ?? 0} files → bare repo, then add git-memory-enabled tag (backup: ${result.backupPath})`);
+      } else if (result.kind === 'rollback') {
+        log(`${prefix} DRY-RUN rollback: remove git-memory-enabled tag`);
+      } else if (result.kind === 'sync-files-only') {
+        log(`${prefix} DRY-RUN sync-files-only: ${result.filesChanged?.length ?? 0} files`);
+      }
+      break;
+    case 'applied':
+      if (result.kind === 'migrate-forward') {
+        log(`${prefix} ✓ migrated to memfs (${result.filesChanged?.length} files, commit ${result.commitSha?.slice(0, 7)}, backup ${result.backupPath})`);
+        if (result.error) warn(`${prefix} ${result.error}`);
+      } else if (result.kind === 'rollback') {
+        log(`${prefix} ✓ rolled back to block-mode (tag removed)`);
+      } else if (result.kind === 'sync-files-only') {
+        log(`${prefix} ✓ synced ${result.filesChanged?.length} files (commit ${result.commitSha?.slice(0, 7)})`);
+      }
+      break;
+    case 'failed':
+      warn(`${prefix} FAILED: ${result.error ?? '(no detail)'}`);
+      break;
   }
 }

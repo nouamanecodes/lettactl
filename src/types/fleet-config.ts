@@ -50,6 +50,30 @@ export interface AgentConfig {
   reasoning?: boolean; // Enable reasoning for models that support it (default: true)
   tags?: string[]; // Tags for filtering and multi-tenancy (e.g., ["tenant:user-123", "role:support"])
   lettabot?: LettaBotConfig; // LettaBot runtime configuration (channels, features, polling, etc.)
+  memory?: AgentMemoryConfig; // memFS migration config — see AgentMemoryConfig. Absent = block-mode (default).
+}
+
+// Per-agent memFS migration config. When `mode: memfs`, lettactl apply will
+// migrate this agent's blocks into git-backed memfs files, push to the bare
+// repo, and flip the `git-memory-enabled` tag on the agent. When `mode:
+// blocks` (or section omitted), the agent operates in classic block-mode.
+// Round-trip is supported: flipping mode back to blocks removes the tag and
+// blocks come back online. See:
+//   adspectre_dashboard/docs/research/1531-migration-tooling.md
+export interface AgentMemoryConfig {
+  mode: 'blocks' | 'memfs';
+  bare_repo?: 'auto';                        // 'auto' = resolve via Letta /v1/git/<id>/state.git
+  template_dir?: string;                     // dir of skeleton .md files; relative to root_path
+  from_blocks?: Array<{
+    block: string;                           // existing block label on the agent
+    to: string;                              // memfs target path (must end in .md, no leading slash, no ..)
+    extract_section?: string;                // optional: extract only this markdown H2 section from the block
+  }>;
+  capability_index_file?: string;            // path to system/capability-index.md content (relative to template_dir)
+  verify?: {
+    require_core_memory_empty?: boolean;     // post-flip, /context must show num_tokens_core_memory === 0
+    smoke_prompt?: string;                   // optional probe sent after the flip
+  };
 }
 
 export interface McpToolConfig {
