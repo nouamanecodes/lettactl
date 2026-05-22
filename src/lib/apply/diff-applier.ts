@@ -344,7 +344,18 @@ export class DiffApplier {
   }
 
   /**
-   * Helper method to update an existing file in a folder
+   * Helper method to update an existing file in a folder.
+   *
+   * Letta's POST /folders/{id}/upload always CREATES — if a file with the same
+   * name exists, the server appends a "_(N)" suffix instead of replacing it.
+   * That leaves stale duplicates accumulating across every apply, and
+   * downstream tools (grep_files, open_files) start matching both copies.
+   *
+   * Letta has no PATCH-by-name for file content, so the only idempotent path
+   * is: look up the existing file by name → delete it → upload the new copy
+   * under the original name. If delete succeeds but upload fails, the file is
+   * gone until the next apply — surface a clear error so the operator can
+   * retry. (See nouamanecodes/lettactl#375.)
    */
   private async updateFileInFolder(folderId: string, filePath: string): Promise<void> {
     const fullPath = path.resolve(this.basePath, filePath);
@@ -354,7 +365,13 @@ export class DiffApplier {
       throw new Error(`File not found: ${fullPath}`);
     }
 
-    // For file updates, we re-upload the file
+    // Delete the existing file first so the new upload keeps the original name.
+    // No-op if the file isn't present (e.g. first-time add via this path).
+    const existingFileId = await this.client.getFileIdByName(folderId, fileName);
+    if (existingFileId) {
+      await this.client.deleteFileFromFolder(folderId, existingFileId);
+    }
+
     const fileStream = fs.createReadStream(fullPath);
     await this.client.uploadFileToFolder(fileStream, folderId, fileName);
   }
