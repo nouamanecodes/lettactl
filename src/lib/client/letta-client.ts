@@ -403,8 +403,19 @@ export class LettaClientWrapper {
   }
 
   async listAgentFolders(agentId: string) {
+    // The TypeScript SDK's paginated iterator can yield the same folder
+    // multiple times (observed: 3 unique folders returned as a 5-element list
+    // with two duplicates). Dedupe by id so downstream diff analysis sees
+    // each attached folder exactly once — without this, analyzeFolderChanges
+    // can push the same folder into `toUpdate` twice, and the v0.21.2
+    // delete-then-upload file-update path runs twice in sequence, opening a
+    // window where a file can be deleted but never re-uploaded.
+    const seen = new Set<string>();
     const allFolders: any[] = [];
     for await (const folder of this.client.agents.folders.list(agentId)) {
+      const id = (folder as any)?.id;
+      if (!id || seen.has(id)) continue;
+      seen.add(id);
       allFolders.push(folder);
     }
     return allFolders;
