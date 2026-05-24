@@ -55,16 +55,19 @@ describe('DiffEngine', () => {
       expect(result.toUpdate).toEqual([]);
     });
 
-    it('treats missing builtin tools as unchanged', async () => {
+    it('skips re-attachment for implicit builtins but adds explicit builtins (see #381)', async () => {
       const result = await analyzeToolChanges(
         [],
         ['archival_memory_insert', 'web_search'],
         new Map([['archival_memory_insert', 'builtin-id-1'], ['web_search', 'builtin-id-2']])
       );
-      expect(result.toAdd).toEqual([]);
-      expect(result.unchanged).toEqual([
-        { name: 'archival_memory_insert', id: 'builtin-id-1' },
+      // archival_memory_insert is server-auto-attached → unchanged
+      // web_search is letta_builtin → requires explicit attachToolToAgent → toAdd
+      expect(result.toAdd).toEqual([
         { name: 'web_search', id: 'builtin-id-2' }
+      ]);
+      expect(result.unchanged).toEqual([
+        { name: 'archival_memory_insert', id: 'builtin-id-1' }
       ]);
     });
   });
