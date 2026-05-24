@@ -99,6 +99,25 @@ export function isBuiltinTool(toolName: string): boolean {
 }
 
 /**
+ * Builtins the server auto-attaches when prerequisites are met (folders
+ * attached, persona block set). These show up in listAgentTools inconsistently,
+ * so the diff analyzer should treat them as `unchanged` rather than `toAdd`.
+ *
+ * Counterpart: BUILTIN_TOOLS (web_search, fetch_webpage, run_code) require
+ * explicit attach via attachToolToAgent and must go through the toAdd path.
+ * @see https://github.com/nouamanecodes/lettactl/issues/381
+ */
+const IMPLICIT_BUILTIN_TOOLS = new Set<string>([
+  ...CORE_MEMORY_TOOLS,
+  ...FILE_SEARCH_TOOLS,
+  'open_files',
+]);
+
+export function isImplicitBuiltin(toolName: string): boolean {
+  return IMPLICIT_BUILTIN_TOOLS.has(toolName);
+}
+
+/**
  * Get info about a built-in tool if it exists
  */
 export function getBuiltinToolInfo(toolName: string): BuiltinToolInfo | null {

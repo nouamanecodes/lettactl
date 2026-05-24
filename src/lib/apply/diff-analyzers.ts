@@ -4,7 +4,7 @@ import { normalizeResponse } from '../shared/response-normalizer';
 import { ToolDiff, BlockDiff, FolderDiff, ArchiveDiff } from './diff-engine';
 import { FolderFileConfig } from '../../types/fleet-config';
 import { warn } from '../shared/logger';
-import { PROTECTED_MEMORY_TOOLS, isBuiltinTool } from '../tools/builtin-tools';
+import { PROTECTED_MEMORY_TOOLS, isImplicitBuiltin } from '../tools/builtin-tools';
 import { ArchiveManager } from '../managers/archive-manager';
 
 // Helper to extract file name from FolderFileConfig (string or from_bucket object)
@@ -56,9 +56,12 @@ export async function analyzeToolChanges(
     if (!currentToolNames.has(toolName)) {
       const toolId = toolRegistry.get(toolName);
       if (toolId) {
-        // Builtin tools are implicitly available — the API may not
-        // include them in listAgentTools, so skip re-attachment
-        if (isBuiltinTool(toolName)) {
+        // Server auto-attaches some builtins (core memory, file search,
+        // open_files) when prerequisites are met, and they show up in
+        // listAgentTools inconsistently — skip re-attachment for those.
+        // Explicit builtins (web_search, fetch_webpage, run_code) require
+        // attachToolToAgent and must go through toAdd.
+        if (isImplicitBuiltin(toolName)) {
           unchanged.push({ name: toolName, id: toolId });
           continue;
         }
