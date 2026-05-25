@@ -21,13 +21,19 @@ export class DiffApplier {
 
   /**
    * Applies the update operations to the agent
-   * @param force - When true, also removes resources not in config (strict reconciliation)
+   * @param force - When true, removes ALL resources not in config (blocks, tools,
+   *   folders, archives) — strict reconciliation. Detaching folders/archives can
+   *   lose data (#257), which is why force is normally avoided.
+   * @param prune - When true, detaches blocks/tools not in config (safe
+   *   reconciliation). Does NOT touch folders/archives. Lets you reconcile the
+   *   common case without the data-loss risk of --force (#384).
    */
   async applyUpdateOperations(
     agentId: string,
     operations: AgentUpdateOperations,
     verbose: boolean = false,
-    force: boolean = false
+    force: boolean = false,
+    prune: boolean = false
   ): Promise<void> {
     if (operations.operationCount === 0) {
       if (verbose) log('  No changes needed');
@@ -118,8 +124,8 @@ export class DiffApplier {
         await this.client.attachToolToAgent(agentId, tool.newId);
       }
 
-      // Only remove tools when --force is specified
-      if (force) {
+      // Remove tools not in config when --prune or --force is specified.
+      if (force || prune) {
         for (const tool of operations.tools.toRemove) {
           if (verbose) log(`  Detaching tool: ${tool.name}${getBuiltinTag(tool.name)}`);
           await this.client.detachToolFromAgent(agentId, tool.id);
@@ -134,8 +140,8 @@ export class DiffApplier {
         await this.client.attachBlockToAgent(agentId, block.id);
       }
 
-      // Only remove blocks when --force is specified
-      if (force) {
+      // Remove blocks not in config when --prune or --force is specified.
+      if (force || prune) {
         for (const block of operations.blocks.toRemove) {
           if (verbose) log(`  Detaching block: ${block.name}`);
           await this.client.detachBlockFromAgent(agentId, block.id);

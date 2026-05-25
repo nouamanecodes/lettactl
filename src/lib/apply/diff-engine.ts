@@ -317,9 +317,10 @@ export class DiffEngine {
     agentId: string,
     operations: AgentUpdateOperations,
     verbose: boolean = false,
-    force: boolean = false
+    force: boolean = false,
+    prune: boolean = false
   ): Promise<void> {
     const applier = new DiffApplier(this.client, this.basePath);
-    return applier.applyUpdateOperations(agentId, operations, verbose, force);
+    return applier.applyUpdateOperations(agentId, operations, verbose, force, prune);
   }
 }

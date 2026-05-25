@@ -113,8 +113,8 @@ describe('OutputFormatter', () => {
       operationCount: 4,
     });
 
-    it('shows (requires --force) on removal lines when force is false', () => {
-      OutputFormatter.showAgentUpdateDiff(makeOperations(), undefined, false);
+    it('gates block/tool removal behind --prune and folder/archive removal behind --force when neither flag set', () => {
+      OutputFormatter.showAgentUpdateDiff(makeOperations(), undefined, false, false);
 
       const lines = mockConsoleLog.mock.calls.map(c => c[0]);
       const removedTool = lines.find((l: string) => l.includes('Removed tool: old-tool'));
@@ -122,13 +122,29 @@ describe('OutputFormatter', () => {
       const removedFolder = lines.find((l: string) => l.includes('Removed folder: old-folder'));
       const removedArchive = lines.find((l: string) => l.includes('Removed archive: old-archive'));
 
-      expect(removedTool).toContain('(requires --force)');
-      expect(removedBlock).toContain('(requires --force)');
+      // Blocks/tools detach safely under --prune; folders/archives can lose data so stay under --force (#384).
+      expect(removedTool).toContain('(requires --prune)');
+      expect(removedBlock).toContain('(requires --prune)');
       expect(removedFolder).toContain('(requires --force)');
       expect(removedArchive).toContain('(requires --force)');
     });
 
-    it('omits (requires --force) on removal lines when force is true', () => {
+    it('clears the block/tool hint under --prune but keeps folders/archives gated behind --force', () => {
+      OutputFormatter.showAgentUpdateDiff(makeOperations(), undefined, false, true);
+
+      const lines = mockConsoleLog.mock.calls.map(c => c[0]);
+      const removedTool = lines.find((l: string) => l.includes('Removed tool: old-tool'));
+      const removedBlock = lines.find((l: string) => l.includes('Removed block: old-block'));
+      const removedFolder = lines.find((l: string) => l.includes('Removed folder: old-folder'));
+      const removedArchive = lines.find((l: string) => l.includes('Removed archive: old-archive'));
+
+      expect(removedTool).not.toContain('(requires --prune)');
+      expect(removedBlock).not.toContain('(requires --prune)');
+      expect(removedFolder).toContain('(requires --force)');
+      expect(removedArchive).toContain('(requires --force)');
+    });
+
+    it('omits all removal hints when force is true', () => {
       OutputFormatter.showAgentUpdateDiff(makeOperations(), undefined, true);
 
       const lines = mockConsoleLog.mock.calls.map(c => c[0]);
@@ -137,6 +153,7 @@ describe('OutputFormatter', () => {
       expect(removalLines.length).toBe(4);
       removalLines.forEach((line: string) => {
         expect(line).not.toContain('(requires --force)');
+        expect(line).not.toContain('(requires --prune)');
       });
     });
 
