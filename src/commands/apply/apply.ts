@@ -24,7 +24,7 @@ import { buildMcpServerRegistry, expandMcpToolsForAgents } from '../../lib/tools
 import { buildAgentManifest, getDefaultManifestPath, writeAgentManifest } from '../../lib/apply/agent-manifest';
 import { ApplyOptions, DeployResult } from './types';
 import { batchProcess } from '../../lib/shared/batch';
-import { DEFAULT_CANARY_PREFIX, rewriteAgentNamesForCanary, cleanupCanaryAgents, buildCanaryMetadata } from '../../lib/apply/canary';
+import { DEFAULT_CANARY_PREFIX, rewriteAgentNamesForCanary, rewriteFolderNamesForCanary, cleanupCanaryAgents, buildCanaryMetadata } from '../../lib/apply/canary';
 import { bulkSendMessage } from '../../lib/messaging/bulk-messenger';
 import { waitForAgentIdle, defaultWaitLogger, RequiresApprovalError } from '../../lib/messaging/wait-for-idle';
 import { retryOn409 } from '../../lib/shared/retry';
@@ -152,9 +152,13 @@ export async function applyCommand(options: ApplyOptions, command: any): Promise
     }
 
     if (options.canary && !options.promote) {
-      // Canary deploy: prefix all agent names
+      // Canary deploy: prefix all agent names, and isolate folders so the canary
+      // gets fresh CANARY-<folder> copies with the desired files (fidelity) without
+      // mutating the shared production folders (isolation). Must run before folder
+      // resolution below.
       const { rewrittenAgents } = rewriteAgentNamesForCanary(config.agents, canaryPrefix);
       config.agents = rewrittenAgents;
+      rewriteFolderNamesForCanary(config, canaryPrefix);
       canaryMode = true;
       log(`Canary mode: deploying with prefix "${canaryPrefix}"`);
     }

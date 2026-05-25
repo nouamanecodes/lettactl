@@ -47,6 +47,33 @@ export function rewriteAgentNamesForCanary(
   return { rewrittenAgents, nameMap };
 }
 
+/**
+ * Isolate folders for a canary deploy by prefixing every folder name.
+ *
+ * Folders are shared across agents (one source object referenced by name). A
+ * canary that introduces a new folder file would otherwise either attach the
+ * production folder as-is (missing the new file — a fidelity gap) or mutate the
+ * shared production folder (leaking the change before promotion). Prefixing the
+ * names makes `processFolders` create fresh `CANARY-<folder>` copies with the
+ * desired file set; `cleanupCanaryAgents` deletes them on promote/cleanup.
+ *
+ * Must run AFTER the agent-name rewrite and BEFORE folder resolution (collect +
+ * processFolders). Promote does not call this, so it operates on real folders.
+ *
+ * Note: `open_files` resolves files by basename within attached folders, so the
+ * folder-name change is invisible to the agent's runtime.
+ */
+export function rewriteFolderNamesForCanary(config: any, prefix: string): void {
+  if (Array.isArray(config.shared_folders)) {
+    config.shared_folders = config.shared_folders.map((f: any) => ({ ...f, name: `${prefix}${f.name}` }));
+  }
+  for (const agent of config.agents || []) {
+    if (Array.isArray(agent.folders)) {
+      agent.folders = agent.folders.map((f: any) => ({ ...f, name: `${prefix}${f.name}` }));
+    }
+  }
+}
+
 export async function cleanupCanaryAgents(
   config: any,
   prefix: string,
@@ -88,6 +115,27 @@ export async function cleanupCanaryAgents(
     } catch (err: any) {
       failed.push(agent.name);
       warn(`Failed to delete canary ${agent.name}: ${err.message}`);
+    }
+  }
+
+  // Delete the isolated CANARY-<folder> copies created by rewriteFolderNamesForCanary.
+  // Skip when an --agent filter is active: canary folders are shared across the
+  // canary run, so a targeted cleanup must not yank a folder a sibling canary uses.
+  // A full cleanup (no --agent) sweeps them.
+  if (!options.agent) {
+    try {
+      const allFolders = await client.listFolders();
+      const canaryFolders = (allFolders || []).filter((f: any) => isCanaryName(f.name, prefix));
+      for (const f of canaryFolders) {
+        try {
+          await client.deleteFolder(f.id);
+          output(`Deleted canary folder: ${f.name}`);
+        } catch (err: any) {
+          warn(`Failed to delete canary folder ${f.name}: ${err.message}`);
+        }
+      }
+    } catch (err: any) {
+      warn(`Failed to list folders for canary cleanup: ${err.message}`);
     }
   }
 
