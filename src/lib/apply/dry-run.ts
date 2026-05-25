@@ -515,7 +515,7 @@ function formatUpdateDetails(ops: AgentUpdateOperations, verbose: boolean, fancy
   // Tool changes
   if (ops.tools) {
     for (const t of ops.tools.toAdd) output(`    ${green('Tool [+]:')} ${t.name}`);
-    for (const t of ops.tools.toRemove) output(`    ${red('Tool [-]:')} ${t.name} ${dim('(requires --force)')}`);
+    for (const t of ops.tools.toRemove) output(`    ${red('Tool [-]:')} ${t.name} ${dim('(requires --prune)')}`);
     for (const t of ops.tools.toUpdate) output(`    ${colorPurple('Tool [~]:')} ${t.name} ${dim(`(${t.reason})`)}`);
     if (verbose && ops.tools.unchanged.length > 0) {
       output(`    ${dim(`Tools unchanged: ${ops.tools.unchanged.length}`)}`);
@@ -525,7 +525,7 @@ function formatUpdateDetails(ops: AgentUpdateOperations, verbose: boolean, fancy
   // Block changes
   if (ops.blocks) {
     for (const b of ops.blocks.toAdd) output(`    ${green('Block [+]:')} ${b.name}`);
-    for (const b of ops.blocks.toRemove) output(`    ${red('Block [-]:')} ${b.name} ${dim('(requires --force)')}`);
+    for (const b of ops.blocks.toRemove) output(`    ${red('Block [-]:')} ${b.name} ${dim('(requires --prune)')}`);
     for (const b of ops.blocks.toUpdate) {
       const detail = b.reason ? ` ${dim(`(${b.reason})`)}` : '';
       output(`    ${colorPurple('Block [~]:')} ${b.name}${detail}`);

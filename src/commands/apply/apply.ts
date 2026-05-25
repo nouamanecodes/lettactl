@@ -428,6 +428,7 @@ export async function applyCommand(options: ApplyOptions, command: any): Promise
             spinnerEnabled,
             verbose,
             force: options.force || false,
+            prune: options.prune || false,
             previousFolderFileHashes
           });
 

@@ -9,6 +9,10 @@ export interface ApplyOptions {
   scope?: string;
   dryRun?: boolean;
   force?: boolean;
+  /** Detach blocks/tools not in config (safe reconciliation). Unlike --force it
+   *  never touches folders/archives, so it can't lose archival data (#257).
+   *  Gives a safe path to reconcile the common case. See nouamanecodes/lettactl#384. */
+  prune?: boolean;
   root?: string;
   manifest?: string;
   skipFirstMessage?: boolean;
