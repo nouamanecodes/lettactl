@@ -219,12 +219,33 @@ export class DiffApplier {
         }
       }
 
-      // Close all files after folder operations to prevent context window bloat
-      // Files remain searchable but aren't loaded into context
-      const hasFileChanges = operations.folders.toAttach.length > 0 ||
-        operations.folders.toUpdate.some(f => f.filesToAdd.length > 0 || f.filesToUpdate.length > 0);
-      if (hasFileChanges) {
-        await this.client.closeAllAgentFiles(agentId);
+      // Close files after folder operations to prevent context-window bloat.
+      // Folders are typically SHARED across many agents (and agencies): adding or updating
+      // a file opens it (is_open=true) on EVERY agent attached to the folder, not just this
+      // one. Since lettactl applies per-agency, closing only `agentId` leaves the file open
+      // on every other agent that shares the folder, silently bloating their context until
+      // some future apply happens to touch a file for them. So when a shared folder's files
+      // change, close-all across that folder's full agent set. (A freshly attached folder
+      // only affects the current agent.)
+      const changedFolders = operations.folders.toUpdate.filter(
+        f => f.filesToAdd.length > 0 || f.filesToUpdate.length > 0 || f.filesToRemove.length > 0
+      );
+      const agentsToClose = new Set<string>();
+      if (operations.folders.toAttach.length > 0) agentsToClose.add(agentId);
+      for (const folder of changedFolders) {
+        try {
+          const ids = (await this.client.listFolderAgents(folder.id))
+            .map((a: any) => (typeof a === 'string' ? a : a?.id))
+            .filter(Boolean);
+          for (const id of ids) agentsToClose.add(id);
+        } catch (err) {
+          error(`    Failed to list agents for folder ${folder.name}, closing current agent only:`, (err as Error).message);
+          agentsToClose.add(agentId);
+        }
+      }
+      for (const id of agentsToClose) {
+        await this.client.closeAllAgentFiles(id).catch((err: Error) =>
+          error(`    Failed to close files for agent ${id}:`, err.message));
       }
     }
 
