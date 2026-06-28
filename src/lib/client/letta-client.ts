@@ -2,6 +2,8 @@ import LettaClient from '@letta-ai/letta-client';
 import { sendMessageToAgent, MessageOptions } from '../messaging/message-sender';
 import { warn } from '../shared/logger';
 
+const DEFAULT_LIST_LIMIT = 200;
+
 export class LettaClientWrapper {
   private client: LettaClient;
 
@@ -72,6 +74,39 @@ export class LettaClientWrapper {
     return agent;
   }
 
+  async getAgentSecrets(agentId: string): Promise<Record<string, string>> {
+    const baseUrl = process.env.LETTA_BASE_URL;
+    const response = await fetch(`${baseUrl}/v1/agents/${agentId}?include=agent.secrets`, {
+      headers: this.getAuthHeaders(),
+    });
+    if (!response.ok) {
+      throw new Error(`Failed to get agent secrets (HTTP ${response.status}): ${response.statusText}`);
+    }
+    const agent: any = await response.json();
+    return this.normalizeSecrets(agent.secrets);
+  }
+
+  async updateAgentSecrets(agentId: string, secrets: Record<string, string>): Promise<void> {
+    await this.updateAgent(agentId, { secrets });
+  }
+
+  private normalizeSecrets(raw: any): Record<string, string> {
+    if (!raw) return {};
+    if (Array.isArray(raw)) {
+      return Object.fromEntries(
+        raw
+          .filter((s: any) => typeof s?.key === 'string' && typeof s?.value === 'string')
+          .map((s: any) => [s.key, s.value]),
+      );
+    }
+    if (typeof raw === 'object') {
+      return Object.fromEntries(
+        Object.entries(raw).filter(([, value]) => typeof value === 'string'),
+      ) as Record<string, string>;
+    }
+    return {};
+  }
+
   // Pulls /v1/agents/<id>/context — the assembled context window summary
   // (num_tokens_core_memory, memory_filesystem present/absent, etc.). Used by
   // the memFS reconciler to verify a post-flip state: core_memory should be 0
@@ -110,7 +145,7 @@ export class LettaClientWrapper {
     connectedAgentsCountLt?: number;
   }) {
     const allBlocks: any[] = [];
-    const params: any = { limit: options?.limit || 1000 };
+    const params: any = { limit: options?.limit || DEFAULT_LIST_LIMIT };
 
     if (options?.connectedAgentsCountEq !== undefined) {
       params.connected_to_agents_count_eq = options.connectedAgentsCountEq;
@@ -130,7 +165,7 @@ export class LettaClientWrapper {
 
   async listArchives(options?: { limit?: number; agentId?: string; name?: string }) {
     const allArchives: any[] = [];
-    const params: any = { limit: options?.limit || 1000 };
+    const params: any = { limit: options?.limit || DEFAULT_LIST_LIMIT };
 
     if (options?.agentId) {
       params.agent_id = options.agentId;
@@ -167,7 +202,7 @@ export class LettaClientWrapper {
 
   async listFolders(options?: { limit?: number }) {
     const allFolders: any[] = [];
-    for await (const folder of this.client.folders.list({ limit: options?.limit || 1000 })) {
+    for await (const folder of this.client.folders.list({ limit: options?.limit || DEFAULT_LIST_LIMIT })) {
       allFolders.push(folder);
     }
     return allFolders;
@@ -229,7 +264,7 @@ export class LettaClientWrapper {
 
   async listTools(options?: { limit?: number }) {
     const allTools: any[] = [];
-    for await (const tool of this.client.tools.list({ limit: options?.limit || 1000 })) {
+    for await (const tool of this.client.tools.list({ limit: options?.limit || DEFAULT_LIST_LIMIT })) {
       allTools.push(tool);
     }
     return allTools;

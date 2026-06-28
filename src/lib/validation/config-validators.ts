@@ -5,6 +5,7 @@
 
 import { BucketConfigValidator } from '../storage/bucket-config-validator';
 import { warn } from '../shared/logger';
+import { validateSecretConfigMap } from '../secrets-reconciler';
 
 /**
  * Main orchestrator for fleet configuration validation
@@ -19,6 +20,10 @@ export class FleetConfigValidator {
 
     if (config.shared_folders) {
       SharedFolderValidator.validate(config.shared_folders);
+    }
+
+    if (config['global-secrets']) {
+      validateSecretConfigMap('global-secrets', config['global-secrets'], { global: true });
     }
 
     if (config.agents) {
@@ -169,6 +174,10 @@ export class AgentValidator {
     if (agent.memory) {
       AgentMemoryConfigValidator.validate(agent.memory);
     }
+
+    if (agent.secrets) {
+      validateSecretConfigMap('agent.secrets', agent.secrets);
+    }
   }
   
   private static validateStructure(agent: any): void {
@@ -224,7 +233,7 @@ export class AgentValidator {
       'tools', 'mcp_tools', 'memory_blocks', 'archives', 'folders',
       'embedding', 'embedding_config', 'shared_blocks', 'shared_folders',
       'first_message', 'reasoning', 'tags', 'lettabot', 'conversations',
-      'compaction_settings', 'memory'
+      'compaction_settings', 'memory', 'secrets'
     ];
     
     const unknownFields = Object.keys(agent).filter(field => !allowedFields.includes(field));
@@ -1020,18 +1029,6 @@ export class AgentMemoryConfigValidator {
       );
     }
 
-    // memfs mode requires a source: either explicit from_blocks or a template_dir
-    if (memory.mode === 'memfs') {
-      const hasFromBlocks = Array.isArray(memory.from_blocks) && memory.from_blocks.length > 0;
-      const hasTemplateDir = typeof memory.template_dir === 'string' && memory.template_dir.length > 0;
-      if (!hasFromBlocks && !hasTemplateDir) {
-        throw new Error(
-          'memory.mode is "memfs" but neither from_blocks (non-empty array) nor template_dir is set. ' +
-          'At least one is required so lettactl knows what to push to the bare repo.'
-        );
-      }
-    }
-
     if (memory.bare_repo !== undefined && memory.bare_repo !== 'auto') {
       throw new Error(
         `memory.bare_repo must be "auto" if set (got ${JSON.stringify(memory.bare_repo)}). ` +
@@ -1045,6 +1042,54 @@ export class AgentMemoryConfigValidator {
 
     if (memory.capability_index_file !== undefined && typeof memory.capability_index_file !== 'string') {
       throw new Error('memory.capability_index_file must be a string path.');
+    }
+
+    if (memory.skills !== undefined) {
+      if (!Array.isArray(memory.skills)) {
+        throw new Error('memory.skills must be an array.');
+      }
+      const seenSkillNames = new Set<string>();
+      memory.skills.forEach((entry: any, i: number) => {
+        if (!entry || typeof entry !== 'object') {
+          throw new Error(`memory.skills[${i}] must be an object.`);
+        }
+        if (typeof entry.from_dir !== 'string' || entry.from_dir.length === 0) {
+          throw new Error(`memory.skills[${i}].from_dir must be a non-empty string.`);
+        }
+        if (entry.from_dir.startsWith('/') || entry.from_dir.includes('..')) {
+          throw new Error(
+            `memory.skills[${i}].from_dir must be a repo-relative path. ` +
+            `Got "${entry.from_dir}" — no leading slash, no "..".`
+          );
+        }
+        if (entry.name !== undefined && (typeof entry.name !== 'string' || entry.name.length === 0)) {
+          throw new Error(`memory.skills[${i}].name must be a non-empty string if set.`);
+        }
+        const skillName = entry.name || entry.from_dir.split('/').filter(Boolean).pop();
+        if (!skillName || !/^[a-z0-9][a-z0-9-]*$/.test(skillName)) {
+          throw new Error(
+            `memory.skills[${i}].name must use lowercase letters, numbers, and hyphens ` +
+            `(got "${skillName}").`
+          );
+        }
+        if (seenSkillNames.has(skillName)) {
+          throw new Error(`memory.skills: duplicate skill name "${skillName}".`);
+        }
+        seenSkillNames.add(skillName);
+      });
+    }
+
+    // memfs mode requires a source: explicit blocks, template files, or skills
+    if (memory.mode === 'memfs') {
+      const hasFromBlocks = Array.isArray(memory.from_blocks) && memory.from_blocks.length > 0;
+      const hasTemplateDir = typeof memory.template_dir === 'string' && memory.template_dir.length > 0;
+      const hasSkills = Array.isArray(memory.skills) && memory.skills.length > 0;
+      if (!hasFromBlocks && !hasTemplateDir && !hasSkills) {
+        throw new Error(
+          'memory.mode is "memfs" but none of from_blocks (non-empty array), template_dir, or skills is set. ' +
+          'At least one is required so lettactl knows what to push to the bare repo.'
+        );
+      }
     }
 
     if (memory.from_blocks !== undefined) {

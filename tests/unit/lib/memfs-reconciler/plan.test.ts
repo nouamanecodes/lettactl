@@ -6,7 +6,9 @@ import {
   extractMarkdownSection,
   gitBlobSha,
   walkTemplateDir,
+  walkSkillDir,
   GIT_MEMORY_ENABLED_TAG,
+  GIT_MEMORY_ENABLED_METADATA_KEY,
   type ServerAgentState,
   type BlockSnapshot,
 } from '../../../../src/lib/memfs-reconciler/plan';
@@ -16,10 +18,16 @@ function mkBlock(label: string, value: string, extra: Partial<BlockSnapshot> = {
   return { label, value, agentOwned: true, limit: 5000, id: `block-${label}`, ...extra };
 }
 
-function mkServer(opts: { tags?: string[]; blocks?: BlockSnapshot[]; files?: Record<string, string> } = {}): ServerAgentState {
+function mkServer(opts: {
+  tags?: string[];
+  metadata?: Record<string, any>;
+  blocks?: BlockSnapshot[];
+  files?: Record<string, string>;
+} = {}): ServerAgentState {
   return {
     agentId: 'agent-test',
     tags: opts.tags ?? [],
+    metadata: opts.metadata ?? {},
     blocks: opts.blocks ?? [],
     bareRepoFiles: new Map(Object.entries(opts.files ?? {})),
   };
@@ -93,6 +101,24 @@ describe('computeMemfsAction', () => {
     );
     expect(action.kind).toBe('no-op');
     if (action.kind === 'no-op') expect(action.reason).toContain('in sync');
+  });
+
+  it('treats metadata marker as memfs enabled when Cloud does not persist tags', () => {
+    const value = 'My identity is X.';
+    const action = computeMemfsAction(
+      'test-agent',
+      mkAgent({
+        mode: 'memfs',
+        from_blocks: [{ block: 'persona', to: 'system/persona.md' }],
+      }),
+      mkServer({
+        metadata: { [GIT_MEMORY_ENABLED_METADATA_KEY]: true },
+        blocks: [mkBlock('persona', value)],
+        files: { 'system/persona.md': gitBlobSha(value) },
+      }),
+      '/tmp',
+    );
+    expect(action.kind).toBe('no-op');
   });
 
   it('returns sync-files-only when memfs mode + tag set + content drifted', () => {
@@ -384,6 +410,64 @@ describe('template_dir scan', () => {
     }
   });
 
+  it('copies memory.skills into skills/<name> in target files', () => {
+    const skillDir = path.join(tmpDir, 'skills-src', 'media-generation');
+    fs.mkdirSync(path.join(skillDir, 'references'), { recursive: true });
+    fs.writeFileSync(path.join(skillDir, 'SKILL.md'), '---\nname: media-generation\n---\n');
+    fs.writeFileSync(path.join(skillDir, 'references', 'image.md'), 'IMAGE');
+    fs.writeFileSync(path.join(skillDir, '.ignored'), 'IGNORE');
+
+    const action = computeMemfsAction(
+      'test-agent',
+      mkAgent({
+        mode: 'memfs',
+        skills: [{ from_dir: 'skills-src/media-generation' }],
+      }),
+      mkServer(),
+      tmpDir,
+    );
+
+    expect(action.kind).toBe('migrate-forward');
+    if (action.kind === 'migrate-forward') {
+      expect(action.targetFiles.get('skills/media-generation/SKILL.md')).toContain('name: media-generation');
+      expect(action.targetFiles.get('skills/media-generation/references/image.md')).toBe('IMAGE');
+      expect(action.targetFiles.has('skills/media-generation/.ignored')).toBe(false);
+    }
+  });
+
+  it('uses explicit memory.skills name when provided', () => {
+    const skillDir = path.join(tmpDir, 'skill-source');
+    fs.mkdirSync(skillDir, { recursive: true });
+    fs.writeFileSync(path.join(skillDir, 'SKILL.md'), 'skill');
+
+    const action = computeMemfsAction(
+      'test-agent',
+      mkAgent({
+        mode: 'memfs',
+        skills: [{ name: 'custom-skill', from_dir: 'skill-source' }],
+      }),
+      mkServer(),
+      tmpDir,
+    );
+
+    expect(action.kind).toBe('migrate-forward');
+    if (action.kind === 'migrate-forward') {
+      expect(action.targetFiles.get('skills/custom-skill/SKILL.md')).toBe('skill');
+    }
+  });
+
+  it('throws when memory.skills directory is missing SKILL.md', () => {
+    fs.mkdirSync(path.join(tmpDir, 'bad-skill'), { recursive: true });
+    expect(() =>
+      computeMemfsAction(
+        'test-agent',
+        mkAgent({ mode: 'memfs', skills: [{ from_dir: 'bad-skill' }] }),
+        mkServer(),
+        tmpDir,
+      ),
+    ).toThrow('must contain SKILL.md');
+  });
+
   it('throws when template_dir is set but directory does not exist', () => {
     expect(() =>
       computeMemfsAction(
@@ -404,6 +488,22 @@ describe('template_dir scan', () => {
     expect(map.get('nested/b.md')).toBe('B');
     expect(map.get('nested/.gitkeep')).toBe('');
     expect(map.size).toBe(3);
+  });
+
+  it('walkSkillDir helper: keeps normal files and skips dependency dirs', () => {
+    const skillDir = path.join(tmpDir, 'skill-walk');
+    fs.mkdirSync(path.join(skillDir, 'references'), { recursive: true });
+    fs.mkdirSync(path.join(skillDir, 'node_modules', 'pkg'), { recursive: true });
+    fs.writeFileSync(path.join(skillDir, 'SKILL.md'), 'S');
+    fs.writeFileSync(path.join(skillDir, 'helper.ts'), 'H');
+    fs.writeFileSync(path.join(skillDir, 'references', 'a.md'), 'A');
+    fs.writeFileSync(path.join(skillDir, 'node_modules', 'pkg', 'index.js'), 'IGNORE');
+
+    const map = walkSkillDir(skillDir);
+    expect(map.get('SKILL.md')).toBe('S');
+    expect(map.get('helper.ts')).toBe('H');
+    expect(map.get('references/a.md')).toBe('A');
+    expect(map.has('node_modules/pkg/index.js')).toBe(false);
   });
 });
 

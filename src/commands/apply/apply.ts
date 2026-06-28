@@ -14,6 +14,11 @@ import { GitClient } from '../../lib/memfs-reconciler/git-client';
 import { MemfsReconciler, MemfsExecutionResult } from '../../lib/memfs-reconciler/executor';
 import { computeMemfsAction } from '../../lib/memfs-reconciler/plan';
 import { buildServerAgentState } from '../../lib/memfs-reconciler/server-state';
+import {
+  applySecretPlan,
+  planAgentSecrets,
+  type SecretApplyResult,
+} from '../../lib/secrets-reconciler';
 import * as nodePath from 'path';
 import { formatLettaError } from '../../lib/shared/error-handler';
 import { computeDryRunDiffs, displayDryRunResults } from '../../lib/apply/dry-run';
@@ -306,6 +311,7 @@ export async function applyCommand(options: ApplyOptions, command: any): Promise
       lettactlVersion,
     });
     const memfsResults: MemfsExecutionResult[] = [];
+    const secretResults: SecretApplyResult[] = [];
 
     for (const agent of config.agents) {
       const filterName = (agent as any)._originalName || agent.name;
@@ -405,12 +411,39 @@ export async function applyCommand(options: ApplyOptions, command: any): Promise
           // Check if changes needed
           const changes = agentManager.getConfigChanges(existingAgent, agentConfig);
           if (!changes.hasChanges) {
-            skipped.push(agent.name);
             appliedAgents.set(agent.name, {
               id: existingAgent.id,
               resolvedName: existingAgent.name
             });
             if (verbose) log(`Agent ${agent.name} already up to date`);
+
+            let sidecarChanged = false;
+            if (agent.memory) {
+              const result = await reconcileMemfsForAgent(
+                agent,
+                existingAgent.id,
+                client,
+                gitClient,
+                memfsReconciler,
+                config.root_path || process.cwd(),
+              );
+              memfsResults.push(result);
+              logMemfsResult(result, agent.name);
+              sidecarChanged = sidecarChanged || result.status === 'applied';
+            }
+            const secretResult = await reconcileSecretsForAgent(config, agent, existingAgent.id, client, false);
+            if (secretResult) {
+              secretResults.push(secretResult);
+              logSecretResult(secretResult, agent.name);
+              sidecarChanged = sidecarChanged || secretResult.status === 'applied';
+            }
+
+            if (sidecarChanged) {
+              succeeded.push(agent.name);
+              updated.push(agent.name);
+            } else {
+              skipped.push(agent.name);
+            }
             continue;
           }
 
@@ -483,6 +516,11 @@ export async function applyCommand(options: ApplyOptions, command: any): Promise
             memfsResults.push(result);
             logMemfsResult(result, agent.name);
           }
+          const secretResult = await reconcileSecretsForAgent(config, agent, existingAgent.id, client, false);
+          if (secretResult) {
+            secretResults.push(secretResult);
+            logSecretResult(secretResult, agent.name);
+          }
         } else {
           // Create new agent
           const createdAgent = await createNewAgent(agent, agentName, {
@@ -525,6 +563,11 @@ export async function applyCommand(options: ApplyOptions, command: any): Promise
             );
             memfsResults.push(result);
             logMemfsResult(result, agent.name);
+          }
+          const secretResult = await reconcileSecretsForAgent(config, agent, createdAgent.id, client, false);
+          if (secretResult) {
+            secretResults.push(secretResult);
+            logSecretResult(secretResult, agent.name);
           }
         }
       } catch (err: any) {
@@ -760,6 +803,28 @@ export async function applyCommand(options: ApplyOptions, command: any): Promise
   }
 }
 
+async function reconcileSecretsForAgent(
+  config: any,
+  agent: any,
+  agentId: string,
+  client: LettaClientWrapper,
+  dryRun: boolean,
+): Promise<SecretApplyResult | null> {
+  try {
+    const plan = await planAgentSecrets(client, config, agent, agentId);
+    if (!plan) return null;
+    return await applySecretPlan(client, plan, dryRun);
+  } catch (err) {
+    return {
+      kind: 'sync',
+      agentId,
+      status: 'failed',
+      diff: { toAdd: [], toUpdate: [], toRemove: [] },
+      error: `secret reconcile failed: ${(err as Error).message}`,
+    };
+  }
+}
+
 /**
  * Run the memFS reconciler for a single agent. Pulls server state, computes
  * the diff, executes (or dry-runs). Returns the result so apply can log it.
@@ -787,6 +852,32 @@ async function reconcileMemfsForAgent(
       error: `memFS reconcile failed: ${(err as Error).message}`,
     };
   }
+}
+
+function logSecretResult(result: SecretApplyResult, agentName: string): void {
+  const prefix = `  [secrets:${agentName}]`;
+  switch (result.status) {
+    case 'noop':
+      log(`${prefix} no-op`);
+      break;
+    case 'dry-run':
+      log(`${prefix} DRY-RUN sync: ${formatSecretDiff(result.diff)}`);
+      break;
+    case 'applied':
+      log(`${prefix} ✓ synced ${formatSecretDiff(result.diff)}`);
+      break;
+    case 'failed':
+      warn(`${prefix} FAILED: ${result.error ?? '(no detail)'}`);
+      break;
+  }
+}
+
+function formatSecretDiff(diff: { toAdd: string[]; toUpdate: string[]; toRemove: string[] }): string {
+  const parts: string[] = [];
+  if (diff.toAdd.length) parts.push(`add ${diff.toAdd.join(', ')}`);
+  if (diff.toUpdate.length) parts.push(`update ${diff.toUpdate.join(', ')}`);
+  if (diff.toRemove.length) parts.push(`remove ${diff.toRemove.join(', ')}`);
+  return parts.length ? parts.join('; ') : '0 changes';
 }
 
 function logMemfsResult(result: MemfsExecutionResult, agentName: string): void {

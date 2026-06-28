@@ -77,6 +77,52 @@ describe('FleetConfigValidator - duplicate folder names', () => {
   });
 });
 
+describe('FleetConfigValidator - secrets', () => {
+  const baseAgent = (extra: any = {}) => ({
+    name: 'agent-a',
+    description: 'd',
+    llm_config: { model: 'm', context_window: 1000 },
+    system_prompt: { value: 'p' },
+    ...extra,
+  });
+
+  it('accepts global-secrets and per-agent secrets', () => {
+    expect(() => FleetConfigValidator.validate({
+      'global-secrets': {
+        ADSPECTRE_API_BASE: { value: 'https://app.adspectre.ai' },
+      },
+      agents: [
+        baseAgent({
+          secrets: {
+            ADSPECTRE_AGENT_TOKEN: { from_env: 'AGENT_TOKEN' },
+          },
+        }),
+      ],
+    })).not.toThrow();
+  });
+
+  it('rejects invalid secret names', () => {
+    expect(() => FleetConfigValidator.validate({
+      agents: [
+        baseAgent({
+          secrets: {
+            'bad-name': { value: 'x' },
+          },
+        }),
+      ],
+    })).toThrow('Invalid secret name');
+  });
+
+  it('rejects agent-scoped token in global-secrets', () => {
+    expect(() => FleetConfigValidator.validate({
+      'global-secrets': {
+        ADSPECTRE_AGENT_TOKEN: { from_env: 'AGENT_TOKEN' },
+      },
+      agents: [baseAgent()],
+    })).toThrow('ADSPECTRE_AGENT_TOKEN must be configured per-agent');
+  });
+});
+
 describe('AgentValidator - tags', () => {
   const baseAgent = (name: string, tags?: any) => ({
     name,
@@ -336,6 +382,16 @@ describe('AgentMemoryConfigValidator', () => {
     })).not.toThrow();
   });
 
+  it('accepts a memfs-mode config with only skills', () => {
+    expect(() => AgentMemoryConfigValidator.validate({
+      mode: 'memfs',
+      skills: [
+        { from_dir: 'agents/skills/media-generation' },
+        { name: 'reference-handling', from_dir: 'agents/skills/reference' },
+      ],
+    })).not.toThrow();
+  });
+
   it('rejects a non-object', () => {
     expect(() => AgentMemoryConfigValidator.validate(null as any)).toThrow('memory must be an object.');
     expect(() => AgentMemoryConfigValidator.validate('memfs' as any)).toThrow('memory must be an object.');
@@ -346,8 +402,30 @@ describe('AgentMemoryConfigValidator', () => {
   });
 
   it('rejects memfs mode without from_blocks or template_dir', () => {
-    expect(() => AgentMemoryConfigValidator.validate({ mode: 'memfs' })).toThrow('neither from_blocks');
-    expect(() => AgentMemoryConfigValidator.validate({ mode: 'memfs', from_blocks: [] })).toThrow('neither from_blocks');
+    expect(() => AgentMemoryConfigValidator.validate({ mode: 'memfs' })).toThrow('none of from_blocks');
+    expect(() => AgentMemoryConfigValidator.validate({ mode: 'memfs', from_blocks: [] })).toThrow('none of from_blocks');
+  });
+
+  it('rejects invalid skill configs', () => {
+    expect(() => AgentMemoryConfigValidator.validate({
+      mode: 'memfs',
+      skills: 'media-generation' as any,
+    })).toThrow('memory.skills must be an array');
+    expect(() => AgentMemoryConfigValidator.validate({
+      mode: 'memfs',
+      skills: [{ from_dir: '/absolute/path' }],
+    })).toThrow('repo-relative path');
+    expect(() => AgentMemoryConfigValidator.validate({
+      mode: 'memfs',
+      skills: [{ name: 'MediaGeneration', from_dir: 'agents/skills/media-generation' }],
+    })).toThrow('lowercase letters');
+    expect(() => AgentMemoryConfigValidator.validate({
+      mode: 'memfs',
+      skills: [
+        { name: 'media-generation', from_dir: 'agents/skills/media-generation' },
+        { name: 'media-generation', from_dir: 'agents/skills/media-generation-copy' },
+      ],
+    })).toThrow('duplicate skill name');
   });
 
   it('rejects bare_repo value other than "auto"', () => {

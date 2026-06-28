@@ -17,6 +17,12 @@ import { GitClient } from '../memfs-reconciler/git-client';
 import { MemfsReconciler, MemfsExecutionResult } from '../memfs-reconciler/executor';
 import { computeMemfsAction, MemfsAction } from '../memfs-reconciler/plan';
 import { buildServerAgentState } from '../memfs-reconciler/server-state';
+import {
+  applySecretPlan,
+  planAgentSecrets,
+  type SecretApplyResult,
+  type SecretPlan,
+} from '../secrets-reconciler';
 
 export interface DryRunResult {
   name: string;
@@ -29,6 +35,9 @@ export interface DryRunResult {
   memfsAction?: MemfsAction;
   memfsResult?: MemfsExecutionResult;
   memfsError?: string;
+  secretPlan?: SecretPlan;
+  secretResult?: SecretApplyResult;
+  secretError?: string;
 }
 
 interface DryRunContext {
@@ -127,6 +136,24 @@ export async function computeDryRunDiffs(
       } catch (err) {
         result.memfsError = (err as Error).message;
       }
+    }
+  }
+
+  const secretAgents = config.agents.filter((a: any) => config['global-secrets'] || a.secrets);
+  for (const agent of secretAgents) {
+    const result = results.find(r => r.name === agent.name);
+    if (!result) continue;
+    if (result.action === 'create' || !result.existingAgentId) {
+      result.secretError = 'agent will be created — secrets sync runs on apply';
+      continue;
+    }
+    try {
+      const plan = await planAgentSecrets(client, config, agent, result.existingAgentId);
+      if (!plan) continue;
+      result.secretPlan = plan;
+      result.secretResult = await applySecretPlan(client, plan, true);
+    } catch (err) {
+      result.secretError = (err as Error).message;
     }
   }
 
@@ -297,17 +324,23 @@ export function displayDryRunResults(results: DryRunResult[], verbose: boolean, 
   let created = 0, updated = 0, unchanged = 0;
   let totalChanges = 0;
   for (const result of results) {
+    const hasMemfsDrift = !!(result.memfsAction && result.memfsAction.kind !== 'no-op') || !!result.memfsError;
+    const hasSecretDrift = !!(result.secretPlan && result.secretPlan.kind !== 'no-op') || !!result.secretError;
     if (result.action === 'create') {
       created++;
       totalChanges++;
     } else if (result.action === 'update' && result.operations) {
-      updated++;
+      if (result.operations.operationCount === 0 && !hasMemfsDrift && !hasSecretDrift) unchanged++;
+      else updated++;
       totalChanges += result.operations.operationCount;
     } else {
       unchanged++;
     }
-    // Memfs drift counts as a change even when the agent itself has no other ops.
+    // Memfs/secrets drift counts as a change even when the agent itself has no other ops.
     if (result.memfsAction && result.memfsAction.kind !== 'no-op') {
+      totalChanges++;
+    }
+    if (result.secretPlan && result.secretPlan.kind !== 'no-op') {
       totalChanges++;
     }
   }
@@ -322,16 +355,28 @@ export function displayDryRunResults(results: DryRunResult[], verbose: boolean, 
 
   for (const result of results) {
     const hasMemfsDrift = !!(result.memfsAction && result.memfsAction.kind !== 'no-op') || !!result.memfsError;
+    const hasSecretDrift = !!(result.secretPlan && result.secretPlan.kind !== 'no-op') || !!result.secretError;
     if (result.action === 'create') {
       created++;
       totalChanges++;
       output(displayDryRunAction(result.name, 'create'));
       formatCreateDetails(result, fancy, skipFirstMessage);
       formatMemfsDetails(result, fancy);
+      formatSecretDetails(result, fancy);
     } else if (result.action === 'update' && result.operations) {
+      if (result.operations.operationCount === 0 && !hasMemfsDrift && !hasSecretDrift) {
+        unchanged++;
+        if (verbose) {
+          output(displayDryRunAction(result.name, 'unchanged'));
+          formatMemfsDetails(result, fancy);
+          formatSecretDetails(result, fancy);
+        }
+        continue;
+      }
       updated++;
       totalChanges += result.operations.operationCount;
       if (hasMemfsDrift) totalChanges++;
+      if (hasSecretDrift) totalChanges++;
       const convParts: string[] = [];
       if (result.conversationsToCreate && result.conversationsToCreate > 0) {
         convParts.push(`${result.conversationsToCreate} conversation${result.conversationsToCreate !== 1 ? 's' : ''} to create`);
@@ -345,16 +390,21 @@ export function displayDryRunResults(results: DryRunResult[], verbose: boolean, 
       output(displayDryRunAction(result.name, 'update', updateDetail));
       formatUpdateDetails(result.operations, verbose, fancy);
       formatMemfsDetails(result, fancy);
-    } else if (hasMemfsDrift) {
-      // Agent itself unchanged but memfs has drift — surface it under an update header.
+      formatSecretDetails(result, fancy);
+    } else if (hasMemfsDrift || hasSecretDrift) {
+      // Agent itself unchanged but managed sidecars have drift — surface it under an update header.
       updated++;
       totalChanges++;
-      output(displayDryRunAction(result.name, 'update', 'memfs only'));
+      if (hasMemfsDrift && hasSecretDrift) totalChanges++;
+      const label = hasMemfsDrift && hasSecretDrift ? 'memfs/secrets only' : hasMemfsDrift ? 'memfs only' : 'secrets only';
+      output(displayDryRunAction(result.name, 'update', label));
       formatMemfsDetails(result, fancy);
+      formatSecretDetails(result, fancy);
     } else if (verbose) {
       unchanged++;
       output(displayDryRunAction(result.name, 'unchanged'));
       formatMemfsDetails(result, fancy);
+      formatSecretDetails(result, fancy);
     } else {
       unchanged++;
     }
@@ -362,6 +412,37 @@ export function displayDryRunResults(results: DryRunResult[], verbose: boolean, 
 
   output('');
   output(displayDryRunSummary({ created, updated, unchanged, totalChanges }));
+}
+
+function formatSecretDetails(result: DryRunResult, fancy: boolean): void {
+  if (!result.secretPlan && !result.secretError) return;
+  const indent = '    ';
+  const dim = fancy ? chalk.dim : (s: string) => s;
+  const yellow = fancy ? chalk.yellow : (s: string) => s;
+  const colorPurple = fancy ? purple : (s: string) => s;
+
+  if (result.secretError) {
+    output(`${indent}${yellow('Secrets [!]:')} ${result.secretError}`);
+    return;
+  }
+
+  const plan = result.secretPlan!;
+  if (plan.kind === 'no-op') {
+    output(`${indent}${dim('Secrets [=]:')} no-op ${dim(`(${Object.keys(plan.desired).length} managed)`)}`);
+    return;
+  }
+
+  const parts: string[] = [];
+  if (plan.diff.toAdd.length) parts.push(`add ${formatSecretNames(plan.diff.toAdd)}`);
+  if (plan.diff.toUpdate.length) parts.push(`update ${formatSecretNames(plan.diff.toUpdate)}`);
+  if (plan.diff.toRemove.length) parts.push(`remove ${formatSecretNames(plan.diff.toRemove)}`);
+  output(`${indent}${colorPurple('Secrets [~]:')} sync (${parts.join(', ')})`);
+}
+
+function formatSecretNames(names: string[]): string {
+  if (names.length === 1) return names[0];
+  if (names.length <= 3) return names.join(', ');
+  return `${names[0]}, ${names[1]}, +${names.length - 2} more`;
 }
 
 function formatMemfsDetails(result: DryRunResult, fancy: boolean): void {
