@@ -31,6 +31,7 @@ export class LettaClientWrapper {
     while (true) {
       const url = new URL('/v1/agents/', baseUrl!);
       url.searchParams.set('limit', '100');
+      url.searchParams.append('include', 'agent.tags');
       if (after) url.searchParams.set('after', after);
       if (options?.tags && options.tags.length > 0) {
         for (const tag of options.tags) {
@@ -58,7 +59,9 @@ export class LettaClientWrapper {
     // SDK strips tags, description, tools, and blocks — fetch raw to get them back
     try {
       const baseUrl = process.env.LETTA_BASE_URL;
-      const response = await fetch(`${baseUrl}/v1/agents/${agentId}/`, { headers: this.getAuthHeaders() });
+      const url = new URL(`/v1/agents/${agentId}`, baseUrl!);
+      url.searchParams.append('include', 'agent.tags');
+      const response = await fetch(url.toString(), { headers: this.getAuthHeaders() });
       if (response.ok) {
         const raw: any = await response.json();
         if (raw.tags !== undefined) (agent as any).tags = raw.tags;
@@ -258,8 +261,24 @@ export class LettaClientWrapper {
     return allFiles;
   }
 
-  async updateAgent(agentId: string, agentData: any) {
-    return await this.client.agents.update(agentId, agentData);
+  async updateAgent(agentId: string, agentData: any): Promise<any> {
+    const baseUrl = process.env.LETTA_BASE_URL;
+    const payload = { ...agentData };
+    if (!Object.prototype.hasOwnProperty.call(payload, 'tags')) {
+      const current = await this.getAgent(agentId);
+      payload.tags = (current as any).tags || [];
+    }
+    const url = new URL(`/v1/agents/${agentId}`, baseUrl!);
+    url.searchParams.append('include', 'agent.tags');
+    const response = await fetch(url.toString(), {
+      method: 'PATCH',
+      headers: this.getAuthHeaders(),
+      body: JSON.stringify(payload),
+    });
+    if (!response.ok) {
+      throw new Error(`Failed to update agent (HTTP ${response.status}): ${response.statusText}`);
+    }
+    return response.json();
   }
 
   async listTools(options?: { limit?: number }) {
