@@ -5,6 +5,7 @@ import { createSpinner } from '../../lib/ux/spinner';
 import { normalizeToArray, computeAgentCounts } from '../../lib/resources/resource-usage';
 import { output } from '../../lib/shared/logger';
 import { GetOptions } from './types';
+import { shouldPrintNotAvailableForAgent } from './availability';
 
 export async function getTools(
   client: LettaClientWrapper,
@@ -53,7 +54,9 @@ export async function getTools(
     }
 
     if (toolList.length === 0) {
-      if (agentId) output('No tools attached to this agent');
+      if (agentId && await shouldPrintNotAvailableForAgent(client, agentId, toolList, options?.output)) {
+        output('not available');
+      } else if (agentId) output('No tools attached to this agent');
       else if (options?.shared) output('No shared tools found (attached to 2+ agents)');
       else if (options?.orphaned) output('No orphaned tools found (attached to 0 agents)');
       else output('No tools found');

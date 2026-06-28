@@ -4,6 +4,7 @@ import { OutputFormatter } from '../../lib/ux/output-formatter';
 import { createSpinner } from '../../lib/ux/spinner';
 import { output } from '../../lib/shared/logger';
 import { GetOptions } from './types';
+import { shouldPrintNotAvailableForAgent } from './availability';
 
 export async function getArchival(
   client: LettaClientWrapper,
@@ -54,7 +55,9 @@ export async function getArchival(
     }
 
     if (entries.length === 0) {
-      if (isSearch) output(`No archival entries found for ${agentName}`);
+      if (await shouldPrintNotAvailableForAgent(client, agentId, entries, options?.output)) {
+        output('not available');
+      } else if (isSearch) output(`No archival entries found for ${agentName}`);
       else output(`No archival memory entries for ${agentName}`);
       return;
     }
