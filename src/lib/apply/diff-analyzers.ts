@@ -41,7 +41,8 @@ export async function analyzeToolChanges(
   desiredToolNames: string[],
   toolRegistry: Map<string, string>,
   _toolSourceHashes?: Record<string, string>,
-  updatedTools?: Set<string>
+  updatedTools?: Set<string>,
+  protectMemoryTools: boolean = true
 ): Promise<ToolDiff> {
   const currentToolNames = new Set(currentTools.map(t => t.name));
   const desiredToolSet = new Set(desiredToolNames);
@@ -90,7 +91,7 @@ export async function analyzeToolChanges(
     } else {
       // Never remove protected memory tools - they're critical for agent operation
       // See: https://github.com/nouamanecodes/lettactl/issues/130
-      if (PROTECTED_MEMORY_TOOLS.has(tool.name)) {
+      if (protectMemoryTools && PROTECTED_MEMORY_TOOLS.has(tool.name)) {
         unchanged.push({ name: tool.name, id: tool.id });
       } else {
         toRemove.push({ name: tool.name, id: tool.id });

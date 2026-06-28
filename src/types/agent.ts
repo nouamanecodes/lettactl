@@ -2,6 +2,7 @@ export interface AgentConfigHashes {
   overall: string;           // Combined hash for quick comparison
   systemPrompt: string;      // System prompt hash
   tools: string;             // Tools configuration hash
+  baseTools: string;         // include_base_tools / include_base_tool_rules hash
   model: string;             // Model + embedding + context window hash
   memoryBlocks: string;      // Memory blocks hash
   folders: string;           // Folders hash

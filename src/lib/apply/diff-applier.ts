@@ -75,6 +75,12 @@ export class DiffApplier {
       if (fields.reasoning !== undefined) {
         apiFields.reasoning = fields.reasoning.to;
       }
+      if (fields.includeBaseTools !== undefined) {
+        apiFields.include_base_tools = fields.includeBaseTools.to;
+      }
+      if (fields.includeBaseToolRules !== undefined) {
+        apiFields.include_base_tool_rules = fields.includeBaseToolRules.to;
+      }
       if (fields.tags !== undefined) {
         // Preserve memfs-owned tag if currently set — the memfs reconciler is its sole owner,
         // operators never write it in YAML, and a bare PATCH would silently strip it (rolling
@@ -87,7 +93,7 @@ export class DiffApplier {
       await this.client.updateAgent(agentId, apiFields);
 
       // Update metadata for fields that need raw value tracking
-      const needsMetadataUpdate = fields.model !== undefined || fields.embedding !== undefined || fields.lettabotConfig !== undefined;
+      const needsMetadataUpdate = fields.model !== undefined || fields.embedding !== undefined || fields.lettabotConfig !== undefined || fields.includeBaseTools !== undefined || fields.includeBaseToolRules !== undefined;
       if (needsMetadataUpdate) {
         const agent = await this.client.getAgent(agentId);
         const metadata = { ...(agent as any).metadata };
@@ -103,6 +109,12 @@ export class DiffApplier {
           } else {
             delete metadata['lettactl.lettabotConfig'];
           }
+        }
+        if (fields.includeBaseTools !== undefined) {
+          metadata['lettactl.includeBaseTools'] = fields.includeBaseTools.to;
+        }
+        if (fields.includeBaseToolRules !== undefined) {
+          metadata['lettactl.includeBaseToolRules'] = fields.includeBaseToolRules.to;
         }
         await this.client.updateAgent(agentId, { metadata });
       }

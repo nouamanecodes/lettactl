@@ -41,6 +41,8 @@ export interface AgentConfig {
   system_prompt: PromptConfig;
   llm_config: LLMConfig;
   tools?: string[];
+  include_base_tools?: boolean; // Default: false for memory.mode=memfs, true otherwise.
+  include_base_tool_rules?: boolean; // Passed to Letta on create/update when supported.
   mcp_tools?: McpToolConfig[];
   shared_blocks?: string[];
   memory_blocks?: MemoryBlock[];
