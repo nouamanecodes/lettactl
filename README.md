@@ -119,6 +119,14 @@ agents:
       mode: memfs
       bare_repo: auto
       template_dir: agents/code-agent/memfs
+      preserve_existing_paths:
+        - system/persona.md
+        - system/state.md
+      files:
+        - to: system/important_variables.md
+          value: |
+            # Important Variables
+            - COMPANY_ID: company-123
       skills:
         - name: app-api
           from_dir: agents/skills/app-api
@@ -135,7 +143,10 @@ lettactl apply -f fleet.yml --root .      # Resolves template_dir/from_dir paths
 
 Use `memory.template_dir` for system MemFS files, `memory.skills[].from_dir` for
 directories containing `SKILL.md`, and `agents[].secrets` or `global-secrets` for
-Letta Code secret sync. See the full docs for schema details.
+Letta Code secret sync. Add `memory.preserve_existing_paths` for mutable files
+that should be seeded on first deploy but preserved after the agent edits them.
+Use `memory.files[]` for explicit inline or `from_file` content, especially
+per-agent dynamic system files. See the full docs for schema details.
 
 MemFS agents default to `include_base_tools: false` and
 `include_base_tool_rules: false` so Letta Code skills start from a clean server

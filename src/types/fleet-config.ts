@@ -72,6 +72,13 @@ export interface AgentMemoryConfig {
   mode: 'blocks' | 'memfs';
   bare_repo?: 'auto';                        // 'auto' = resolve via Letta /v1/git/<id>/state.git
   template_dir?: string;                     // dir of skeleton .md files; relative to root_path
+  preserve_existing_paths?: string[];        // memfs paths to seed but not overwrite once present
+  files?: Array<{
+    to: string;                              // memfs target path
+    value?: string;                          // inline content
+    from_file?: string;                      // repo-relative source file
+    template_vars?: Record<string, string>;  // optional {{VAR}} replacements
+  }>;
   skills?: Array<{
     name?: string;                           // defaults to basename(from_dir)
     from_dir: string;                        // skill dir containing SKILL.md; relative to root_path
