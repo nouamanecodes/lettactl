@@ -131,6 +131,14 @@ export class AgentValidator {
       ToolsValidator.validate(agent.tools);
     }
 
+    if (agent.include_base_tools !== undefined && typeof agent.include_base_tools !== 'boolean') {
+      throw new Error('include_base_tools must be a boolean.');
+    }
+
+    if (agent.include_base_tool_rules !== undefined && typeof agent.include_base_tool_rules !== 'boolean') {
+      throw new Error('include_base_tool_rules must be a boolean.');
+    }
+
     if (agent.mcp_tools) {
       McpToolsValidator.validate(agent.mcp_tools);
     }
@@ -230,7 +238,7 @@ export class AgentValidator {
   private static validateUnknownFields(agent: any): void {
     const allowedFields = [
       'name', 'description', 'system_prompt', 'llm_config',
-      'tools', 'mcp_tools', 'memory_blocks', 'archives', 'folders',
+      'tools', 'include_base_tools', 'include_base_tool_rules', 'mcp_tools', 'memory_blocks', 'archives', 'folders',
       'embedding', 'embedding_config', 'shared_blocks', 'shared_folders',
       'first_message', 'reasoning', 'tags', 'lettabot', 'conversations',
       'compaction_settings', 'memory', 'secrets'

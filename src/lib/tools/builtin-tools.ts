@@ -80,6 +80,60 @@ export const DEFAULT_AGENT_TOOLS = ['conversation_search'];
  */
 export const FILE_SEARCH_TOOLS = ['grep_files', 'semantic_search_files'];
 
+export function shouldIncludeBaseTools(agent: {
+  include_base_tools?: boolean;
+  memory?: { mode?: string };
+}): boolean {
+  if (typeof agent.include_base_tools === 'boolean') {
+    return agent.include_base_tools;
+  }
+  return agent.memory?.mode !== 'memfs';
+}
+
+export function shouldIncludeBaseToolRules(agent: {
+  include_base_tool_rules?: boolean;
+  memory?: { mode?: string };
+}): boolean {
+  if (typeof agent.include_base_tool_rules === 'boolean') {
+    return agent.include_base_tool_rules;
+  }
+  return agent.memory?.mode !== 'memfs';
+}
+
+export function resolveAgentToolNames(agent: {
+  tools?: string[];
+  folders?: unknown[];
+  include_base_tools?: boolean;
+  memory?: { mode?: string };
+}): string[] {
+  let tools = agent.tools ? [...agent.tools] : [];
+
+  if (shouldIncludeBaseTools(agent)) {
+    const toolSet = new Set(tools);
+    for (const defaultTool of DEFAULT_AGENT_TOOLS) {
+      if (!toolSet.has(defaultTool)) {
+        tools = [...tools, defaultTool];
+        toolSet.add(defaultTool);
+      }
+    }
+  }
+
+  const hasFolders = (agent.folders || []).length > 0;
+  if (hasFolders) {
+    const toolSet = new Set(tools);
+    for (const fileTool of FILE_SEARCH_TOOLS) {
+      if (!toolSet.has(fileTool)) {
+        tools = [...tools, fileTool];
+        toolSet.add(fileTool);
+      }
+    }
+  } else {
+    tools = tools.filter((tool) => !FILE_SEARCH_TOOLS.includes(tool));
+  }
+
+  return Array.from(new Set(tools));
+}
+
 /**
  * Aggregated set of all builtin tool names for fast lookup
  * Add new builtin tools here

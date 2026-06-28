@@ -55,6 +55,8 @@ export interface AgentUpdateOperations {
     contextWindow?: FieldChange<number>;
     maxTokens?: FieldChange<number>;
     reasoning?: FieldChange<boolean>;
+    includeBaseTools?: FieldChange<boolean>;
+    includeBaseToolRules?: FieldChange<boolean>;
     tags?: FieldChange<string[]>;
     lettabotConfig?: FieldChange<Record<string, any> | null>;
   };

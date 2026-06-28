@@ -45,6 +45,7 @@ export class AgentManager {
           overall: '',              // Will be populated during comparison
           systemPrompt: generateContentHash(agent.system || ''),
           tools: '',
+          baseTools: '',
           model: '',
           memoryBlocks: '',
           folders: '',
@@ -81,6 +82,8 @@ export class AgentManager {
   private generateAgentConfigHashes(config: {
     systemPrompt: string;
     tools: string[];
+    includeBaseTools?: boolean;
+    includeBaseToolRules?: boolean;
     toolSourceHashes?: Record<string, string>;
     model?: string;
     embedding?: string;
@@ -107,6 +110,11 @@ export class AgentManager {
       sourceHash: config.toolSourceHashes?.[toolName] || ''
     })).sort((a, b) => a.name.localeCompare(b.name));
     const toolsHash = generateContentHash(JSON.stringify(toolsWithContent));
+
+    const baseToolsHash = generateContentHash(JSON.stringify({
+      includeBaseTools: config.includeBaseTools ?? null,
+      includeBaseToolRules: config.includeBaseToolRules ?? null
+    }));
     
     // Model configuration hash (model + embedding + context window)
     const modelConfig = {
@@ -173,6 +181,7 @@ export class AgentManager {
     const overallHash = generateContentHash(JSON.stringify({
       systemPrompt: systemPromptHash,
       tools: toolsHash,
+      baseTools: baseToolsHash,
       model: modelHash,
       memoryBlocks: memoryBlocksHash,
       folders: foldersHash,
@@ -188,6 +197,7 @@ export class AgentManager {
       overall: overallHash,
       systemPrompt: systemPromptHash,
       tools: toolsHash,
+      baseTools: baseToolsHash,
       model: modelHash,
       memoryBlocks: memoryBlocksHash,
       folders: foldersHash,
@@ -208,6 +218,8 @@ export class AgentManager {
     agentConfig: {
       systemPrompt: string;
       tools: string[];
+      includeBaseTools?: boolean;
+      includeBaseToolRules?: boolean;
       toolSourceHashes?: Record<string, string>;
       model?: string;
       embedding?: string;
@@ -257,6 +269,8 @@ export class AgentManager {
   getConfigChanges(existing: AgentVersion, newConfig: {
     systemPrompt: string;
     tools: string[];
+    includeBaseTools?: boolean;
+    includeBaseToolRules?: boolean;
     toolSourceHashes?: Record<string, string>;
     model?: string;
     embedding?: string;
@@ -286,6 +300,9 @@ export class AgentManager {
     }
     if (existing.configHashes.tools !== newHashes.tools) {
       changedComponents.push('tools');
+    }
+    if (existing.configHashes.baseTools !== newHashes.baseTools) {
+      changedComponents.push('baseTools');
     }
     if (existing.configHashes.model !== newHashes.model) {
       changedComponents.push('model');
@@ -328,6 +345,8 @@ export class AgentManager {
   updateRegistry(agentName: string, agentConfig: {
     systemPrompt: string;
     tools: string[];
+    includeBaseTools?: boolean;
+    includeBaseToolRules?: boolean;
     model?: string;
     embedding?: string;
     embeddingConfig?: Record<string, any>;

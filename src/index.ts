@@ -158,6 +158,8 @@ Example:
 
   agents:
     - name: agent-migrate
+      include_base_tools: false        # default for memory.mode: memfs
+      include_base_tool_rules: false   # default for memory.mode: memfs
       memory:
         mode: memfs
         bare_repo: auto
@@ -172,6 +174,8 @@ Example:
 
 Notes:
   - skill directories must be repo-relative and include SKILL.md
+  - memory.mode: memfs defaults to include_base_tools: false
+  - classic/block agents default to include_base_tools: true
   - secret values are redacted from output
   - agent-scoped identity secrets should be declared under agents[].secrets
 `)

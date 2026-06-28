@@ -101,52 +101,47 @@ lettactl apply -f fleet.yml --dry-run    # Preview changes (drift detection)
 lettactl apply -f fleet.yml --agent one  # Deploy specific agent
 ```
 
-### Cloud MemFS Skills and Secrets
+### Letta Code Agents
 
-Provision Letta Code agent-owned skills and secrets for Cloud agents without committing secret values:
+Deploy Cloud agents that use git-backed MemFS, agent-owned skills, and Letta Code secrets:
 
 ```yaml
-global-secrets:
-  ADSPECTRE_API_BASE:
-    value: https://app.adspectre.ai
-
 agents:
-  - name: draper-cloud
-    description: "Cloud Draper agent"
+  - name: code-agent
     llm_config:
       model: "letta/glm"
       context_window: 32000
     system_prompt:
       value: "You are helpful."
+    include_base_tools: false
+    include_base_tool_rules: false
     memory:
       mode: memfs
       bare_repo: auto
-      template_dir: agents/draper/memfs
+      template_dir: agents/code-agent/memfs
       skills:
-        - name: dashboard-api
-          from_dir: agents/skills/dashboard-api
+        - name: app-api
+          from_dir: agents/skills/app-api
     secrets:
-      ADSPECTRE_AGENT_TOKEN:
-        from_env: ADSPECTRE_AGENT_TOKEN
+      APP_AGENT_TOKEN:
+        from_env: APP_AGENT_TOKEN
         preserve_existing: true
 ```
-
-`memory.template_dir` copies a full MemFS skeleton such as `system/*.md`.
-`memory.skills[].from_dir` copies a directory containing `SKILL.md` into
-`skills/<name>` in the agent's git-backed memory filesystem. This lets agents
-own executable skill instructions without registering Letta custom tools.
-
-`global-secrets` are attached to every agent. `agents[].secrets` are per-agent
-and override globals. Secret values are synced to Letta agent API state and
-redacted from output; YAML should generally use `from_env` for sensitive values.
-Use `preserve_existing: true` when a deploy should keep the remote secret value
-if the local environment variable is intentionally absent. Agent-scoped identity
-secrets such as `ADSPECTRE_AGENT_TOKEN` must be configured per-agent, not globally.
 
 ```bash
 lettactl apply -f fleet.yml --dry-run     # Shows MemFS and secret drift
 lettactl apply -f fleet.yml --root .      # Resolves template_dir/from_dir paths from repo root
 ```
+
+Use `memory.template_dir` for system MemFS files, `memory.skills[].from_dir` for
+directories containing `SKILL.md`, and `agents[].secrets` or `global-secrets` for
+Letta Code secret sync. See the full docs for schema details.
+
+MemFS agents default to `include_base_tools: false` and
+`include_base_tool_rules: false` so Letta Code skills start from a clean server
+tool allowlist. Classic block agents keep base tools enabled by default. Set
+`include_base_tools: true` and list tools explicitly when a MemFS agent should
+use server tools such as `conversation_search`.
 
 ### Inspection & Debugging ([full guide](https://lettactl.dev/commands/inspection))
 

@@ -18,6 +18,7 @@ import { log, error } from '../shared/logger';
 import { DEFAULT_CONTEXT_WINDOW, DEFAULT_MODEL, DEFAULT_EMBEDDING, DEFAULT_REASONING } from '../shared/constants';
 import { isRunTerminal, getEffectiveRunStatus } from '../messaging/run-utils';
 import { Run } from '../../types/run';
+import { resolveAgentToolNames, shouldIncludeBaseTools, shouldIncludeBaseToolRules } from '../tools/builtin-tools';
 
 /**
  * Collects all resource names declared in the fleet config.
@@ -429,6 +430,8 @@ export async function createNewAgent(
       system: agent.system_prompt.value || '',
       block_ids: blockIds,
       tool_ids: toolIds,
+      include_base_tools: shouldIncludeBaseTools(agent),
+      include_base_tool_rules: shouldIncludeBaseToolRules(agent),
       context_window_limit: agent.llm_config?.context_window || DEFAULT_CONTEXT_WINDOW,
       reasoning: agent.reasoning ?? DEFAULT_REASONING,
       ...(agent.llm_config?.max_tokens !== undefined && { max_tokens: agent.llm_config.max_tokens }),
@@ -460,7 +463,9 @@ export async function createNewAgent(
     // Update registry
     agentManager.updateRegistry(agentName, {
       systemPrompt: agent.system_prompt.value || '',
-      tools: agent.tools || [],
+      tools: resolveAgentToolNames(agent),
+      includeBaseTools: shouldIncludeBaseTools(agent),
+      includeBaseToolRules: shouldIncludeBaseToolRules(agent),
       model: agent.llm_config?.model,
       embedding: agent.embedding,
       embeddingConfig: agent.embedding_config,
@@ -499,6 +504,8 @@ export async function createNewAgent(
     // Store raw model/embedding strings for provider change detection (#255)
     metadata['lettactl.model'] = agent.llm_config?.model || 'google_ai/gemini-2.5-pro';
     metadata['lettactl.embedding'] = agent.embedding || 'openai/text-embedding-3-small';
+    metadata['lettactl.includeBaseTools'] = shouldIncludeBaseTools(agent);
+    metadata['lettactl.includeBaseToolRules'] = shouldIncludeBaseToolRules(agent);
     if (folderContentHashes && folderContentHashes.size > 0) {
       const newFolderFileHashes: Record<string, Record<string, string>> = {};
       for (const [folderName, hashes] of folderContentHashes) {

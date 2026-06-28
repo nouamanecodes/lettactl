@@ -23,7 +23,7 @@ import * as nodePath from 'path';
 import { formatLettaError } from '../../lib/shared/error-handler';
 import { computeDryRunDiffs, displayDryRunResults } from '../../lib/apply/dry-run';
 import { log, warn, output, isQuietMode } from '../../lib/shared/logger';
-import { DEFAULT_AGENT_TOOLS, FILE_SEARCH_TOOLS } from '../../lib/tools/builtin-tools';
+import { resolveAgentToolNames, shouldIncludeBaseTools, shouldIncludeBaseToolRules } from '../../lib/tools/builtin-tools';
 import { displayApplySummary } from '../../lib/ux/display';
 import { buildMcpServerRegistry, expandMcpToolsForAgents } from '../../lib/tools/mcp-tools';
 import { buildAgentManifest, getDefaultManifestPath, writeAgentManifest } from '../../lib/apply/agent-manifest';
@@ -253,16 +253,10 @@ export async function applyCommand(options: ApplyOptions, command: any): Promise
     await expandMcpToolsForAgents(config, client, mcpServerNameToId, verbose);
 
     // Generate tool source hashes and register tools
-    const allToolNames = new Set<string>(DEFAULT_AGENT_TOOLS);
+    const allToolNames = new Set<string>();
     for (const agent of config.agents) {
-      for (const toolName of agent.tools || []) {
+      for (const toolName of resolveAgentToolNames(agent)) {
         allToolNames.add(toolName);
-      }
-      // Include file search tools for agents with folders
-      if ((agent.folders || []).length > 0) {
-        for (const fileTool of FILE_SEARCH_TOOLS) {
-          allToolNames.add(fileTool);
-        }
       }
     }
     const globalToolSourceHashes = fileTracker.generateToolSourceHashes(Array.from(allToolNames), parser.toolConfigs);
@@ -330,33 +324,15 @@ export async function applyCommand(options: ApplyOptions, command: any): Promise
         const toolSourceHashes = fileTracker.generateToolSourceHashes(agent.tools || [], parser.toolConfigs);
         const memoryBlockFileHashes = await fileTracker.generateMemoryBlockFileHashes(agent.memory_blocks || []);
 
-        // Build agent config - auto-add default tools and file search tools
-        let tools = agent.tools || [];
-        const toolSet = new Set(tools);
-        for (const defaultTool of DEFAULT_AGENT_TOOLS) {
-          if (!toolSet.has(defaultTool)) {
-            tools = [...tools, defaultTool];
-          }
-        }
-        const hasFolders = (agent.folders || []).length > 0;
-
-        if (hasFolders) {
-          // Add file search tools if not already present
-          const toolSet = new Set(tools);
-          for (const fileTool of FILE_SEARCH_TOOLS) {
-            if (!toolSet.has(fileTool)) {
-              tools = [...tools, fileTool];
-            }
-          }
-        } else {
-          // Remove auto-added file search tools if no folders
-          tools = tools.filter((t: string) => !FILE_SEARCH_TOOLS.includes(t));
-        }
+        // Build agent config - resolve base tools and file search tools by mode.
+        const tools = resolveAgentToolNames(agent);
 
         const agentConfig = {
           systemPrompt: agent.system_prompt.value || '',
           description: agent.description || '',
           tools,
+          includeBaseTools: shouldIncludeBaseTools(agent),
+          includeBaseToolRules: shouldIncludeBaseToolRules(agent),
           toolSourceHashes,
           model: agent.llm_config?.model,
           embedding: agent.embedding,

@@ -23,6 +23,7 @@ import {
   type SecretApplyResult,
   type SecretPlan,
 } from '../secrets-reconciler';
+import { resolveAgentToolNames, shouldIncludeBaseTools, shouldIncludeBaseToolRules } from '../tools/builtin-tools';
 
 export interface DryRunResult {
   name: string;
@@ -207,7 +208,9 @@ async function computeAgentDiff(
   const agentConfig = {
     systemPrompt: agent.system_prompt?.value || '',
     description: agent.description || '',
-    tools: agent.tools || [],
+    tools: resolveAgentToolNames(agent),
+    includeBaseTools: shouldIncludeBaseTools(agent),
+    includeBaseToolRules: shouldIncludeBaseToolRules(agent),
     toolSourceHashes,
     model: agent.llm_config?.model,
     embedding: agent.embedding,

@@ -39,6 +39,8 @@ export class DiffEngine {
       systemPrompt: string;
       description?: string;
       tools: string[];
+      includeBaseTools?: boolean;
+      includeBaseToolRules?: boolean;
       toolSourceHashes?: Record<string, string>;
       model?: string;
       embedding?: string;
@@ -209,6 +211,18 @@ export class DiffEngine {
       operations.operationCount++;
     }
 
+    const currentIncludeBaseTools = (currentAgent as any).metadata?.['lettactl.includeBaseTools'];
+    if (currentIncludeBaseTools !== desiredConfig.includeBaseTools) {
+      fieldUpdates.includeBaseTools = { from: currentIncludeBaseTools, to: desiredConfig.includeBaseTools };
+      operations.operationCount++;
+    }
+
+    const currentIncludeBaseToolRules = (currentAgent as any).metadata?.['lettactl.includeBaseToolRules'];
+    if (currentIncludeBaseToolRules !== desiredConfig.includeBaseToolRules) {
+      fieldUpdates.includeBaseToolRules = { from: currentIncludeBaseToolRules, to: desiredConfig.includeBaseToolRules };
+      operations.operationCount++;
+    }
+
     // Exclude memfs-owned tag from the general diff — the memfs reconciler is the
     // sole owner of `git-memory-enabled` (adds on migrate, removes on rollback).
     // Otherwise every re-apply against a memfs-mode agent would silently flag it
@@ -239,7 +253,8 @@ export class DiffEngine {
       desiredConfig.tools || [],
       toolRegistry,
       desiredConfig.toolSourceHashes || {},
-      updatedTools
+      updatedTools,
+      desiredConfig.includeBaseTools !== false
     );
     operations.operationCount += operations.tools.toAdd.length + operations.tools.toRemove.length + operations.tools.toUpdate.length;
 
