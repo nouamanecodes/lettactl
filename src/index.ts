@@ -190,7 +190,18 @@ Notes:
   .action(async (options, command) => { await applyCommand(options, command); });
 
 // Get command - parent with subcommands
-const getCmd = program.command('get').description('Display resources');
+const getCmd = program.command('get').description('Display resources')
+  .addHelpText('after', `
+
+Agent-scoped resource notes:
+  get blocks <agent>          Show attached memory blocks when available
+  get tools -a <agent>        Show attached tools when available
+  get folders -a <agent>      Show attached folders when available
+  get files -a <agent>        Show attached folder files when available
+  get archival <agent>        Show archival memory when available
+
+  Commands print "not available" when the agent does not expose that resource surface.
+`);
 
 getCmd
   .command('agents')
@@ -203,7 +214,7 @@ getCmd
 
 getCmd
   .command('blocks')
-  .description('List memory blocks')
+  .description('List attached memory blocks')
   .argument('[name]', 'specific block or agent name (optional)')
   .option('-o, --output <format>', 'output format (table|json|yaml)', 'table')
   .option('-a, --agent <name>', 'filter by agent name')
@@ -214,7 +225,7 @@ getCmd
 
 getCmd
   .command('archives')
-  .description('List archives')
+  .description('List attached archives')
   .argument('[name]', 'specific archive name (optional)')
   .option('-o, --output <format>', 'output format (table|json|yaml)', 'table')
   .option('-a, --agent <name>', 'filter by agent name')
@@ -222,7 +233,7 @@ getCmd
 
 getCmd
   .command('tools')
-  .description('List tools')
+  .description('List attached tools')
   .argument('[name]', 'specific tool name (optional)')
   .option('-o, --output <format>', 'output format (table|json|yaml)', 'table')
   .option('-a, --agent <name>', 'filter by agent name')
@@ -232,7 +243,7 @@ getCmd
 
 getCmd
   .command('folders')
-  .description('List folders')
+  .description('List attached folders')
   .argument('[name]', 'specific folder name (optional)')
   .option('-o, --output <format>', 'output format (table|json|yaml)', 'table')
   .option('-a, --agent <name>', 'filter by agent name')
@@ -242,7 +253,7 @@ getCmd
 
 getCmd
   .command('files')
-  .description('List files')
+  .description('List attached folder files')
   .argument('[name]', 'specific file name (optional)')
   .option('-o, --output <format>', 'output format (table|json|yaml)', 'table')
   .option('-a, --agent <name>', 'filter by agent name')
@@ -562,7 +573,7 @@ remoteCmd
 // Files - show agent file state
 program
   .command('files')
-  .description('Show attached files and their open/closed state')
+  .description('Show attached folder files and their open/closed state')
   .argument('<agent>', 'agent name')
   .option('-o, --output <format>', 'output format (table|json)', 'table')
   .action(filesCommand);

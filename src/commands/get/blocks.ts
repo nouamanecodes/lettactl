@@ -5,6 +5,7 @@ import { createSpinner } from '../../lib/ux/spinner';
 import { normalizeToArray, computeAgentCounts } from '../../lib/resources/resource-usage';
 import { output } from '../../lib/shared/logger';
 import { GetOptions } from './types';
+import { shouldPrintNotAvailableForAgent } from './availability';
 
 export async function getBlocks(
   client: LettaClientWrapper,
@@ -48,7 +49,9 @@ export async function getBlocks(
     }
 
     if (blockList.length === 0) {
-      if (agentId) output('No blocks attached to this agent');
+      if (agentId && await shouldPrintNotAvailableForAgent(client, agentId, blockList, options?.output)) {
+        output('not available');
+      } else if (agentId) output('No blocks attached to this agent');
       else if (options?.shared) output('No shared blocks found (attached to 2+ agents)');
       else if (options?.orphaned) output('No orphaned blocks found (attached to 0 agents)');
       else output('No blocks found');

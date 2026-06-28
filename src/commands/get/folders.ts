@@ -5,6 +5,7 @@ import { createSpinner } from '../../lib/ux/spinner';
 import { normalizeToArray, computeAgentCounts } from '../../lib/resources/resource-usage';
 import { output } from '../../lib/shared/logger';
 import { GetOptions } from './types';
+import { isAgentResourceSurfaceUnavailable, shouldPrintNotAvailableForAgent } from './availability';
 
 export async function getFolders(
   client: LettaClientWrapper,
@@ -39,6 +40,12 @@ export async function getFolders(
     let fileCounts: Map<string, number> | undefined;
 
     if (agentId) {
+      if (await isAgentResourceSurfaceUnavailable(client, agentId)) {
+        spinner.stop();
+        if (OutputFormatter.handleJsonOutput([], options?.output)) return;
+        output('not available');
+        return;
+      }
       // For agent-specific folders, no need for agent counts
       folderList = normalizeToArray(await client.listAgentFolders(agentId));
     } else {
@@ -73,7 +80,9 @@ export async function getFolders(
     }
 
     if (folderList.length === 0) {
-      if (agentId) output('No folders attached to this agent');
+      if (agentId && await shouldPrintNotAvailableForAgent(client, agentId, folderList, options?.output)) {
+        output('not available');
+      } else if (agentId) output('No folders attached to this agent');
       else if (options?.shared) output('No shared folders found (attached to 2+ agents)');
       else if (options?.orphaned) output('No orphaned folders found (attached to 0 agents)');
       else output('No folders found');

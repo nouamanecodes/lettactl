@@ -31,7 +31,9 @@ export async function contextCommand(agentName: string, options: { output?: stri
 
   // Fetch context
   const baseUrl = process.env.LETTA_BASE_URL;
-  const response = await fetch(`${baseUrl}/v1/agents/${agent.id}/context`);
+  const headers: Record<string, string> = {};
+  if (process.env.LETTA_API_KEY) headers.Authorization = `Bearer ${process.env.LETTA_API_KEY}`;
+  const response = await fetch(`${baseUrl}/v1/agents/${agent.id}/context`, { headers });
 
   if (!response.ok) {
     error(`Failed to fetch context: ${response.status}`);

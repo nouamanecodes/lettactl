@@ -2,6 +2,7 @@ import { LettaClientWrapper } from '../../lib/client/letta-client';
 import { AgentResolver } from '../../lib/client/agent-resolver';
 import { OutputFormatter } from '../../lib/ux/output-formatter';
 import { output, error } from '../../lib/shared/logger';
+import { isAgentResourceSurfaceUnavailable, shouldPrintNotAvailableForAgent } from '../get/availability';
 
 interface AgentFile {
   id: string;
@@ -25,9 +26,19 @@ export async function filesCommand(agentName: string, options: { output?: string
     process.exit(1);
   }
 
+  if (await isAgentResourceSurfaceUnavailable(client, agent.id)) {
+    if (OutputFormatter.handleJsonOutput([], options.output)) return;
+    output(`Files for agent: ${agentName}`);
+    output('='.repeat(40));
+    output('\nnot available');
+    return;
+  }
+
   // Fetch files
   const baseUrl = process.env.LETTA_BASE_URL;
-  const response = await fetch(`${baseUrl}/v1/agents/${agent.id}/files`);
+  const headers: Record<string, string> = {};
+  if (process.env.LETTA_API_KEY) headers.Authorization = `Bearer ${process.env.LETTA_API_KEY}`;
+  const response = await fetch(`${baseUrl}/v1/agents/${agent.id}/files`, { headers });
 
   if (!response.ok) {
     error(`Failed to fetch files: ${response.status}`);
@@ -45,7 +56,11 @@ export async function filesCommand(agentName: string, options: { output?: string
   output('='.repeat(40));
 
   if (files.length === 0) {
-    output('\nNo files attached');
+    if (await shouldPrintNotAvailableForAgent(client, agent.id, files, options.output)) {
+      output('\nnot available');
+    } else {
+      output('\nNo files attached');
+    }
     return;
   }
 
