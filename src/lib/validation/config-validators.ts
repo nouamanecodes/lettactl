@@ -1048,6 +1048,88 @@ export class AgentMemoryConfigValidator {
       throw new Error('memory.template_dir must be a string (path relative to root_path).');
     }
 
+    if (memory.preserve_existing_paths !== undefined) {
+      if (!Array.isArray(memory.preserve_existing_paths)) {
+        throw new Error('memory.preserve_existing_paths must be an array of memfs paths.');
+      }
+      const seenPreservedPaths = new Set<string>();
+      memory.preserve_existing_paths.forEach((entry: any, i: number) => {
+        if (typeof entry !== 'string' || entry.length === 0) {
+          throw new Error(`memory.preserve_existing_paths[${i}] must be a non-empty string.`);
+        }
+        if (entry.startsWith('/') || entry.includes('..')) {
+          throw new Error(
+            `memory.preserve_existing_paths[${i}] must be a repo-relative path. ` +
+            `Got "${entry}" — no leading slash, no "..".`
+          );
+        }
+        if (seenPreservedPaths.has(entry)) {
+          throw new Error(`memory.preserve_existing_paths: duplicate path "${entry}".`);
+        }
+        seenPreservedPaths.add(entry);
+      });
+    }
+
+    if (memory.files !== undefined) {
+      if (!Array.isArray(memory.files)) {
+        throw new Error('memory.files must be an array.');
+      }
+      const seenFileTargets = new Set<string>();
+      memory.files.forEach((entry: any, i: number) => {
+        if (!entry || typeof entry !== 'object') {
+          throw new Error(`memory.files[${i}] must be an object.`);
+        }
+        if (typeof entry.to !== 'string' || entry.to.length === 0) {
+          throw new Error(`memory.files[${i}].to must be a non-empty string (memfs target path).`);
+        }
+        if (entry.to.startsWith('/') || entry.to.includes('..')) {
+          throw new Error(
+            `memory.files[${i}].to must be a repo-relative path. ` +
+            `Got "${entry.to}" — no leading slash, no "..".`
+          );
+        }
+        if (!entry.to.endsWith('.md')) {
+          throw new Error(`memory.files[${i}].to must end in ".md" (got "${entry.to}").`);
+        }
+        const hasValue = entry.value !== undefined;
+        const hasFromFile = entry.from_file !== undefined;
+        if (hasValue === hasFromFile) {
+          throw new Error(`memory.files[${i}] must set exactly one of value or from_file.`);
+        }
+        if (hasValue && typeof entry.value !== 'string') {
+          throw new Error(`memory.files[${i}].value must be a string.`);
+        }
+        if (hasFromFile) {
+          if (typeof entry.from_file !== 'string' || entry.from_file.length === 0) {
+            throw new Error(`memory.files[${i}].from_file must be a non-empty string.`);
+          }
+          if (entry.from_file.startsWith('/') || entry.from_file.includes('..')) {
+            throw new Error(
+              `memory.files[${i}].from_file must be a repo-relative path. ` +
+              `Got "${entry.from_file}" — no leading slash, no "..".`
+            );
+          }
+        }
+        if (entry.template_vars !== undefined) {
+          if (!entry.template_vars || typeof entry.template_vars !== 'object' || Array.isArray(entry.template_vars)) {
+            throw new Error(`memory.files[${i}].template_vars must be an object if set.`);
+          }
+          for (const [key, value] of Object.entries(entry.template_vars)) {
+            if (!/^[A-Z0-9_]+$/.test(key)) {
+              throw new Error(`memory.files[${i}].template_vars key "${key}" must use uppercase letters, numbers, and underscores.`);
+            }
+            if (typeof value !== 'string') {
+              throw new Error(`memory.files[${i}].template_vars.${key} must be a string.`);
+            }
+          }
+        }
+        if (seenFileTargets.has(entry.to)) {
+          throw new Error(`memory.files: duplicate target path "${entry.to}".`);
+        }
+        seenFileTargets.add(entry.to);
+      });
+    }
+
     if (memory.capability_index_file !== undefined && typeof memory.capability_index_file !== 'string') {
       throw new Error('memory.capability_index_file must be a string path.');
     }
@@ -1092,9 +1174,10 @@ export class AgentMemoryConfigValidator {
       const hasFromBlocks = Array.isArray(memory.from_blocks) && memory.from_blocks.length > 0;
       const hasTemplateDir = typeof memory.template_dir === 'string' && memory.template_dir.length > 0;
       const hasSkills = Array.isArray(memory.skills) && memory.skills.length > 0;
-      if (!hasFromBlocks && !hasTemplateDir && !hasSkills) {
+      const hasFiles = Array.isArray(memory.files) && memory.files.length > 0;
+      if (!hasFromBlocks && !hasTemplateDir && !hasSkills && !hasFiles) {
         throw new Error(
-          'memory.mode is "memfs" but none of from_blocks (non-empty array), template_dir, or skills is set. ' +
+          'memory.mode is "memfs" but none of from_blocks (non-empty array), template_dir, files, or skills is set. ' +
           'At least one is required so lettactl knows what to push to the bare repo.'
         );
       }

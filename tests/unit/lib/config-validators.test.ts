@@ -382,12 +382,34 @@ describe('AgentMemoryConfigValidator', () => {
     })).not.toThrow();
   });
 
+  it('accepts preserve_existing_paths for memfs mode', () => {
+    expect(() => AgentMemoryConfigValidator.validate({
+      mode: 'memfs',
+      template_dir: 'lib/fleet/memfs-templates/draper/',
+      preserve_existing_paths: [
+        'system/persona.md',
+        'system/important_variables.md',
+        'system/generation_state.md',
+      ],
+    })).not.toThrow();
+  });
+
   it('accepts a memfs-mode config with only skills', () => {
     expect(() => AgentMemoryConfigValidator.validate({
       mode: 'memfs',
       skills: [
         { from_dir: 'agents/skills/media-generation' },
         { name: 'reference-handling', from_dir: 'agents/skills/reference' },
+      ],
+    })).not.toThrow();
+  });
+
+  it('accepts a memfs-mode config with only files', () => {
+    expect(() => AgentMemoryConfigValidator.validate({
+      mode: 'memfs',
+      files: [
+        { to: 'system/important_variables.md', value: '# Important Variables' },
+        { to: 'system/persona.md', from_file: 'agents/draper/persona.md' },
       ],
     })).not.toThrow();
   });
@@ -426,6 +448,66 @@ describe('AgentMemoryConfigValidator', () => {
         { name: 'media-generation', from_dir: 'agents/skills/media-generation-copy' },
       ],
     })).toThrow('duplicate skill name');
+  });
+
+  it('rejects invalid preserve_existing_paths configs', () => {
+    expect(() => AgentMemoryConfigValidator.validate({
+      mode: 'memfs',
+      template_dir: 'templates',
+      preserve_existing_paths: 'system/persona.md' as any,
+    })).toThrow('memory.preserve_existing_paths must be an array');
+    expect(() => AgentMemoryConfigValidator.validate({
+      mode: 'memfs',
+      template_dir: 'templates',
+      preserve_existing_paths: ['/system/persona.md'],
+    })).toThrow('repo-relative path');
+    expect(() => AgentMemoryConfigValidator.validate({
+      mode: 'memfs',
+      template_dir: 'templates',
+      preserve_existing_paths: ['system/persona.md', 'system/persona.md'],
+    })).toThrow('duplicate path');
+  });
+
+  it('rejects invalid memory.files configs', () => {
+    expect(() => AgentMemoryConfigValidator.validate({
+      mode: 'memfs',
+      files: 'system/persona.md' as any,
+    })).toThrow('memory.files must be an array');
+    expect(() => AgentMemoryConfigValidator.validate({
+      mode: 'memfs',
+      files: [{ to: '/system/persona.md', value: 'x' }],
+    })).toThrow('repo-relative path');
+    expect(() => AgentMemoryConfigValidator.validate({
+      mode: 'memfs',
+      files: [{ to: 'system/persona.txt', value: 'x' }],
+    })).toThrow('must end in ".md"');
+    expect(() => AgentMemoryConfigValidator.validate({
+      mode: 'memfs',
+      files: [{ to: 'system/persona.md', value: 'x', from_file: 'persona.md' }],
+    })).toThrow('exactly one of value or from_file');
+    expect(() => AgentMemoryConfigValidator.validate({
+      mode: 'memfs',
+      files: [{ to: 'system/persona.md' }],
+    })).toThrow('exactly one of value or from_file');
+    expect(() => AgentMemoryConfigValidator.validate({
+      mode: 'memfs',
+      files: [{ to: 'system/persona.md', from_file: '../persona.md' }],
+    })).toThrow('repo-relative path');
+    expect(() => AgentMemoryConfigValidator.validate({
+      mode: 'memfs',
+      files: [
+        { to: 'system/persona.md', value: 'x' },
+        { to: 'system/persona.md', value: 'y' },
+      ],
+    })).toThrow('duplicate target path');
+    expect(() => AgentMemoryConfigValidator.validate({
+      mode: 'memfs',
+      files: [{ to: 'system/persona.md', from_file: 'persona.md', template_vars: { 'bad-key': 'x' } }],
+    })).toThrow('uppercase letters');
+    expect(() => AgentMemoryConfigValidator.validate({
+      mode: 'memfs',
+      files: [{ to: 'system/persona.md', from_file: 'persona.md', template_vars: { GOOD_KEY: 123 } }],
+    })).toThrow('must be a string');
   });
 
   it('rejects bare_repo value other than "auto"', () => {

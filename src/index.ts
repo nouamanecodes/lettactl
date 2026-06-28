@@ -146,6 +146,8 @@ program
 MemFS skills and secrets:
   memory.mode: memfs              Sync agent state to the git-backed memory filesystem
   memory.template_dir             Copy a full MemFS template directory
+  memory.preserve_existing_paths  Seed listed paths, then preserve remote edits
+  memory.files[]                  Write explicit inline/from_file content to a MemFS path
   memory.skills[].from_dir        Copy a skill directory containing SKILL.md into skills/<name>
   global-secrets                  Sync secret values to every agent
   agents[].secrets                Sync per-agent secrets; overrides globals
@@ -164,6 +166,12 @@ Example:
         mode: memfs
         bare_repo: auto
         template_dir: migration-artifacts/agent-migrate/memfs
+        preserve_existing_paths:
+          - system/persona.md
+          - system/important_variables.md
+        files:
+          - to: system/important_variables.md
+            value: "# Important Variables\\n- COMPANY_ID: ..."
         skills:
           - name: media-generation
             from_dir: migration-artifacts/agent-migrate/memfs/skills/media-generation

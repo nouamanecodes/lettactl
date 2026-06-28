@@ -152,6 +152,74 @@ describe('computeMemfsAction', () => {
     }
   });
 
+  it('does not overwrite preserved paths that already exist in the bare repo', () => {
+    const action = computeMemfsAction(
+      'test-agent',
+      mkAgent({
+        mode: 'memfs',
+        preserve_existing_paths: ['system/persona.md'],
+        from_blocks: [
+          { block: 'persona', to: 'system/persona.md' },
+          { block: 'routing', to: 'system/routing.md' },
+        ],
+      }),
+      mkServer({
+        tags: [GIT_MEMORY_ENABLED_TAG],
+        blocks: [
+          mkBlock('persona', 'TEMPLATE persona'),
+          mkBlock('routing', 'NEW routing'),
+        ],
+        files: {
+          'system/persona.md': gitBlobSha('AGENT EDITED persona'),
+          'system/routing.md': gitBlobSha('OLD routing'),
+        },
+      }),
+      '/tmp',
+    );
+    expect(action.kind).toBe('sync-files-only');
+    if (action.kind === 'sync-files-only') {
+      expect(action.changedFiles.has('system/persona.md')).toBe(false);
+      expect(action.changedFiles.get('system/routing.md')).toBe('NEW routing');
+    }
+  });
+
+  it('seeds preserved paths that do not exist in the bare repo yet', () => {
+    const action = computeMemfsAction(
+      'test-agent',
+      mkAgent({
+        mode: 'memfs',
+        preserve_existing_paths: ['system/persona.md'],
+        from_blocks: [{ block: 'persona', to: 'system/persona.md' }],
+      }),
+      mkServer({
+        tags: [GIT_MEMORY_ENABLED_TAG],
+        blocks: [mkBlock('persona', 'TEMPLATE persona')],
+        files: {},
+      }),
+      '/tmp',
+    );
+    expect(action.kind).toBe('sync-files-only');
+    if (action.kind === 'sync-files-only') {
+      expect(action.changedFiles.get('system/persona.md')).toBe('TEMPLATE persona');
+    }
+  });
+
+  it('adds inline memory.files entries to target files', () => {
+    const action = computeMemfsAction(
+      'test-agent',
+      mkAgent({
+        mode: 'memfs',
+        files: [{ to: 'system/important_variables.md', value: '# Important\n\nCOMPANY_ID=123\n' }],
+      }),
+      mkServer(),
+      '/tmp',
+    );
+    expect(action.kind).toBe('migrate-forward');
+    if (action.kind === 'migrate-forward') {
+      expect(action.targetFiles.get('system/important_variables.md')).toBe('# Important\n\nCOMPANY_ID=123\n');
+    }
+  });
+
   it('throws when a referenced block does not exist on the server', () => {
     expect(() =>
       computeMemfsAction(
@@ -336,6 +404,96 @@ describe('template_dir scan', () => {
     if (action.kind === 'migrate-forward') {
       expect(action.targetFiles.get('system/persona.md')).toBe('FROM_BLOCK');
     }
+  });
+
+  it('memory.files overwrites template_dir on path collision', () => {
+    writeFile('system/important_variables.md', 'TEMPLATE');
+    const action = computeMemfsAction(
+      'test-agent',
+      mkAgent({
+        mode: 'memfs',
+        template_dir: 'templates',
+        files: [{ to: 'system/important_variables.md', value: 'INLINE' }],
+      }),
+      mkServer(),
+      tmpDir,
+    );
+    expect(action.kind).toBe('migrate-forward');
+    if (action.kind === 'migrate-forward') {
+      expect(action.targetFiles.get('system/important_variables.md')).toBe('INLINE');
+    }
+  });
+
+  it('memory.files reads from_file relative to root path', () => {
+    writeFile('system/template.md', 'FROM-FILE');
+    const action = computeMemfsAction(
+      'test-agent',
+      mkAgent({
+        mode: 'memfs',
+        files: [{ to: 'system/copied.md', from_file: 'templates/system/template.md' }],
+      }),
+      mkServer(),
+      tmpDir,
+    );
+    expect(action.kind).toBe('migrate-forward');
+    if (action.kind === 'migrate-forward') {
+      expect(action.targetFiles.get('system/copied.md')).toBe('FROM-FILE');
+    }
+  });
+
+  it('memory.files renders template_vars for from_file content', () => {
+    writeFile('system/important_variables.md', '- COMPANY_ID: {{COMPANY_ID}}\n- USER_ID: {{USER_ID}}\n');
+    const action = computeMemfsAction(
+      'test-agent',
+      mkAgent({
+        mode: 'memfs',
+        files: [{
+          to: 'system/important_variables.md',
+          from_file: 'templates/system/important_variables.md',
+          template_vars: {
+            COMPANY_ID: 'company-123',
+            USER_ID: 'user-456',
+          },
+        }],
+      }),
+      mkServer(),
+      tmpDir,
+    );
+    expect(action.kind).toBe('migrate-forward');
+    if (action.kind === 'migrate-forward') {
+      expect(action.targetFiles.get('system/important_variables.md')).toBe('- COMPANY_ID: company-123\n- USER_ID: user-456\n');
+    }
+  });
+
+  it('memory.files renders template_vars for inline value content', () => {
+    const action = computeMemfsAction(
+      'test-agent',
+      mkAgent({
+        mode: 'memfs',
+        files: [{
+          to: 'system/important_variables.md',
+          value: '- COMPANY_ID: {{COMPANY_ID}}\n',
+          template_vars: { COMPANY_ID: 'company-123' },
+        }],
+      }),
+      mkServer(),
+      tmpDir,
+    );
+    expect(action.kind).toBe('migrate-forward');
+    if (action.kind === 'migrate-forward') {
+      expect(action.targetFiles.get('system/important_variables.md')).toBe('- COMPANY_ID: company-123\n');
+    }
+  });
+
+  it('throws when memory.files from_file is missing', () => {
+    expect(() =>
+      computeMemfsAction(
+        'test-agent',
+        mkAgent({ mode: 'memfs', files: [{ to: 'system/copied.md', from_file: 'templates/missing.md' }] }),
+        mkServer(),
+        tmpDir,
+      ),
+    ).toThrow('memory.files from_file does not exist');
   });
 
   it('preserves .gitkeep files as empty strings', () => {

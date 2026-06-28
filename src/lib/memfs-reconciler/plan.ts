@@ -114,11 +114,17 @@ export function computeMemfsAction(
     };
   }
 
-  // Tag already set — diff targetFiles vs bareRepoFiles
+  // Tag already set — diff targetFiles vs bareRepoFiles. Paths listed in
+  // preserve_existing_paths are seed-only after their first remote write:
+  // if the file exists in the bare repo, do not overwrite agent-owned edits.
   const changedFiles = new Map<string, string>();
+  const preserveExistingPaths = new Set(memory.preserve_existing_paths ?? []);
   for (const [filePath, content] of targetFiles) {
-    const desiredSha = gitBlobSha(content);
     const currentSha = server.bareRepoFiles.get(filePath);
+    if (preserveExistingPaths.has(filePath) && currentSha) {
+      continue;
+    }
+    const desiredSha = gitBlobSha(content);
     if (desiredSha !== currentSha) {
       changedFiles.set(filePath, content);
     }
@@ -149,8 +155,9 @@ export function computeMemfsAction(
  *      excluding dotfiles (except .gitkeep/.keep), symlinks, and the root-level README.md.
  *      Hand-authored files like `system/identity.md` or `persona/learned-preferences.md`
  *      ship via this path without needing a `from_blocks` entry.
- *   3. `skills` — copies skill directories to `skills/<skill-name>/...`.
- *   4. `from_blocks` — last so it ALWAYS wins on collision. The YAML's explicit directive
+ *   3. `files` — explicit inline or from_file entries for dynamic per-agent content.
+ *   4. `skills` — copies skill directories to `skills/<skill-name>/...`.
+ *   5. `from_blocks` — last so it ALWAYS wins on collision. The YAML's explicit directive
  *      to derive a memfs file from a live block trumps any template skeleton at the same path.
  */
 export function buildTargetFiles(
@@ -189,6 +196,23 @@ export function buildTargetFiles(
     }
     for (const [filePath, content] of walkTemplateDir(absDir)) {
       out.set(filePath, content);
+    }
+  }
+
+  if (memory.files) {
+    for (const entry of memory.files) {
+      if (entry.value !== undefined) {
+        out.set(entry.to, renderTemplateVars(entry.value, entry.template_vars ?? {}));
+        continue;
+      }
+      const absFile = path.resolve(rootPath, entry.from_file!);
+      if (!fs.existsSync(absFile)) {
+        throw new Error(
+          `[memfs-plan] Agent ${agentName}: memory.files from_file does not exist at ${absFile}. ` +
+            `Check memory.files[].from_file in YAML (resolved against root_path).`,
+        );
+      }
+      out.set(entry.to, renderTemplateVars(fs.readFileSync(absFile, 'utf8'), entry.template_vars ?? {}));
     }
   }
 
@@ -355,4 +379,12 @@ export function gitBlobSha(content: string): string {
 
 function escapeRegExp(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+export function renderTemplateVars(content: string, vars: Record<string, string>): string {
+  let rendered = content;
+  for (const [key, value] of Object.entries(vars)) {
+    rendered = rendered.replace(new RegExp(`{{${escapeRegExp(key)}}}`, 'g'), value);
+  }
+  return rendered;
 }
