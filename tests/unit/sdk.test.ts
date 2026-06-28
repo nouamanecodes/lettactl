@@ -78,7 +78,7 @@ describe('LettaCtl', () => {
     expect(ctl.validateFleet(withMemfs)).toBe(true);
   });
 
-  it('rejects memfs memory section with no source (no template_dir, no from_blocks)', () => {
+  it('rejects memfs memory section with no source (no template_dir, no from_blocks, no skills)', () => {
     const invalid: FleetConfig = {
       agents: [{
         name: 'a',

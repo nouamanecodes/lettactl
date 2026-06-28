@@ -101,6 +101,53 @@ lettactl apply -f fleet.yml --dry-run    # Preview changes (drift detection)
 lettactl apply -f fleet.yml --agent one  # Deploy specific agent
 ```
 
+### Cloud MemFS Skills and Secrets
+
+Provision Letta Code agent-owned skills and secrets for Cloud agents without committing secret values:
+
+```yaml
+global-secrets:
+  ADSPECTRE_API_BASE:
+    value: https://app.adspectre.ai
+
+agents:
+  - name: draper-cloud
+    description: "Cloud Draper agent"
+    llm_config:
+      model: "letta/glm"
+      context_window: 32000
+    system_prompt:
+      value: "You are helpful."
+    memory:
+      mode: memfs
+      bare_repo: auto
+      template_dir: agents/draper/memfs
+      skills:
+        - name: dashboard-api
+          from_dir: agents/skills/dashboard-api
+    secrets:
+      ADSPECTRE_AGENT_TOKEN:
+        from_env: ADSPECTRE_AGENT_TOKEN
+        preserve_existing: true
+```
+
+`memory.template_dir` copies a full MemFS skeleton such as `system/*.md`.
+`memory.skills[].from_dir` copies a directory containing `SKILL.md` into
+`skills/<name>` in the agent's git-backed memory filesystem. This lets agents
+own executable skill instructions without registering Letta custom tools.
+
+`global-secrets` are attached to every agent. `agents[].secrets` are per-agent
+and override globals. Secret values are synced to Letta agent API state and
+redacted from output; YAML should generally use `from_env` for sensitive values.
+Use `preserve_existing: true` when a deploy should keep the remote secret value
+if the local environment variable is intentionally absent. Agent-scoped identity
+secrets such as `ADSPECTRE_AGENT_TOKEN` must be configured per-agent, not globally.
+
+```bash
+lettactl apply -f fleet.yml --dry-run     # Shows MemFS and secret drift
+lettactl apply -f fleet.yml --root .      # Resolves template_dir/from_dir paths from repo root
+```
+
 ### Inspection & Debugging ([full guide](https://lettactl.dev/commands/inspection))
 
 ```bash
@@ -158,7 +205,7 @@ lettactl get agents --tags "tenant:acme,role:support"   # AND logic
 LettaCTL also works as a programmatic SDK for building applications:
 
 ```bash
-npm install lettactl
+pnpm add lettactl
 ```
 
 ```typescript
@@ -208,7 +255,7 @@ await ctl.deleteAgent('my-agent');
 | **Lifecycle** | `duplicate`, `delete`, `delete-all`, `cleanup` |
 | **Export** | `export agent`, `export agents`, `export lettabot`, `import` |
 | **Runs** | `get runs`, `get run`, `track`, `run-delete` |
-| **Fleet** | `report memory`, `--canary`, `--fresh-context`, `--compact`, `--recalibrate`, `--skip-recompile`, `--match`, `--no-wait-for-idle` |
+| **Fleet** | `report memory`, `memory.mode=memfs`, `memory.skills`, `global-secrets`, `agents[].secrets`, `--canary`, `--fresh-context`, `--compact`, `--recalibrate`, `--skip-recompile`, `--match`, `--no-wait-for-idle` |
 | **Config** | `remote add/use/list/remove`, `completion` |
 
 Run `lettactl --help` or visit [lettactl.dev](https://lettactl.dev) for full documentation.

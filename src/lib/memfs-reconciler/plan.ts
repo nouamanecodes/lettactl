@@ -27,12 +27,14 @@ export interface BlockSnapshot {
 export interface ServerAgentState {
   agentId: string;
   tags: string[];
+  metadata?: Record<string, any>;
   blocks: BlockSnapshot[];
   // path -> blob SHA at HEAD of the bare repo. Empty if no commits yet.
   bareRepoFiles: Map<string, string>;
 }
 
 export const GIT_MEMORY_ENABLED_TAG = 'git-memory-enabled';
+export const GIT_MEMORY_ENABLED_METADATA_KEY = 'lettactl.memfs.enabled';
 
 export type MemfsAction =
   | {
@@ -78,7 +80,9 @@ export function computeMemfsAction(
   server: ServerAgentState,
   rootPath: string,
 ): MemfsAction {
-  const hasTag = server.tags.includes(GIT_MEMORY_ENABLED_TAG);
+  const hasTag =
+    server.tags.includes(GIT_MEMORY_ENABLED_TAG) ||
+    server.metadata?.[GIT_MEMORY_ENABLED_METADATA_KEY] === true;
   const memory = yaml.memory;
 
   // No memory section, or explicitly blocks-mode
@@ -145,7 +149,8 @@ export function computeMemfsAction(
  *      excluding dotfiles (except .gitkeep/.keep), symlinks, and the root-level README.md.
  *      Hand-authored files like `system/identity.md` or `persona/learned-preferences.md`
  *      ship via this path without needing a `from_blocks` entry.
- *   3. `from_blocks` — last so it ALWAYS wins on collision. The YAML's explicit directive
+ *   3. `skills` — copies skill directories to `skills/<skill-name>/...`.
+ *   4. `from_blocks` — last so it ALWAYS wins on collision. The YAML's explicit directive
  *      to derive a memfs file from a live block trumps any template skeleton at the same path.
  */
 export function buildTargetFiles(
@@ -187,6 +192,28 @@ export function buildTargetFiles(
     }
   }
 
+  if (memory.skills) {
+    for (const skill of memory.skills) {
+      const absDir = path.resolve(rootPath, skill.from_dir);
+      const skillName = skill.name || path.basename(absDir);
+      if (!fs.existsSync(absDir)) {
+        throw new Error(
+          `[memfs-plan] Agent ${agentName}: memory.skills from_dir does not exist at ${absDir}. ` +
+            `Check memory.skills[].from_dir in YAML (resolved against root_path).`,
+        );
+      }
+      const skillMd = path.join(absDir, 'SKILL.md');
+      if (!fs.existsSync(skillMd)) {
+        throw new Error(
+          `[memfs-plan] Agent ${agentName}: memory.skills "${skillName}" must contain SKILL.md at ${skillMd}.`,
+        );
+      }
+      for (const [filePath, content] of walkSkillDir(absDir)) {
+        out.set(`skills/${skillName}/${filePath}`, content);
+      }
+    }
+  }
+
   if (memory.from_blocks) {
     const blockByLabel = new Map(server.blocks.map((b) => [b.label, b]));
     for (const entry of memory.from_blocks) {
@@ -205,6 +232,37 @@ export function buildTargetFiles(
     }
   }
 
+  return out;
+}
+
+/**
+ * Recursively walk a skill directory, returning skill-relative path -> content.
+ * Skills can contain markdown references and helper scripts, so this allows
+ * normal files while skipping dependency/build/dotfile directories.
+ */
+export function walkSkillDir(absDir: string): Map<string, string> {
+  const out = new Map<string, string>();
+  const SKIP_DIRS = new Set(['.git', 'node_modules', 'dist', 'build', '.next']);
+
+  function walk(currentAbs: string, relPrefix: string) {
+    const entries = fs.readdirSync(currentAbs, { withFileTypes: true });
+    for (const entry of entries) {
+      if (entry.isSymbolicLink()) continue;
+      const name = entry.name;
+      if (name.startsWith('.')) continue;
+      const relPath = relPrefix ? `${relPrefix}/${name}` : name;
+      const absPath = path.join(currentAbs, name);
+      if (entry.isDirectory()) {
+        if (SKIP_DIRS.has(name)) continue;
+        walk(absPath, relPath);
+        continue;
+      }
+      if (!entry.isFile()) continue;
+      out.set(relPath, fs.readFileSync(absPath, 'utf8'));
+    }
+  }
+
+  walk(absDir, '');
   return out;
 }
 

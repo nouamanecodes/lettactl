@@ -32,6 +32,7 @@ export async function buildServerAgentState(
   }));
 
   const tags = ((agent as any).tags ?? []) as string[];
+  const metadata = ((agent as any).metadata ?? {}) as Record<string, any>;
 
   // Pull the bare repo file SHAs. If the bare repo doesn't exist yet (first
   // migration), the sidecar auto-creates it on clone and we get an empty map.
@@ -49,6 +50,7 @@ export async function buildServerAgentState(
   return {
     agentId,
     tags,
+    metadata,
     blocks,
     bareRepoFiles,
   };

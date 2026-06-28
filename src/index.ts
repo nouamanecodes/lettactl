@@ -87,7 +87,7 @@ const program = new Command();
 
 program
   .name('lettactl')
-  .description('kubectl-style CLI for managing Letta AI agent fleets')
+  .description('kubectl-style CLI for managing Letta AI agent fleets, MemFS skills, and Letta Code secrets')
   .version(version)
   .option('-v, --verbose', 'enable verbose output')
   .option('-q, --quiet', 'suppress progress output (for CI)')
@@ -113,7 +113,7 @@ program.helpInformation = function() {
 // Apply command - deploy fleet from YAML
 program
   .command('apply')
-  .description('Deploy agents from configuration')
+  .description('Deploy agents, MemFS skills, and Letta Code secrets from configuration')
   .option('-f, --file <path>', 'agent YAML configuration file', 'agents.yml')
   .option('--agent <pattern>', 'deploy only agents matching pattern')
   .option('--match <pattern>', 'apply template config to all existing agents matching glob pattern')
@@ -141,6 +141,40 @@ program
   .option('--recalibrate-match <pattern>', 'filter recalibration to agents matching glob pattern')
   .option('--no-wait', 'fire-and-forget recalibration (do not wait for agent responses)')
   .option('--no-wait-for-idle', 'do not wait for in-flight agent runs before recompile/reset/compact/recalibrate')
+  .addHelpText('after', `
+
+MemFS skills and secrets:
+  memory.mode: memfs              Sync agent state to the git-backed memory filesystem
+  memory.template_dir             Copy a full MemFS template directory
+  memory.skills[].from_dir        Copy a skill directory containing SKILL.md into skills/<name>
+  global-secrets                  Sync secret values to every agent
+  agents[].secrets                Sync per-agent secrets; overrides globals
+  preserve_existing: true         Reuse the current remote value when from_env is unset
+
+Example:
+  global-secrets:
+    ADSPECTRE_API_BASE:
+      value: https://app.adspectre.ai
+
+  agents:
+    - name: agent-migrate
+      memory:
+        mode: memfs
+        bare_repo: auto
+        template_dir: migration-artifacts/agent-migrate/memfs
+        skills:
+          - name: media-generation
+            from_dir: migration-artifacts/agent-migrate/memfs/skills/media-generation
+      secrets:
+        ADSPECTRE_AGENT_TOKEN:
+          from_env: ADSPECTRE_AGENT_MIGRATE_TOKEN
+          preserve_existing: true
+
+Notes:
+  - skill directories must be repo-relative and include SKILL.md
+  - secret values are redacted from output
+  - agent-scoped identity secrets should be declared under agents[].secrets
+`)
   .action(async (options, command) => { await applyCommand(options, command); });
 
 // Get command - parent with subcommands

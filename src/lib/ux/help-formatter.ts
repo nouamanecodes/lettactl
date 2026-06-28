@@ -15,7 +15,7 @@ const COMMAND_GROUPS: CommandGroup[] = [
   {
     title: 'Operations',
     commands: [
-      { key: 'apply', value: 'Deploy agents from config' },
+      { key: 'apply', value: 'Deploy fleet/MemFS/secrets' },
       { key: 'validate', value: 'Validate configuration' },
       { key: 'export', value: 'Export agent to file' },
       { key: 'import', value: 'Import agent from file' },
@@ -106,6 +106,7 @@ export function printFancyHelp(): void {
 
   // Tagline
   output(chalk.dim('        kubectl-style CLI for Letta AI agent fleets'));
+  output(chalk.dim('        deploy agents, MemFS skills, and Letta Code secrets'));
   output(chalk.dim('        run lettactl --help --no-ux for full text help'));
   output();
 

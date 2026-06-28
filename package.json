@@ -1,6 +1,6 @@
 {
   "name": "lettactl",
-  "version": "0.21.10",
+  "version": "1.0.0",
   "description": "kubectl-style CLI for managing Letta AI agent fleets",
   "main": "dist/sdk.js",
   "exports": {
@@ -18,9 +18,9 @@
     "test": "jest",
     "test:e2e": "./tests/e2e/script.sh",
     "prepare": "husky",
-    "prepublishOnly": "npm test && npm run build",
-    "preversion": "npm test",
-    "version": "npm run build",
+    "prepublishOnly": "pnpm test && pnpm run build",
+    "preversion": "pnpm test",
+    "version": "pnpm run build",
     "postversion": "git push && git push --tags"
   },
   "keywords": [
@@ -55,7 +55,7 @@
     "cli-table3": "^0.6.5",
     "commander": "^14.0.2",
     "glob": "^13.0.5",
-    "js-yaml": "^4.1.1",
+    "js-yaml": "^4.1.2",
     "minimatch": "^10.2.4",
     "ora": "5.4.1"
   },

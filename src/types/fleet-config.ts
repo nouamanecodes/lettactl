@@ -1,10 +1,15 @@
 export interface FleetConfig {
   root_path?: string;
+  'global-secrets'?: Record<string, SecretConfig>;
   shared_blocks?: SharedBlock[];
   shared_folders?: SharedFolderConfig[];
   mcp_servers?: McpServerConfig[];
   agents: AgentConfig[];
 }
+
+export type SecretConfig =
+  | { from_env: string; value?: never; preserve_existing?: boolean }
+  | { value: string; from_env?: never; preserve_existing?: never };
 
 export interface McpServerConfig {
   name: string;
@@ -51,6 +56,7 @@ export interface AgentConfig {
   tags?: string[]; // Tags for filtering and multi-tenancy (e.g., ["tenant:user-123", "role:support"])
   lettabot?: LettaBotConfig; // LettaBot runtime configuration (channels, features, polling, etc.)
   memory?: AgentMemoryConfig; // memFS migration config — see AgentMemoryConfig. Absent = block-mode (default).
+  secrets?: Record<string, SecretConfig>; // Agent-scoped Letta Code secrets. Values are resolved by lettactl and stored in agent API state.
 }
 
 // Per-agent memFS migration config. When `mode: memfs`, lettactl apply will
@@ -64,6 +70,10 @@ export interface AgentMemoryConfig {
   mode: 'blocks' | 'memfs';
   bare_repo?: 'auto';                        // 'auto' = resolve via Letta /v1/git/<id>/state.git
   template_dir?: string;                     // dir of skeleton .md files; relative to root_path
+  skills?: Array<{
+    name?: string;                           // defaults to basename(from_dir)
+    from_dir: string;                        // skill dir containing SKILL.md; relative to root_path
+  }>;
   from_blocks?: Array<{
     block: string;                           // existing block label on the agent
     to: string;                              // memfs target path (must end in .md, no leading slash, no ..)
