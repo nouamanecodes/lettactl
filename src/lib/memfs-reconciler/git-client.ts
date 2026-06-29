@@ -94,9 +94,15 @@ export class GitClient {
     workdir: string,
     files: Map<string, string>,
     commitMessage: string,
+    deletedFiles: string[] = [],
   ): Promise<string> {
-    if (files.size === 0) {
+    if (files.size === 0 && deletedFiles.length === 0) {
       throw new Error('[GitClient.writeCommitPush] files map is empty — nothing to commit');
+    }
+
+    for (const relPath of deletedFiles) {
+      const absPath = path.join(workdir, relPath);
+      await fs.rm(absPath, { recursive: true, force: true });
     }
 
     // Write all files
@@ -107,7 +113,7 @@ export class GitClient {
     }
 
     // Stage everything that changed (new + modified)
-    await this.runGit(['add', '.'], { cwd: workdir });
+    await this.runGit(['add', '-A'], { cwd: workdir });
 
     // Check whether anything is actually staged — git commit fails on empty diff.
     const { stdout: statusOut } = await this.runGit(['status', '--porcelain'], { cwd: workdir });

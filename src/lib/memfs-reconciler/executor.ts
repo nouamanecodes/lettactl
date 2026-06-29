@@ -35,6 +35,7 @@ export interface MemfsExecutionResult {
   commitSha?: string;
   newTags?: string[];
   filesChanged?: string[];
+  filesDeleted?: string[];
   error?: string;
 }
 
@@ -210,6 +211,7 @@ export class MemfsReconciler {
     action: Extract<MemfsAction, { kind: 'sync-files-only' }>,
   ): Promise<MemfsExecutionResult> {
     const filesChanged = Array.from(action.changedFiles.keys());
+    const filesDeleted = action.deletedFiles;
 
     if (this.opts.dryRun) {
       return {
@@ -217,15 +219,17 @@ export class MemfsReconciler {
         agentId: action.agentId,
         status: 'dry-run',
         filesChanged,
+        filesDeleted,
       };
     }
 
-    const commitMessage = `update: ${action.changedFiles.size} files changed (lettactl ${this.opts.lettactlVersion})`;
+    const changeCount = action.changedFiles.size + action.deletedFiles.length;
+    const commitMessage = `update: ${changeCount} memfs files changed (lettactl ${this.opts.lettactlVersion})`;
     let tempDir: string | null = null;
     let commitSha: string;
     try {
       tempDir = await this.git.cloneToTemp(action.agentId);
-      commitSha = await this.git.writeCommitPush(tempDir, action.changedFiles, commitMessage);
+      commitSha = await this.git.writeCommitPush(tempDir, action.changedFiles, commitMessage, action.deletedFiles);
     } finally {
       if (tempDir) {
         await this.git.cleanup(tempDir).catch((e) => {
@@ -235,7 +239,7 @@ export class MemfsReconciler {
       }
     }
 
-    const remoteVerify = await this.verifyRemoteFiles(action.agentId, action.changedFiles);
+    const remoteVerify = await this.verifyRemoteFiles(action.agentId, action.changedFiles, action.deletedFiles);
     if (!remoteVerify.ok) {
       return {
         kind: 'sync-files-only',
@@ -243,6 +247,7 @@ export class MemfsReconciler {
         status: 'failed',
         commitSha,
         filesChanged,
+        filesDeleted,
         error: `Remote MemFS verification failed after push: ${remoteVerify.error}.`,
       };
     }
@@ -253,6 +258,7 @@ export class MemfsReconciler {
       status: 'applied',
       commitSha,
       filesChanged,
+      filesDeleted,
     };
   }
 
@@ -304,6 +310,7 @@ export class MemfsReconciler {
   private async verifyRemoteFiles(
     agentId: string,
     expectedFiles: Map<string, string>,
+    deletedFiles: string[] = [],
   ): Promise<{ ok: true } | { ok: false; error: string }> {
     const expectedShas = mapContentToBlobShas(expectedFiles);
     let lastError = '';
@@ -312,6 +319,16 @@ export class MemfsReconciler {
       try {
         const remoteFiles = await this.git.listBareRepoFiles(agentId);
         const mismatches = findRemoteFileMismatches(expectedShas, remoteFiles);
+        for (const filePath of deletedFiles) {
+          if (remoteFiles.has(filePath)) {
+            mismatches.push({
+              path: filePath,
+              reason: 'not-deleted',
+              expected: '<absent>',
+              actual: remoteFiles.get(filePath),
+            });
+          }
+        }
         if (mismatches.length === 0) return { ok: true };
         lastError = summarizeMismatches(mismatches);
       } catch (err) {
@@ -338,8 +355,8 @@ export function mapContentToBlobShas(files: Map<string, string>): Map<string, st
 export function findRemoteFileMismatches(
   expectedShas: Map<string, string>,
   remoteShas: Map<string, string>,
-): Array<{ path: string; reason: 'missing' | 'sha-mismatch'; expected: string; actual?: string }> {
-  const out: Array<{ path: string; reason: 'missing' | 'sha-mismatch'; expected: string; actual?: string }> = [];
+): Array<{ path: string; reason: 'missing' | 'sha-mismatch' | 'not-deleted'; expected: string; actual?: string }> {
+  const out: Array<{ path: string; reason: 'missing' | 'sha-mismatch' | 'not-deleted'; expected: string; actual?: string }> = [];
   for (const [filePath, expected] of expectedShas) {
     const actual = remoteShas.get(filePath);
     if (!actual) {
@@ -352,7 +369,7 @@ export function findRemoteFileMismatches(
 }
 
 function summarizeMismatches(
-  mismatches: Array<{ path: string; reason: 'missing' | 'sha-mismatch'; expected: string; actual?: string }>,
+  mismatches: Array<{ path: string; reason: 'missing' | 'sha-mismatch' | 'not-deleted'; expected: string; actual?: string }>,
 ): string {
   const preview = mismatches
     .slice(0, 5)

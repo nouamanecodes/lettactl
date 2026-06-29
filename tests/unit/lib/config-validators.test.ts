@@ -394,6 +394,14 @@ describe('AgentMemoryConfigValidator', () => {
     })).not.toThrow();
   });
 
+  it('accepts prune_missing_skills for memfs mode', () => {
+    expect(() => AgentMemoryConfigValidator.validate({
+      mode: 'memfs',
+      template_dir: 'lib/fleet/memfs-templates/draper/',
+      prune_missing_skills: true,
+    })).not.toThrow();
+  });
+
   it('accepts a memfs-mode config with only skills', () => {
     expect(() => AgentMemoryConfigValidator.validate({
       mode: 'memfs',
@@ -466,6 +474,14 @@ describe('AgentMemoryConfigValidator', () => {
       template_dir: 'templates',
       preserve_existing_paths: ['system/persona.md', 'system/persona.md'],
     })).toThrow('duplicate path');
+  });
+
+  it('rejects invalid prune_missing_skills configs', () => {
+    expect(() => AgentMemoryConfigValidator.validate({
+      mode: 'memfs',
+      template_dir: 'templates',
+      prune_missing_skills: 'yes' as any,
+    })).toThrow('memory.prune_missing_skills must be a boolean');
   });
 
   it('rejects invalid memory.files configs', () => {

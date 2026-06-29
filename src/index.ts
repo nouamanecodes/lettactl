@@ -147,6 +147,7 @@ MemFS skills and secrets:
   memory.mode: memfs              Sync agent state to the git-backed memory filesystem
   memory.template_dir             Copy a full MemFS template directory
   memory.preserve_existing_paths  Seed listed paths, then preserve remote edits
+  memory.prune_missing_skills     Delete managed skills/<name> files missing from memory.skills
   memory.files[]                  Write explicit inline/from_file content to a MemFS path
   memory.skills[].from_dir        Copy a skill directory containing SKILL.md into skills/<name>
   global-secrets                  Sync secret values to every agent
@@ -169,6 +170,7 @@ Example:
         preserve_existing_paths:
           - system/persona.md
           - system/important_variables.md
+        prune_missing_skills: true
         files:
           - to: system/important_variables.md
             value: "# Important Variables\\n- COMPANY_ID: ..."
@@ -182,6 +184,7 @@ Example:
 
 Notes:
   - skill directories must be repo-relative and include SKILL.md
+  - prune_missing_skills only prunes managed skills declared by memory.skills
   - memory.mode: memfs defaults to include_base_tools: false
   - classic/block agents default to include_base_tools: true
   - secret values are redacted from output

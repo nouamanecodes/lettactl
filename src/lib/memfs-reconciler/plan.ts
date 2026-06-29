@@ -60,6 +60,8 @@ export type MemfsAction =
       agentId: string;
       // Only files whose content differs from the bare repo (or are new).
       changedFiles: Map<string, string>;
+      // Managed remote files that should be removed.
+      deletedFiles: string[];
     };
 
 /**
@@ -129,8 +131,9 @@ export function computeMemfsAction(
       changedFiles.set(filePath, content);
     }
   }
+  const deletedFiles = computeManagedSkillDeletions(memory, targetFiles, server.bareRepoFiles);
 
-  if (changedFiles.size === 0) {
+  if (changedFiles.size === 0 && deletedFiles.length === 0) {
     return {
       kind: 'no-op',
       agentId: server.agentId,
@@ -142,7 +145,31 @@ export function computeMemfsAction(
     kind: 'sync-files-only',
     agentId: server.agentId,
     changedFiles,
+    deletedFiles,
   };
+}
+
+function computeManagedSkillDeletions(
+  memory: AgentMemoryConfig,
+  targetFiles: Map<string, string>,
+  bareRepoFiles: Map<string, string>,
+): string[] {
+  if (!memory.prune_missing_skills || !memory.skills) return [];
+
+  const desiredSkills = new Set(
+    memory.skills.map((skill) => skill.name || path.basename(skill.from_dir)),
+  );
+  const deleted = new Set<string>();
+
+  for (const filePath of bareRepoFiles.keys()) {
+    const match = filePath.match(/^skills\/([^/]+)\//);
+    if (!match) continue;
+    if (!desiredSkills.has(match[1]) || !targetFiles.has(filePath)) {
+      deleted.add(filePath);
+    }
+  }
+
+  return Array.from(deleted).sort();
 }
 
 /**

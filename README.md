@@ -122,6 +122,7 @@ agents:
       preserve_existing_paths:
         - system/persona.md
         - system/state.md
+      prune_missing_skills: true
       files:
         - to: system/important_variables.md
           value: |
@@ -145,6 +146,9 @@ Use `memory.template_dir` for system MemFS files, `memory.skills[].from_dir` for
 directories containing `SKILL.md`, and `agents[].secrets` or `global-secrets` for
 Letta Code secret sync. Add `memory.preserve_existing_paths` for mutable files
 that should be seeded on first deploy but preserved after the agent edits them.
+Set `memory.prune_missing_skills: true` when `memory.skills` is the managed skill
+catalog and deploys should delete stale `skills/<name>` files missing from the
+template.
 Use `memory.files[]` for explicit inline or `from_file` content, especially
 per-agent dynamic system files. See the full docs for schema details.
 
@@ -261,7 +265,7 @@ await ctl.deleteAgent('my-agent');
 | **Lifecycle** | `duplicate`, `delete`, `delete-all`, `cleanup` |
 | **Export** | `export agent`, `export agents`, `export lettabot`, `import` |
 | **Runs** | `get runs`, `get run`, `track`, `run-delete` |
-| **Fleet** | `report memory`, `memory.mode=memfs`, `memory.skills`, `global-secrets`, `agents[].secrets`, `--canary`, `--fresh-context`, `--compact`, `--recalibrate`, `--skip-recompile`, `--match`, `--no-wait-for-idle` |
+| **Fleet** | `report memory`, `memory.mode=memfs`, `memory.skills`, `memory.prune_missing_skills`, `global-secrets`, `agents[].secrets`, `--canary`, `--fresh-context`, `--compact`, `--recalibrate`, `--skip-recompile`, `--match`, `--no-wait-for-idle` |
 | **Config** | `remote add/use/list/remove`, `completion` |
 
 Run `lettactl --help` or visit [lettactl.dev](https://lettactl.dev) for full documentation.

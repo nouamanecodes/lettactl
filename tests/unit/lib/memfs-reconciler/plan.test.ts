@@ -614,6 +614,68 @@ describe('template_dir scan', () => {
     }
   });
 
+  it('prunes remote skill files missing from memory.skills when enabled', () => {
+    const skillDir = path.join(tmpDir, 'skills-src', 'saved-memory');
+    fs.mkdirSync(skillDir, { recursive: true });
+    fs.writeFileSync(path.join(skillDir, 'SKILL.md'), 'saved');
+    fs.writeFileSync(path.join(skillDir, 'current.md'), 'current');
+
+    const action = computeMemfsAction(
+      'test-agent',
+      mkAgent({
+        mode: 'memfs',
+        prune_missing_skills: true,
+        skills: [{ name: 'saved-memory', from_dir: 'skills-src/saved-memory' }],
+      }),
+      mkServer({
+        tags: [GIT_MEMORY_ENABLED_TAG],
+        files: {
+          'skills/saved-memory/SKILL.md': gitBlobSha('saved'),
+          'skills/saved-memory/current.md': gitBlobSha('current'),
+          'skills/saved-memory/old-reference.md': gitBlobSha('old-reference'),
+          'skills/old-memory/SKILL.md': gitBlobSha('old'),
+          'skills/old-memory/scripts/call.sh': gitBlobSha('old-script'),
+          'system/persona.md': gitBlobSha('persona'),
+        },
+      }),
+      tmpDir,
+    );
+
+    expect(action.kind).toBe('sync-files-only');
+    if (action.kind === 'sync-files-only') {
+      expect(action.changedFiles.size).toBe(0);
+      expect(action.deletedFiles).toEqual([
+        'skills/old-memory/SKILL.md',
+        'skills/old-memory/scripts/call.sh',
+        'skills/saved-memory/old-reference.md',
+      ]);
+    }
+  });
+
+  it('preserves remote skill files missing from memory.skills when pruning is disabled', () => {
+    const skillDir = path.join(tmpDir, 'skills-src', 'saved-memory');
+    fs.mkdirSync(skillDir, { recursive: true });
+    fs.writeFileSync(path.join(skillDir, 'SKILL.md'), 'saved');
+
+    const action = computeMemfsAction(
+      'test-agent',
+      mkAgent({
+        mode: 'memfs',
+        skills: [{ name: 'saved-memory', from_dir: 'skills-src/saved-memory' }],
+      }),
+      mkServer({
+        tags: [GIT_MEMORY_ENABLED_TAG],
+        files: {
+          'skills/saved-memory/SKILL.md': gitBlobSha('saved'),
+          'skills/old-memory/SKILL.md': gitBlobSha('old'),
+        },
+      }),
+      tmpDir,
+    );
+
+    expect(action.kind).toBe('no-op');
+  });
+
   it('throws when memory.skills directory is missing SKILL.md', () => {
     fs.mkdirSync(path.join(tmpDir, 'bad-skill'), { recursive: true });
     expect(() =>
