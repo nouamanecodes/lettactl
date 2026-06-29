@@ -73,6 +73,7 @@ export interface AgentMemoryConfig {
   bare_repo?: 'auto';                        // 'auto' = resolve via Letta /v1/git/<id>/state.git
   template_dir?: string;                     // dir of skeleton .md files; relative to root_path
   preserve_existing_paths?: string[];        // memfs paths to seed but not overwrite once present
+  prune_missing_skills?: boolean;            // when true, delete remote skills/<name> dirs absent from memory.skills
   files?: Array<{
     to: string;                              // memfs target path
     value?: string;                          // inline content

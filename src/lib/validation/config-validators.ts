@@ -1070,6 +1070,10 @@ export class AgentMemoryConfigValidator {
       });
     }
 
+    if (memory.prune_missing_skills !== undefined && typeof memory.prune_missing_skills !== 'boolean') {
+      throw new Error('memory.prune_missing_skills must be a boolean if set.');
+    }
+
     if (memory.files !== undefined) {
       if (!Array.isArray(memory.files)) {
         throw new Error('memory.files must be an array.');

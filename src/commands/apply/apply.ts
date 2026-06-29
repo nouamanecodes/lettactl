@@ -868,7 +868,8 @@ function logMemfsResult(result: MemfsExecutionResult, agentName: string): void {
       } else if (result.kind === 'rollback') {
         log(`${prefix} DRY-RUN rollback: remove git-memory-enabled tag`);
       } else if (result.kind === 'sync-files-only') {
-        log(`${prefix} DRY-RUN sync-files-only: ${result.filesChanged?.length ?? 0} files`);
+        const count = (result.filesChanged?.length ?? 0) + (result.filesDeleted?.length ?? 0);
+        log(`${prefix} DRY-RUN sync-files-only: ${count} files`);
       }
       break;
     case 'applied':
@@ -878,7 +879,8 @@ function logMemfsResult(result: MemfsExecutionResult, agentName: string): void {
       } else if (result.kind === 'rollback') {
         log(`${prefix} ✓ rolled back to block-mode (tag removed)`);
       } else if (result.kind === 'sync-files-only') {
-        log(`${prefix} ✓ synced ${result.filesChanged?.length} files (commit ${result.commitSha?.slice(0, 7)})`);
+        const count = (result.filesChanged?.length ?? 0) + (result.filesDeleted?.length ?? 0);
+        log(`${prefix} ✓ synced ${count} files (commit ${result.commitSha?.slice(0, 7)})`);
       }
       break;
     case 'failed':

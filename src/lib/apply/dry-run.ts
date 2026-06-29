@@ -476,7 +476,7 @@ function formatMemfsDetails(result: DryRunResult, fancy: boolean): void {
       break;
     }
     case 'sync-files-only': {
-      const paths = Array.from(action.changedFiles.keys());
+      const paths = [...Array.from(action.changedFiles.keys()), ...action.deletedFiles];
       const detail = `sync-files-only (${formatMemfsFileList(paths.length, paths)})`;
       output(`${indent}${colorPurple('Memfs [~]:')} ${detail}`);
       break;
