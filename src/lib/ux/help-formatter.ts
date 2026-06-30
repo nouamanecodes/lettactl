@@ -31,8 +31,7 @@ const COMMAND_GROUPS: CommandGroup[] = [
       { key: 'create', value: 'Create a new agent' },
       { key: 'update', value: 'Update an agent' },
       { key: 'delete', value: 'Delete a resource' },
-      { key: 'delete-all', value: 'Delete multiple agents' },
-      { key: 'cleanup', value: 'Remove orphaned resources' },
+      { key: 'get projects', value: 'List Cloud projects' },
     ],
   },
   {

@@ -12,6 +12,8 @@ export interface RemoteConfig {
   name: string;
   base_url: string;
   api_key?: string;
+  project_id?: string;
+  project?: string;
 }
 
 interface RemoteStore {
@@ -50,7 +52,7 @@ function saveStore(store: RemoteStore): void {
 export async function remoteAddCommand(
   name: string,
   url: string,
-  options: { apiKey?: string },
+  options: { apiKey?: string; projectId?: string; project?: string },
   _command: any
 ): Promise<void> {
   const store = loadStore();
@@ -66,6 +68,12 @@ export async function remoteAddCommand(
   const remote: RemoteConfig = { name, base_url: baseUrl };
   if (options.apiKey) {
     remote.api_key = options.apiKey;
+  }
+  if (options.projectId) {
+    remote.project_id = options.projectId;
+  }
+  if (options.project) {
+    remote.project = options.project;
   }
 
   store.remotes.push(remote);
@@ -163,14 +171,16 @@ export async function remoteListCommand(): Promise<void> {
     const isActive = remote.name === store.active;
     const marker = isActive ? '*' : ' ';
     const hasKey = remote.api_key ? 'key: ✓' : 'key: -';
+    const project = remote.project_id || remote.project;
+    const projectLabel = project ? `project: ${project}` : 'project: -';
 
     if (fancy) {
       const nameStr = isActive
         ? chalk.green(`* ${remote.name}`)
         : `  ${remote.name}`;
-      output(`${nameStr}  ${chalk.dim(remote.base_url)}  ${chalk.dim(`(${hasKey})`)}`);
+      output(`${nameStr}  ${chalk.dim(remote.base_url)}  ${chalk.dim(`(${hasKey}, ${projectLabel})`)}`);
     } else {
-      output(`${marker} ${remote.name}\t${remote.base_url}\t(${hasKey})`);
+      output(`${marker} ${remote.name}\t${remote.base_url}\t(${hasKey}, ${projectLabel})`);
     }
   }
 }
@@ -197,6 +207,16 @@ export async function remoteEnvCommand(): Promise<void> {
   } else {
     console.log('unset LETTA_API_KEY');
   }
+  if (remote.project_id) {
+    console.log(`export LETTA_PROJECT_ID="${remote.project_id}"`);
+  } else {
+    console.log('unset LETTA_PROJECT_ID');
+  }
+  if (remote.project) {
+    console.log(`export LETTA_PROJECT="${remote.project}"`);
+  } else {
+    console.log('unset LETTA_PROJECT');
+  }
 }
 
 export async function remoteShowCommand(name: string): Promise<void> {
@@ -216,10 +236,12 @@ export async function remoteShowCommand(name: string): Promise<void> {
     output(purple('─'.repeat(20)));
     output(`${chalk.dim('URL:')}     ${remote.base_url}`);
     output(`${chalk.dim('API Key:')} ${remote.api_key ? chalk.dim(remote.api_key.substring(0, 8) + '...') : chalk.dim('-')}`);
+    output(`${chalk.dim('Project:')} ${remote.project_id || remote.project || chalk.dim('-')}`);
   } else {
     output(`Remote: ${remote.name}${isActive ? ' (active)' : ''}`);
     output(`URL:     ${remote.base_url}`);
     output(`API Key: ${remote.api_key ? remote.api_key.substring(0, 8) + '...' : '-'}`);
+    output(`Project: ${remote.project_id || remote.project || '-'}`);
   }
 }
 
@@ -239,5 +261,11 @@ export function loadActiveRemote(): void {
   process.env.LETTA_BASE_URL = remote.base_url;
   if (remote.api_key && !process.env.LETTA_API_KEY) {
     process.env.LETTA_API_KEY = remote.api_key;
+  }
+  if (remote.project_id && !process.env.LETTA_PROJECT_ID) {
+    process.env.LETTA_PROJECT_ID = remote.project_id;
+  }
+  if (remote.project && !process.env.LETTA_PROJECT) {
+    process.env.LETTA_PROJECT = remote.project;
   }
 }

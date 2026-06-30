@@ -16,8 +16,33 @@ export class LettaClientWrapper {
     if (process.env.LETTA_API_KEY) {
       config.apiKey = process.env.LETTA_API_KEY;
     }
+    if (process.env.LETTA_PROJECT_ID) {
+      config.projectID = process.env.LETTA_PROJECT_ID;
+    }
+    if (process.env.LETTA_PROJECT) {
+      config.project = process.env.LETTA_PROJECT;
+    }
     
     this.client = new LettaClient(config);
+  }
+
+  async listProjects() {
+    const baseUrl = process.env.LETTA_BASE_URL;
+    const response = await fetch(`${baseUrl}/v1/projects`, {
+      headers: this.getAuthHeaders(),
+    });
+    if (!response.ok) {
+      const body = await response.text().catch(() => '');
+      throw new Error(`Failed to list projects (HTTP ${response.status}): ${body || response.statusText}`);
+    }
+    const body: any = await response.json();
+    return Array.isArray(body) ? body : body.projects || body.data || [];
+  }
+
+  private async getProjectSlugForId(projectId: string): Promise<string | null> {
+    const projects = await this.listProjects();
+    const project = projects.find((p: any) => p.id === projectId);
+    return project?.slug || null;
   }
 
   async listAgents(options?: { tags?: string[] }) {
@@ -27,12 +52,20 @@ export class LettaClientWrapper {
     const headers = this.getAuthHeaders();
     const allAgents: any[] = [];
     let after: string | null = null;
+    let projectId = process.env.LETTA_PROJECT_ID || null;
+    if (!projectId && process.env.LETTA_PROJECT) {
+      const projects = await this.listProjects();
+      projectId = projects.find((p: any) => p.slug === process.env.LETTA_PROJECT || p.name === process.env.LETTA_PROJECT)?.id || null;
+    }
 
     while (true) {
       const url = new URL('/v1/agents/', baseUrl!);
       url.searchParams.set('limit', '100');
       url.searchParams.append('include', 'agent.tags');
       if (after) url.searchParams.set('after', after);
+      if (projectId) {
+        url.searchParams.set('project_id', projectId);
+      }
       if (options?.tags && options.tags.length > 0) {
         for (const tag of options.tags) {
           url.searchParams.append('tags', tag);
@@ -125,12 +158,37 @@ export class LettaClientWrapper {
     return await response.json();
   }
 
-  async createAgent(agentData: any) {
-    return await this.client.agents.create(agentData);
+  async createAgent(agentData: any): Promise<any> {
+    const baseUrl = process.env.LETTA_BASE_URL;
+    const headers = this.getAuthHeaders();
+    if (!process.env.LETTA_PROJECT && process.env.LETTA_PROJECT_ID) {
+      const slug = await this.getProjectSlugForId(process.env.LETTA_PROJECT_ID);
+      if (slug) headers['X-Project'] = slug;
+    }
+
+    const response = await fetch(`${baseUrl}/v1/agents/`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(agentData),
+    });
+    if (!response.ok) {
+      const body = await response.text().catch(() => '');
+      throw new Error(`Failed to create agent (HTTP ${response.status}): ${body || response.statusText}`);
+    }
+    return await response.json();
   }
 
-  async deleteAgent(agentId: string) {
-    return await this.client.agents.delete(agentId);
+  async deleteAgent(agentId: string): Promise<any> {
+    const baseUrl = process.env.LETTA_BASE_URL;
+    const response = await fetch(`${baseUrl}/v1/agents/${agentId}`, {
+      method: 'DELETE',
+      headers: this.getAuthHeaders(),
+    });
+    if (!response.ok && response.status !== 404) {
+      const body = await response.text().catch(() => '');
+      throw new Error(`Failed to delete agent (HTTP ${response.status}): ${body || response.statusText}`);
+    }
+    return null;
   }
 
   async getAgentMessages(agentId: string, limit?: number) {
@@ -396,6 +454,12 @@ export class LettaClientWrapper {
     };
     if (process.env.LETTA_API_KEY) {
       headers['Authorization'] = `Bearer ${process.env.LETTA_API_KEY}`;
+    }
+    if (process.env.LETTA_PROJECT_ID) {
+      headers['X-Project-Id'] = process.env.LETTA_PROJECT_ID;
+    }
+    if (process.env.LETTA_PROJECT) {
+      headers['X-Project'] = process.env.LETTA_PROJECT;
     }
     return headers;
   }

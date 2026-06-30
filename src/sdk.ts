@@ -19,6 +19,8 @@ import { setQuietMode } from './lib/shared/logger';
 export interface LettaCtlOptions {
   lettaBaseUrl?: string;
   lettaApiKey?: string;
+  lettaProjectId?: string;
+  lettaProject?: string;
   supabaseUrl?: string;
   supabaseAnonKey?: string;
   supabaseServiceRoleKey?: string;
@@ -32,6 +34,8 @@ export class LettaCtl {
   constructor(options: LettaCtlOptions = {}) {
     if (options.lettaBaseUrl) process.env.LETTA_BASE_URL = options.lettaBaseUrl;
     if (options.lettaApiKey) process.env.LETTA_API_KEY = options.lettaApiKey;
+    if (options.lettaProjectId) process.env.LETTA_PROJECT_ID = options.lettaProjectId;
+    if (options.lettaProject) process.env.LETTA_PROJECT = options.lettaProject;
     if (options.supabaseUrl) process.env.SUPABASE_URL = options.supabaseUrl;
     if (options.supabaseAnonKey) process.env.SUPABASE_ANON_KEY = options.supabaseAnonKey;
     if (options.supabaseServiceRoleKey) process.env.SUPABASE_SERVICE_ROLE_KEY = options.supabaseServiceRoleKey;

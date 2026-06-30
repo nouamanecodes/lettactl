@@ -26,11 +26,22 @@ Point it at your Letta server:
 ```bash
 # Named remotes (recommended)
 lettactl remote add local http://localhost:8283
-lettactl remote add cloud https://api.letta.com --api-key sk-xxx
+lettactl remote add cloud https://api.letta.com --api-key sk-xxx --project-id project-xxx
 lettactl remote use local
 
 # Or environment variables
 export LETTA_BASE_URL=http://localhost:8283
+```
+
+For Letta Cloud projects, list available projects and scope commands with the
+project id or slug:
+
+```bash
+lettactl get projects
+
+export LETTA_PROJECT_ID=project-xxx   # sends X-Project-Id
+# or
+export LETTA_PROJECT=my-project-slug  # sends X-Project
 ```
 
 ## Quick example
@@ -162,6 +173,7 @@ use server tools such as `conversation_search`.
 
 ```bash
 lettactl get agents                      # List agents
+lettactl get projects                    # List Letta Cloud projects
 lettactl get all                         # Server overview
 lettactl describe agent my-agent         # Full details + blocks/tools/messages
 lettactl get blocks --orphaned           # Find orphaned resources
@@ -221,7 +233,11 @@ pnpm add lettactl
 ```typescript
 import { LettaCtl } from 'lettactl';
 
-const ctl = new LettaCtl({ lettaBaseUrl: 'http://localhost:8283' });
+const ctl = new LettaCtl({
+  lettaBaseUrl: 'https://api.letta.com',
+  lettaApiKey: process.env.LETTA_API_KEY,
+  lettaProjectId: 'project-xxx',
+});
 
 // Deploy from YAML string
 await ctl.deployFromYamlString(`

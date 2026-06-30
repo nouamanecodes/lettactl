@@ -70,6 +70,7 @@ function validateEnvironment(thisCommand: any, actionCommand: any) {
     error('For Letta Cloud:');
     error('  export LETTA_BASE_URL=https://api.letta.com');
     error('  export LETTA_API_KEY=your_api_key');
+    error('  export LETTA_PROJECT_ID=project_xxx  # optional');
     process.exit(1);
   }
 
@@ -202,6 +203,7 @@ Agent-scoped resource notes:
   get folders -a <agent>      Show attached folders when available
   get files -a <agent>        Show attached folder files when available
   get archival <agent>        Show archival memory when available
+  get projects                Show Letta Cloud projects
 
   Commands print "not available" when the agent does not expose that resource surface.
 `);
@@ -267,6 +269,12 @@ getCmd
   .description('List MCP servers')
   .option('-o, --output <format>', 'output format (table|json|yaml)', 'table')
   .action((options, command) => getCommand('mcp-servers', undefined, options, command));
+
+getCmd
+  .command('projects')
+  .description('List Letta Cloud projects')
+  .option('-o, --output <format>', 'output format (table|json|yaml)', 'table')
+  .action((options, command) => getCommand('projects', undefined, options, command));
 
 getCmd
   .command('archival')
@@ -543,6 +551,8 @@ remoteCmd
   .argument('<name>', 'remote name (e.g., local, staging, production)')
   .argument('<url>', 'server URL (e.g., http://localhost:8283)')
   .option('--api-key <key>', 'API key for authentication')
+  .option('--project-id <id>', 'Letta Cloud project id (sets LETTA_PROJECT_ID)')
+  .option('--project <slug>', 'Letta Cloud project slug (sets LETTA_PROJECT)')
   .action(remoteAddCommand);
 
 remoteCmd
