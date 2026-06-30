@@ -15,6 +15,7 @@ import { getMcpServers } from './mcp-servers';
 import { getArchival } from './archival';
 import { getArchives } from './archives';
 import { getConversations } from './conversations';
+import { getProjects } from './projects';
 import { getAll } from './all';
 
 async function getCommandImpl(resource: string, name?: string, options?: GetOptions, command?: any) {
@@ -88,6 +89,9 @@ async function getCommandImpl(resource: string, name?: string, options?: GetOpti
       break;
     case 'mcp-servers':
       await getMcpServers(client, options, spinnerEnabled);
+      break;
+    case 'projects':
+      await getProjects(client, options, spinnerEnabled);
       break;
     case 'archival':
       await getArchival(client, resolver, options, spinnerEnabled, agentId, agentName);

@@ -38,6 +38,8 @@ export async function filesCommand(agentName: string, options: { output?: string
   const baseUrl = process.env.LETTA_BASE_URL;
   const headers: Record<string, string> = {};
   if (process.env.LETTA_API_KEY) headers.Authorization = `Bearer ${process.env.LETTA_API_KEY}`;
+  if (process.env.LETTA_PROJECT_ID) headers['X-Project-Id'] = process.env.LETTA_PROJECT_ID;
+  if (process.env.LETTA_PROJECT) headers['X-Project'] = process.env.LETTA_PROJECT;
   const response = await fetch(`${baseUrl}/v1/agents/${agent.id}/files`, { headers });
 
   if (!response.ok) {
