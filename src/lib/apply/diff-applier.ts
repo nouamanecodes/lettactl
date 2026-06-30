@@ -93,7 +93,7 @@ export class DiffApplier {
       await this.client.updateAgent(agentId, apiFields);
 
       // Update metadata for fields that need raw value tracking
-      const needsMetadataUpdate = fields.model !== undefined || fields.embedding !== undefined || fields.lettabotConfig !== undefined || fields.includeBaseTools !== undefined || fields.includeBaseToolRules !== undefined;
+      const needsMetadataUpdate = fields.model !== undefined || fields.embedding !== undefined || fields.lettabotConfig !== undefined || fields.firstMessage !== undefined || fields.includeBaseTools !== undefined || fields.includeBaseToolRules !== undefined;
       if (needsMetadataUpdate) {
         const agent = await this.client.getAgent(agentId);
         const metadata = { ...(agent as any).metadata };
@@ -108,6 +108,13 @@ export class DiffApplier {
             metadata['lettactl.lettabotConfig'] = fields.lettabotConfig.to;
           } else {
             delete metadata['lettactl.lettabotConfig'];
+          }
+        }
+        if (fields.firstMessage !== undefined) {
+          if (fields.firstMessage.to) {
+            metadata['lettactl.firstMessage'] = fields.firstMessage.to;
+          } else {
+            delete metadata['lettactl.firstMessage'];
           }
         }
         if (fields.includeBaseTools !== undefined) {

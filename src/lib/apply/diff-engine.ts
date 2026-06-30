@@ -56,6 +56,7 @@ export class DiffEngine {
       sharedBlockConfigs?: Array<{name: string; description?: string; limit?: number; value?: string; agent_owned?: boolean}>;
       tags?: string[];
       lettabotConfig?: Record<string, any> | null;
+      firstMessage?: string | null;
       compactionSettings?: Record<string, any> | null;
       conversations?: Array<{ summary: string; isolated_blocks?: string[] }>;
     },
@@ -240,6 +241,13 @@ export class DiffEngine {
     const desiredLettabotConfig = desiredConfig.lettabotConfig || null;
     if (JSON.stringify(currentLettabotConfig) !== JSON.stringify(desiredLettabotConfig)) {
       fieldUpdates.lettabotConfig = { from: currentLettabotConfig, to: desiredLettabotConfig };
+      operations.operationCount++;
+    }
+
+    const currentFirstMessage = (currentAgent as any).metadata?.['lettactl.firstMessage'] || null;
+    const desiredFirstMessage = desiredConfig.firstMessage || null;
+    if (currentFirstMessage !== desiredFirstMessage) {
+      fieldUpdates.firstMessage = { from: currentFirstMessage, to: desiredFirstMessage };
       operations.operationCount++;
     }
 

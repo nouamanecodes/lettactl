@@ -59,6 +59,7 @@ export interface AgentUpdateOperations {
     includeBaseToolRules?: FieldChange<boolean>;
     tags?: FieldChange<string[]>;
     lettabotConfig?: FieldChange<Record<string, any> | null>;
+    firstMessage?: FieldChange<string | null>;
   };
 
   // Resource management operations
