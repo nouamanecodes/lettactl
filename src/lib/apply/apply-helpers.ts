@@ -441,11 +441,13 @@ export async function createNewAgent(
       createPayload.tags = agent.tags;
     }
 
-    // Handle embedding vs embedding_config (mutually exclusive)
+    // Handle embedding vs embedding_config (mutually exclusive). Cloud-hosted
+    // Letta can omit embedding entirely; self-hosted validation rejects missing
+    // embedding before this path.
     if (agent.embedding_config) {
       createPayload.embedding_config = agent.embedding_config;
-    } else {
-      createPayload.embedding = agent.embedding || DEFAULT_EMBEDDING;
+    } else if (agent.embedding) {
+      createPayload.embedding = agent.embedding;
     }
 
     if (agent.compaction_settings) {
@@ -503,7 +505,9 @@ export async function createNewAgent(
     const metadata: Record<string, any> = {};
     // Store raw model/embedding strings for provider change detection (#255)
     metadata['lettactl.model'] = agent.llm_config?.model || 'google_ai/gemini-2.5-pro';
-    metadata['lettactl.embedding'] = agent.embedding || 'openai/text-embedding-3-small';
+    if (agent.embedding) {
+      metadata['lettactl.embedding'] = agent.embedding;
+    }
     metadata['lettactl.includeBaseTools'] = shouldIncludeBaseTools(agent);
     metadata['lettactl.includeBaseToolRules'] = shouldIncludeBaseToolRules(agent);
     if (folderContentHashes && folderContentHashes.size > 0) {
