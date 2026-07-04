@@ -7,7 +7,7 @@ import { DiffApplier } from './diff-applier';
 import { analyzeToolChanges, analyzeBlockChanges, analyzeFolderChanges, analyzeArchiveChanges } from './diff-analyzers';
 import type { AgentUpdateOperations } from '../../types/diff';
 import { log } from '../shared/logger';
-import { DEFAULT_CONTEXT_WINDOW, DEFAULT_REASONING, DEFAULT_EMBEDDING } from '../shared/constants';
+import { DEFAULT_CONTEXT_WINDOW, DEFAULT_REASONING } from '../shared/constants';
 
 // Re-export types for backwards compatibility
 export type { ToolDiff, BlockDiff, FolderDiff, ArchiveDiff, FieldChange, AgentUpdateOperations } from '../../types/diff';
@@ -146,15 +146,17 @@ export class DiffEngine {
       operations.operationCount++;
     }
 
-    const desiredEmbedding = desiredConfig.embedding || DEFAULT_EMBEDDING;
+    const desiredEmbedding = desiredConfig.embedding ?? null;
     const storedEmbedding = (currentAgent as any).metadata?.['lettactl.embedding'];
     const handleEmbedding = (currentAgent as any).embedding_config?.handle;
     const currentEmbeddingRef = storedEmbedding || handleEmbedding;
-    const embeddingChanged = currentEmbeddingRef
-      ? currentEmbeddingRef !== desiredEmbedding
-      : normalizeModelName(currentAgent.embedding || '') !== normalizeModelName(desiredEmbedding);
+    const embeddingChanged = desiredEmbedding === null
+      ? currentEmbeddingRef !== undefined
+      : currentEmbeddingRef
+        ? currentEmbeddingRef !== desiredEmbedding
+        : normalizeModelName(currentAgent.embedding || '') !== normalizeModelName(desiredEmbedding);
     if (embeddingChanged) {
-      fieldUpdates.embedding = { from: currentEmbeddingRef || currentAgent.embedding, to: desiredEmbedding };
+      fieldUpdates.embedding = { from: currentEmbeddingRef || currentAgent.embedding || null, to: desiredEmbedding };
       operations.operationCount++;
     }
 

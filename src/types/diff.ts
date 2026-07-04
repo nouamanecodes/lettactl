@@ -49,7 +49,7 @@ export interface AgentUpdateOperations {
     system?: FieldChange<string>;
     description?: FieldChange<string>;
     model?: FieldChange<string>;
-    embedding?: FieldChange<string>;
+    embedding?: FieldChange<string | null>;
     embeddingConfig?: FieldChange<Record<string, any> | null>;
     compactionSettings?: FieldChange<Record<string, any> | null>;
     contextWindow?: FieldChange<number>;

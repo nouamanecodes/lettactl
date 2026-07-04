@@ -57,7 +57,7 @@ export class DiffApplier {
       if (fields.model !== undefined) {
         apiFields.model = fields.model.to;
       }
-      if (fields.embedding !== undefined) {
+      if (fields.embedding !== undefined && fields.embedding.to !== null) {
         apiFields.embedding = fields.embedding.to;
       }
       if (fields.embeddingConfig !== undefined) {
@@ -101,7 +101,11 @@ export class DiffApplier {
           metadata['lettactl.model'] = fields.model.to;
         }
         if (fields.embedding !== undefined) {
-          metadata['lettactl.embedding'] = fields.embedding.to;
+          if (fields.embedding.to === null) {
+            delete metadata['lettactl.embedding'];
+          } else {
+            metadata['lettactl.embedding'] = fields.embedding.to;
+          }
         }
         if (fields.lettabotConfig !== undefined) {
           if (fields.lettabotConfig.to) {
