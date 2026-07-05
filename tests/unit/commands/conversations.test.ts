@@ -310,8 +310,7 @@ describe('conversation commands', () => {
   });
 
   describe('conversation apply integration', () => {
-    it('should create conversations during createNewAgent', async () => {
-      // Verify that createNewAgent calls createConversation for declared conversations
+    it('should accept conversations in agent config', async () => {
       const agentConfig = {
         name: 'test-agent',
         description: 'Test',
@@ -323,8 +322,8 @@ describe('conversation commands', () => {
         ],
       };
 
-      // The createNewAgent function creates conversations after agent creation
-      // This is a structural test ensuring the config shape is correct
+      // Conversation creation is ordered by apply after sidecar/MemFS sync.
+      // This structural test only ensures the config shape is correct.
       expect(agentConfig.conversations).toHaveLength(2);
       expect(agentConfig.conversations[0].summary).toBe('Convo A');
       expect(agentConfig.conversations[1].isolated_blocks).toEqual(['ctx']);

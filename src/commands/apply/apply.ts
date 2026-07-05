@@ -14,6 +14,7 @@ import { GitClient } from '../../lib/memfs-reconciler/git-client';
 import { MemfsReconciler, MemfsExecutionResult } from '../../lib/memfs-reconciler/executor';
 import { computeMemfsAction } from '../../lib/memfs-reconciler/plan';
 import { buildServerAgentState } from '../../lib/memfs-reconciler/server-state';
+import { assertLettaCliAvailableForMemfs } from '../../lib/memfs-reconciler/letta-cli';
 import {
   applySecretPlan,
   planAgentSecrets,
@@ -71,6 +72,8 @@ export async function applyCommand(options: ApplyOptions, command: any): Promise
     });
     const config = await parser.parseFleetConfig(options.file);
     parseSpinner.succeed(`Parsed ${options.file} (${config.agents.length} agents)`);
+
+    await assertLettaCliAvailableForMemfs(config);
 
     // Validate embedding configuration for self-hosted environments
     let isSelfHosted = true;
@@ -396,7 +399,7 @@ export async function applyCommand(options: ApplyOptions, command: any): Promise
           lettabotConfig: agent.lettabot || null,
           firstMessage: agent.first_message || null,
           compactionSettings: agent.compaction_settings || null,
-          conversations: agent.conversations || undefined
+          conversations: agent.memory?.mode === 'memfs' ? undefined : agent.conversations || undefined
         };
 
         // Check if agent exists
@@ -417,6 +420,7 @@ export async function applyCommand(options: ApplyOptions, command: any): Promise
             if (verbose) log(`Agent ${agent.name} already up to date`);
 
             let sidecarChanged = false;
+            let currentMemfsResult: MemfsExecutionResult | undefined;
             if (agent.memory) {
               const result = await reconcileMemfsForAgent(
                 agent,
@@ -427,6 +431,7 @@ export async function applyCommand(options: ApplyOptions, command: any): Promise
                 config.root_path || process.cwd(),
               );
               memfsResults.push(result);
+              currentMemfsResult = result;
               logMemfsResult(result, agent.name);
               sidecarChanged = sidecarChanged || result.status === 'applied';
             }
@@ -435,6 +440,11 @@ export async function applyCommand(options: ApplyOptions, command: any): Promise
               secretResults.push(secretResult);
               logSecretResult(secretResult, agent.name);
               sidecarChanged = sidecarChanged || secretResult.status === 'applied';
+            }
+            const createdConversationCount = await ensureDeclaredConversationsForAgent(agent, existingAgent.id, client, verbose);
+            sidecarChanged = sidecarChanged || createdConversationCount > 0;
+            if (memfsResultRequiresRecompile(currentMemfsResult) && !options.skipRecompile) {
+              await recompileConversationsForAgent(existingAgent.id, existingAgent.name, client, options.waitForIdle !== false);
             }
 
             if (sidecarChanged) {
@@ -514,12 +524,16 @@ export async function applyCommand(options: ApplyOptions, command: any): Promise
             );
             memfsResults.push(result);
             logMemfsResult(result, agent.name);
+            if (memfsResultRequiresRecompile(result) && !options.skipRecompile) {
+              await recompileConversationsForAgent(existingAgent.id, existingAgent.name, client, options.waitForIdle !== false);
+            }
           }
           const secretResult = await reconcileSecretsForAgent(config, agent, existingAgent.id, client, false);
           if (secretResult) {
             secretResults.push(secretResult);
             logSecretResult(secretResult, agent.name);
           }
+          await ensureDeclaredConversationsForAgent(agent, existingAgent.id, client, verbose);
         } else {
           // Create new agent
           const createdAgent = await createNewAgent(agent, agentName, {
@@ -562,12 +576,16 @@ export async function applyCommand(options: ApplyOptions, command: any): Promise
             );
             memfsResults.push(result);
             logMemfsResult(result, agent.name);
+            if (memfsResultRequiresRecompile(result) && !options.skipRecompile) {
+              await recompileConversationsForAgent(createdAgent.id, createdAgent.name, client, options.waitForIdle !== false);
+            }
           }
           const secretResult = await reconcileSecretsForAgent(config, agent, createdAgent.id, client, false);
           if (secretResult) {
             secretResults.push(secretResult);
             logSecretResult(secretResult, agent.name);
           }
+          await ensureDeclaredConversationsForAgent(agent, createdAgent.id, client, verbose);
         }
       } catch (err: any) {
         const errorMsg = formatLettaError(err.message);
@@ -800,6 +818,70 @@ export async function applyCommand(options: ApplyOptions, command: any): Promise
   } catch (err: any) {
     throw new Error(`Apply failed: ${formatLettaError(err.message || err)}`);
   }
+}
+
+function memfsResultRequiresRecompile(result: MemfsExecutionResult | undefined): boolean {
+  return Boolean(result && result.status === 'applied' && (
+    result.kind === 'migrate-forward' ||
+    result.kind === 'sync-files-only' ||
+    result.kind === 'rollback'
+  ));
+}
+
+async function recompileConversationsForAgent(
+  agentId: string,
+  agentName: string,
+  client: LettaClientWrapper,
+  waitForIdle: boolean,
+): Promise<void> {
+  const conversations = await client.listConversations(agentId);
+  const list = Array.isArray(conversations) ? conversations : [];
+  if (list.length === 0) return;
+
+  if (waitForIdle) {
+    await waitForAgentIdle(client, agentId, {
+      ...defaultWaitLogger(() => agentName),
+    });
+  }
+
+  const { succeeded } = await batchProcess(
+    list,
+    (conversation: any) => retryOn409(() => client.recompileConversation(conversation.id)),
+  );
+  log(`  Recompiled ${succeeded}/${list.length} conversation(s) after MemFS sync`);
+}
+
+async function ensureDeclaredConversationsForAgent(
+  agent: any,
+  agentId: string,
+  client: LettaClientWrapper,
+  verbose: boolean,
+): Promise<number> {
+  if (!agent.conversations?.length) return 0;
+
+  const existingConversations = await client.listConversations(agentId);
+  const existingSummaries = new Set(
+    (Array.isArray(existingConversations) ? existingConversations : [])
+      .map((conversation: any) => conversation.summary || ''),
+  );
+  let created = 0;
+
+  for (const conversation of agent.conversations) {
+    if (existingSummaries.has(conversation.summary)) continue;
+    if (verbose) log(`  Creating conversation after sidecar sync: ${conversation.summary}`);
+    await client.createConversation(agentId, {
+      summary: conversation.summary,
+      isolated_block_labels: conversation.isolated_blocks,
+    });
+    existingSummaries.add(conversation.summary);
+    created += 1;
+  }
+
+  if (created > 0) {
+    log(`  Created ${created} conversation(s) after sidecar sync`);
+  }
+
+  return created;
 }
 
 async function reconcileSecretsForAgent(
