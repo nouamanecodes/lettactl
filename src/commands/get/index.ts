@@ -16,6 +16,8 @@ import { getArchival } from './archival';
 import { getArchives } from './archives';
 import { getConversations } from './conversations';
 import { getProjects } from './projects';
+import { getProviders } from './providers';
+import { getModels } from './models';
 import { getAll } from './all';
 
 async function getCommandImpl(resource: string, name?: string, options?: GetOptions, command?: any) {
@@ -92,6 +94,12 @@ async function getCommandImpl(resource: string, name?: string, options?: GetOpti
       break;
     case 'projects':
       await getProjects(client, options, spinnerEnabled);
+      break;
+    case 'providers':
+      await getProviders(client, options, spinnerEnabled);
+      break;
+    case 'models':
+      await getModels(client, options, spinnerEnabled);
       break;
     case 'archival':
       await getArchival(client, resolver, options, spinnerEnabled, agentId, agentName);

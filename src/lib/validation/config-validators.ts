@@ -26,6 +26,14 @@ export class FleetConfigValidator {
       validateSecretConfigMap('global-secrets', config['global-secrets'], { global: true });
     }
 
+    if (config.providers) {
+      ProviderValidator.validate(config.providers);
+    }
+
+    if (config.prune_missing_providers !== undefined && typeof config.prune_missing_providers !== 'boolean') {
+      throw new Error('prune_missing_providers must be a boolean.');
+    }
+
     if (config.agents) {
       this.validateAgents(config.agents, config);
     }
@@ -104,6 +112,51 @@ export class FleetConfigValidator {
         );
       }
     }
+  }
+}
+
+export class ProviderValidator {
+  static validate(providers: any): void {
+    if (!Array.isArray(providers)) {
+      throw new Error('providers must be an array.');
+    }
+
+    const names = new Set<string>();
+    providers.forEach((provider: any, index: number) => {
+      if (!provider || typeof provider !== 'object' || Array.isArray(provider)) {
+        throw new Error(`providers[${index}] must be an object.`);
+      }
+      if (!provider.name || typeof provider.name !== 'string') {
+        throw new Error(`providers[${index}] must have a non-empty name.`);
+      }
+      if (!/^[a-z0-9][a-z0-9._-]*$/.test(provider.name)) {
+        throw new Error(`providers[${index}].name must start with a lowercase letter or number and contain only lowercase letters, numbers, dots, underscores, or hyphens.`);
+      }
+      if (names.has(provider.name)) {
+        throw new Error(`Duplicate provider name "${provider.name}".`);
+      }
+      names.add(provider.name);
+
+      if (!provider.provider_type || typeof provider.provider_type !== 'string') {
+        throw new Error(`providers[${index}] must have a non-empty provider_type.`);
+      }
+      if (!provider.api_key) {
+        throw new Error(`providers[${index}] must declare api_key using value or from_env.`);
+      }
+      validateSecretConfigMap(`providers[${index}]`, { api_key: provider.api_key });
+      if (provider.access_key) {
+        validateSecretConfigMap(`providers[${index}]`, { access_key: provider.access_key });
+      }
+      if (provider.region !== undefined && (typeof provider.region !== 'string' || provider.region.trim() === '')) {
+        throw new Error(`providers[${index}].region must be a non-empty string.`);
+      }
+      if (provider.profile !== undefined && (typeof provider.profile !== 'string' || provider.profile.trim() === '')) {
+        throw new Error(`providers[${index}].profile must be a non-empty string.`);
+      }
+      if (provider.refresh !== undefined && typeof provider.refresh !== 'boolean') {
+        throw new Error(`providers[${index}].refresh must be a boolean.`);
+      }
+    });
   }
 }
 

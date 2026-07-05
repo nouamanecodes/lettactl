@@ -19,6 +19,10 @@ export class DiffApplier {
     this.basePath = basePath;
   }
 
+  private getLiveModelRef(agent: any): string | undefined {
+    return agent?.llm_config?.handle || agent?.metadata?.['lettactl.model'] || agent?.model;
+  }
+
   /**
    * Applies the update operations to the agent
    * @param force - When true, removes ALL resources not in config (blocks, tools,
@@ -68,6 +72,8 @@ export class DiffApplier {
       }
       if (fields.contextWindow !== undefined) {
         apiFields.context_window_limit = fields.contextWindow.to;
+      } else if (fields.forceContextWindow !== undefined) {
+        apiFields.context_window_limit = fields.forceContextWindow;
       }
       if (fields.maxTokens !== undefined) {
         apiFields.max_tokens = fields.maxTokens.to;
@@ -90,12 +96,22 @@ export class DiffApplier {
         apiFields.tags = hadMemfsTag ? [...fields.tags.to, 'git-memory-enabled'] : fields.tags.to;
       }
 
-      await this.client.updateAgent(agentId, apiFields);
+      const updatedAgent = await this.client.updateAgent(agentId, apiFields);
+      let verifiedAgent = updatedAgent;
+      if (fields.model !== undefined) {
+        verifiedAgent = await this.client.getAgent(agentId);
+        const liveModel = this.getLiveModelRef(verifiedAgent);
+        if (liveModel !== fields.model.to) {
+          throw new Error(
+            `Agent model update did not take effect: requested ${fields.model.to}, live model is ${liveModel || 'unknown'}`
+          );
+        }
+      }
 
       // Update metadata for fields that need raw value tracking
       const needsMetadataUpdate = fields.model !== undefined || fields.embedding !== undefined || fields.lettabotConfig !== undefined || fields.firstMessage !== undefined || fields.includeBaseTools !== undefined || fields.includeBaseToolRules !== undefined;
       if (needsMetadataUpdate) {
-        const agent = await this.client.getAgent(agentId);
+        const agent = verifiedAgent || await this.client.getAgent(agentId);
         const metadata = { ...(agent as any).metadata };
         if (fields.model !== undefined) {
           metadata['lettactl.model'] = fields.model.to;

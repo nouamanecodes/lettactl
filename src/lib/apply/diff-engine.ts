@@ -137,7 +137,12 @@ export class DiffEngine {
     // 3. Normalized comparison (legacy fallback — can't detect provider changes)
     const storedModel = (currentAgent as any).metadata?.['lettactl.model'];
     const handleModel = (currentAgent as any).llm_config?.handle;
-    const currentModelRef = storedModel || handleModel;
+    // The metadata value is lettactl-owned bookkeeping, but the live handle is
+    // the server's executable model. If they disagree, trust the live handle so
+    // a partial/no-op model PATCH cannot hide drift on future applies.
+    const currentModelRef = handleModel && storedModel && handleModel !== storedModel
+      ? handleModel
+      : (storedModel || handleModel);
     const modelChanged = currentModelRef
       ? currentModelRef !== desiredModel
       : normalizeModelName(currentAgent.model || '') !== normalizeModelName(desiredModel);
@@ -198,6 +203,11 @@ export class DiffEngine {
     if (currentContextWindow !== desiredContextWindow) {
       fieldUpdates.contextWindow = { from: currentContextWindow, to: desiredContextWindow };
       operations.operationCount++;
+    } else if (modelChanged) {
+      // Letta may reset context_window to the target model default when model
+      // changes. Include the desired limit in the same PATCH so model swaps are
+      // idempotent in one apply.
+      fieldUpdates.forceContextWindow = desiredContextWindow;
     }
 
     const desiredMaxTokens = desiredConfig.maxTokens;

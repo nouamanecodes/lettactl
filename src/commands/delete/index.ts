@@ -22,6 +22,34 @@ async function deleteCommandImpl(resource: string, name: string, options?: Delet
     return await deleteMcpServer(name, options, command);
   }
 
+  if (resource === 'provider' || resource === 'providers') {
+    validateRequired(name, 'Provider name or id', 'lettactl delete provider <name>');
+    const client = new LettaClientWrapper();
+    const providers = await client.listProviders();
+    const provider = providers.find((p: any) => p.name === name || p.id === name);
+    if (!provider) {
+      throw new Error(`Provider "${name}" not found`);
+    }
+
+    if (!options?.force) {
+      output(`This will permanently delete provider: ${provider.name} (${provider.id})`);
+      output('Agents using model handles from this provider may stop working.');
+      output('Use --force to confirm deletion');
+      process.exit(1);
+    }
+
+    const spinnerEnabled = getSpinnerEnabled(command);
+    const spinner = createSpinner(`Deleting provider ${provider.name}...`, spinnerEnabled).start();
+    try {
+      await client.deleteProvider(provider.id);
+      spinner.succeed(`Provider ${provider.name} deleted successfully`);
+      return;
+    } catch (err) {
+      spinner.fail(`Failed to delete provider ${provider.name}`);
+      throw err;
+    }
+  }
+
   if (resource === 'conversation' || resource === 'conversations') {
     output('The Letta API does not support deleting individual conversations.');
     output('Conversations are automatically removed when the parent agent is deleted.');

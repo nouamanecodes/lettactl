@@ -1,6 +1,8 @@
 export interface FleetConfig {
   root_path?: string;
   'global-secrets'?: Record<string, SecretConfig>;
+  providers?: ProviderConfig[];
+  prune_missing_providers?: boolean;
   shared_blocks?: SharedBlock[];
   shared_folders?: SharedFolderConfig[];
   mcp_servers?: McpServerConfig[];
@@ -10,6 +12,16 @@ export interface FleetConfig {
 export type SecretConfig =
   | { from_env: string; value?: never; preserve_existing?: boolean }
   | { value: string; from_env?: never; preserve_existing?: never };
+
+export interface ProviderConfig {
+  name: string;
+  provider_type: string;
+  api_key: SecretConfig;
+  access_key?: SecretConfig;
+  region?: string;
+  profile?: string;
+  refresh?: boolean;
+}
 
 export interface McpServerConfig {
   name: string;

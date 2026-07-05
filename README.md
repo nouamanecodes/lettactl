@@ -44,6 +44,33 @@ export LETTA_PROJECT_ID=project-xxx   # sends X-Project-Id
 export LETTA_PROJECT=my-project-slug  # sends X-Project
 ```
 
+Configure BYOK model providers declaratively, then use the synced model handle
+on agents:
+
+```yaml
+providers:
+  - name: my-bedrock
+    provider_type: bedrock
+    api_key:
+      from_env: AWS_SECRET_ACCESS_KEY
+    access_key:
+      from_env: AWS_ACCESS_KEY_ID
+    region: us-east-1
+prune_missing_providers: true # Optional: delete project providers absent from this YAML
+
+agents:
+  - name: my-agent
+    llm_config:
+      model: "my-bedrock/<bedrock-model-id>"
+      context_window: 64000
+    system_prompt:
+      value: "You are helpful."
+```
+
+For Bedrock, `api_key` is the AWS secret access key and `access_key` is the
+AWS access key ID. Run `lettactl get models --query my-bedrock` after apply to
+see the exact provider-prefixed handles Letta exposes.
+
 ## Quick example
 
 Create `agents.yml`:
@@ -174,6 +201,8 @@ use server tools such as `conversation_search`.
 ```bash
 lettactl get agents                      # List agents
 lettactl get projects                    # List Letta Cloud projects
+lettactl get providers                   # List configured BYOK providers
+lettactl get models --query bedrock      # Find model handles
 lettactl get all                         # Server overview
 lettactl describe agent my-agent         # Full details + blocks/tools/messages
 lettactl get blocks --orphaned           # Find orphaned resources

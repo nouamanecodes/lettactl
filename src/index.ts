@@ -204,6 +204,8 @@ Agent-scoped resource notes:
   get files -a <agent>        Show attached folder files when available
   get archival <agent>        Show archival memory when available
   get projects                Show Letta Cloud projects
+  get providers               Show configured BYOK model providers
+  get models --query bedrock  Show available model handles
 
   Commands print "not available" when the agent does not expose that resource surface.
 `);
@@ -275,6 +277,19 @@ getCmd
   .description('List Letta Cloud projects')
   .option('-o, --output <format>', 'output format (table|json|yaml)', 'table')
   .action((options, command) => getCommand('projects', undefined, options, command));
+
+getCmd
+  .command('providers')
+  .description('List configured BYOK model providers')
+  .option('-o, --output <format>', 'output format (table|json|yaml)', 'table')
+  .action((options, command) => getCommand('providers', undefined, options, command));
+
+getCmd
+  .command('models')
+  .description('List available model handles')
+  .option('-o, --output <format>', 'output format (table|json|yaml)', 'table')
+  .option('--query <text>', 'filter by handle, name, provider, or category')
+  .action((options, command) => getCommand('models', undefined, options, command));
 
 getCmd
   .command('archival')
@@ -360,7 +375,7 @@ program
 program
   .command('delete')
   .description('Delete a resource')
-  .argument('<resource>', 'resource type (agent|mcp-servers)')
+  .argument('<resource>', 'resource type (agent|provider|mcp-servers)')
   .argument('<name>', 'resource name')
   .option('--force', 'force deletion without confirmation')
   .action(deleteCommand);

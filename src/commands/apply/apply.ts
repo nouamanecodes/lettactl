@@ -19,6 +19,7 @@ import {
   planAgentSecrets,
   type SecretApplyResult,
 } from '../../lib/secrets-reconciler';
+import { applyProviders } from '../../lib/providers/provider-reconciler';
 import * as nodePath from 'path';
 import { formatLettaError } from '../../lib/shared/error-handler';
 import { computeDryRunDiffs, displayDryRunResults } from '../../lib/apply/dry-run';
@@ -187,6 +188,27 @@ export async function applyCommand(options: ApplyOptions, command: any): Promise
     const folderManager = new FolderManager(client);
     const diffEngine = new DiffEngine(client, blockManager, archiveManager, parser.basePath);
     const fileTracker = new FileContentTracker(parser.basePath, parser.storageBackend);
+
+    if ((config.providers && config.providers.length > 0) || config.prune_missing_providers) {
+      const providerSpinner = createSpinner('Reconciling providers...', spinnerEnabled).start();
+      const providerResults = await applyProviders(client, config, options.dryRun || false);
+      const failedProviders = providerResults.filter(result => result.status === 'failed' || result.refreshStatus === 'failed');
+      if (failedProviders.length > 0) {
+        providerSpinner.fail(`Provider reconciliation failed (${failedProviders.map(p => p.name).join(', ')})`);
+        throw new Error(failedProviders.map(p => `${p.name}: ${p.error || 'unknown error'}`).join('\n'));
+      }
+      const created = providerResults.filter(result => result.status === 'created').length;
+      const updated = providerResults.filter(result => result.status === 'updated').length;
+      const deleted = providerResults.filter(result => result.status === 'deleted').length;
+      const dryRun = providerResults.filter(result => result.status === 'dry-run').length;
+      const unchanged = providerResults.filter(result => result.status === 'unchanged').length;
+      providerSpinner.succeed(`Providers ready (${created} created, ${updated} updated, ${deleted} deleted, ${dryRun} dry-run, ${unchanged} unchanged)`);
+      for (const result of providerResults) {
+        if (result.status !== 'unchanged') {
+          log(`Provider ${result.name}: ${result.status}${result.refreshStatus ? `, refresh=${result.refreshStatus}` : ''}`);
+        }
+      }
+    }
 
     // Load existing resources — scoped to current fleet to prevent cross-tenant contamination
     const { blockNames, folderNames, archiveNames } = collectDesiredResourceNames(config);

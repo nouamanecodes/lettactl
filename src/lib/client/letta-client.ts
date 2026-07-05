@@ -39,6 +39,91 @@ export class LettaClientWrapper {
     return Array.isArray(body) ? body : body.projects || body.data || [];
   }
 
+  async listProviders() {
+    const baseUrl = process.env.LETTA_BASE_URL;
+    const response = await fetch(`${baseUrl}/v1/providers`, {
+      headers: this.getAuthHeaders(),
+    });
+    if (!response.ok) {
+      const body = await response.text().catch(() => '');
+      throw new Error(`Failed to list providers (HTTP ${response.status}): ${body || response.statusText}`);
+    }
+    const body: any = await response.json();
+    return Array.isArray(body) ? body : body.providers || body.data || [];
+  }
+
+  async listModels() {
+    const baseUrl = process.env.LETTA_BASE_URL;
+    const response = await fetch(`${baseUrl}/v1/models`, {
+      headers: this.getAuthHeaders(),
+    });
+    if (!response.ok) {
+      const body = await response.text().catch(() => '');
+      throw new Error(`Failed to list models (HTTP ${response.status}): ${body || response.statusText}`);
+    }
+    const body: any = await response.json();
+    return Array.isArray(body) ? body : body.models || body.data || [];
+  }
+
+  async getProviderByName(name: string) {
+    const providers = await this.listProviders();
+    return providers.find((provider: any) => provider.name === name) || null;
+  }
+
+  async createProvider(providerData: any) {
+    const baseUrl = process.env.LETTA_BASE_URL;
+    const response = await fetch(`${baseUrl}/v1/providers/`, {
+      method: 'POST',
+      headers: this.getAuthHeaders(),
+      body: JSON.stringify(providerData),
+    });
+    if (!response.ok) {
+      const body = await response.text().catch(() => '');
+      throw new Error(`Failed to create provider "${providerData.name}" (HTTP ${response.status}): ${body || response.statusText}`);
+    }
+    return await response.json();
+  }
+
+  async updateProvider(providerId: string, providerData: any) {
+    const baseUrl = process.env.LETTA_BASE_URL;
+    const response = await fetch(`${baseUrl}/v1/providers/${providerId}`, {
+      method: 'PATCH',
+      headers: this.getAuthHeaders(),
+      body: JSON.stringify(providerData),
+    });
+    if (!response.ok) {
+      const body = await response.text().catch(() => '');
+      throw new Error(`Failed to update provider "${providerId}" (HTTP ${response.status}): ${body || response.statusText}`);
+    }
+    return await response.json();
+  }
+
+  async deleteProvider(providerId: string) {
+    const baseUrl = process.env.LETTA_BASE_URL;
+    const response = await fetch(`${baseUrl}/v1/providers/${providerId}`, {
+      method: 'DELETE',
+      headers: this.getAuthHeaders(),
+    });
+    if (!response.ok && response.status !== 404) {
+      const body = await response.text().catch(() => '');
+      throw new Error(`Failed to delete provider "${providerId}" (HTTP ${response.status}): ${body || response.statusText}`);
+    }
+    return null;
+  }
+
+  async refreshProvider(providerId: string) {
+    const baseUrl = process.env.LETTA_BASE_URL;
+    const response = await fetch(`${baseUrl}/v1/providers/${providerId}/refresh`, {
+      method: 'PATCH',
+      headers: this.getAuthHeaders(),
+    });
+    if (!response.ok) {
+      const body = await response.text().catch(() => '');
+      throw new Error(`Failed to refresh provider "${providerId}" (HTTP ${response.status}): ${body || response.statusText}`);
+    }
+    return await response.json().catch(() => null);
+  }
+
   private async getProjectSlugForId(projectId: string): Promise<string | null> {
     const projects = await this.listProjects();
     const project = projects.find((p: any) => p.id === projectId);

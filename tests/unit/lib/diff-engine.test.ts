@@ -195,6 +195,50 @@ describe('DiffEngine', () => {
   });
 
   describe('generateUpdateOperations', () => {
+    it('detects model drift when metadata disagrees with the live llm handle', async () => {
+      mockClient.getAgent.mockResolvedValue({
+        id: 'agent-1',
+        name: 'agent-1',
+        system: 'system',
+        description: 'description',
+        model: 'claude-haiku-4-5',
+        llm_config: {
+          handle: 'lc-bedrock/us.anthropic.claude-haiku-4-5-20251001-v1:0',
+          context_window: 64000,
+        },
+        metadata: {
+          'lettactl.model': 'lc-zai/glm-4.7',
+          'lettactl.includeBaseTools': false,
+          'lettactl.includeBaseToolRules': false,
+        },
+        tools: [],
+        blocks: [],
+        tags: [],
+      } as any);
+
+      const engine = new DiffEngine(mockClient, mockBlockManager, mockArchiveManager);
+      const operations = await engine.generateUpdateOperations(
+        { id: 'agent-1', name: 'agent-1' } as any,
+        {
+          systemPrompt: 'system',
+          description: 'description',
+          tools: [],
+          includeBaseTools: false,
+          includeBaseToolRules: false,
+          model: 'lc-zai/glm-4.7',
+          contextWindow: 64000,
+          tags: [],
+        },
+        new Map(),
+        new Map()
+      );
+
+      expect(operations.updateFields?.model).toEqual({
+        from: 'lc-bedrock/us.anthropic.claude-haiku-4-5-20251001-v1:0',
+        to: 'lc-zai/glm-4.7',
+      });
+    });
+
     it('removes stale lettactl embedding metadata when YAML omits embedding', async () => {
       mockClient.getAgent.mockResolvedValue({
         id: 'agent-1',
