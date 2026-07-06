@@ -12,11 +12,17 @@ describe('DiffEngine', () => {
   let mockBlockManager: jest.Mocked<BlockManager>;
   let mockArchiveManager: jest.Mocked<ArchiveManager>;
   let mockClient: jest.Mocked<LettaClientWrapper>;
+  const originalLettaBaseUrl = process.env.LETTA_BASE_URL;
 
   beforeEach(() => {
     mockClient = new (LettaClientWrapper as any)();
     mockBlockManager = new (BlockManager as any)(mockClient);
     mockArchiveManager = new (ArchiveManager as any)(mockClient);
+    process.env.LETTA_BASE_URL = originalLettaBaseUrl;
+  });
+
+  afterEach(() => {
+    process.env.LETTA_BASE_URL = originalLettaBaseUrl;
   });
 
   describe('analyzeToolChanges', () => {
@@ -239,7 +245,51 @@ describe('DiffEngine', () => {
       });
     });
 
-    it('removes stale lettactl embedding metadata when YAML omits embedding', async () => {
+    it('ignores omitted embedding on Letta Cloud because Cloud manages embedding config', async () => {
+      process.env.LETTA_BASE_URL = 'https://api.letta.com';
+      mockClient.getAgent.mockResolvedValue({
+        id: 'agent-1',
+        name: 'agent-1',
+        system: 'system',
+        description: 'description',
+        model: 'glm-4.7',
+        llm_config: {
+          handle: 'lc-zai/glm-4.7',
+          context_window: 64000,
+        },
+        metadata: {
+          'lettactl.model': 'lc-zai/glm-4.7',
+          'lettactl.embedding': 'openai/text-embedding-3-small',
+          'lettactl.includeBaseTools': false,
+          'lettactl.includeBaseToolRules': false,
+        },
+        tools: [],
+        blocks: [],
+        tags: [],
+      } as any);
+
+      const engine = new DiffEngine(mockClient, mockBlockManager, mockArchiveManager);
+      const operations = await engine.generateUpdateOperations(
+        { id: 'agent-1', name: 'agent-1' } as any,
+        {
+          systemPrompt: 'system',
+          description: 'description',
+          tools: [],
+          includeBaseTools: false,
+          includeBaseToolRules: false,
+          model: 'lc-zai/glm-4.7',
+          contextWindow: 64000,
+          tags: [],
+        },
+        new Map(),
+        new Map()
+      );
+
+      expect(operations.updateFields?.embedding).toBeUndefined();
+    });
+
+    it('still detects omitted embedding drift outside Letta Cloud', async () => {
+      process.env.LETTA_BASE_URL = 'http://localhost:8283';
       mockClient.getAgent.mockResolvedValue({
         id: 'agent-1',
         name: 'agent-1',

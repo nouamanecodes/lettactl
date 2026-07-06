@@ -68,4 +68,5 @@ describe('DiffApplier', () => {
       metadata: { 'lettactl.model': 'lc-zai/glm-4.7' },
     });
   });
+
 });

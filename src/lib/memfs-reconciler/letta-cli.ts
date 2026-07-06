@@ -1,4 +1,7 @@
 import { execFile } from 'child_process';
+import { existsSync } from 'fs';
+import { delimiter } from 'path';
+import path from 'path';
 import { promisify } from 'util';
 import type { FleetConfig } from '../../types/fleet-config';
 
@@ -11,7 +14,7 @@ export function fleetUsesMemfs(config: FleetConfig): boolean {
 export async function assertLettaCliAvailableForMemfs(config: FleetConfig): Promise<void> {
   if (!fleetUsesMemfs(config)) return;
 
-  const command = process.env.LETTA_CODE_CLI || 'letta';
+  const command = resolveLettaCodeCli();
   try {
     await execFileAsync(command, ['skills', '--help'], {
       timeout: 10_000,
@@ -34,4 +37,28 @@ export async function assertLettaCliAvailableForMemfs(config: FleetConfig): Prom
       (detail ? `\n\nDetails:\n  ${detail}` : ''),
     );
   }
+}
+
+export function resolveLettaCodeCli(): string {
+  if (process.env.LETTA_CODE_CLI) return process.env.LETTA_CODE_CLI;
+
+  const candidates = unique([
+    path.join(process.cwd(), 'node_modules', '.bin', 'letta'),
+    path.join(process.cwd(), 'node_modules', '.pnpm', 'node_modules', '.bin', 'letta'),
+    ...pathCandidates('letta'),
+    process.execPath ? path.join(path.dirname(process.execPath), 'letta') : '',
+  ]);
+
+  return candidates.find((candidate) => existsSync(candidate)) || 'letta';
+}
+
+function pathCandidates(binaryName: string): string[] {
+  return (process.env.PATH || '')
+    .split(delimiter)
+    .filter(Boolean)
+    .map((dir) => path.join(dir, binaryName));
+}
+
+function unique(values: string[]): string[] {
+  return [...new Set(values.filter(Boolean))];
 }

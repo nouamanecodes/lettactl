@@ -151,18 +151,24 @@ export class DiffEngine {
       operations.operationCount++;
     }
 
-    const desiredEmbedding = desiredConfig.embedding ?? null;
-    const storedEmbedding = (currentAgent as any).metadata?.['lettactl.embedding'];
-    const handleEmbedding = (currentAgent as any).embedding_config?.handle;
-    const currentEmbeddingRef = storedEmbedding || handleEmbedding;
-    const embeddingChanged = desiredEmbedding === null
-      ? currentEmbeddingRef !== undefined
-      : currentEmbeddingRef
-        ? currentEmbeddingRef !== desiredEmbedding
-        : normalizeModelName(currentAgent.embedding || '') !== normalizeModelName(desiredEmbedding);
-    if (embeddingChanged) {
-      fieldUpdates.embedding = { from: currentEmbeddingRef || currentAgent.embedding || null, to: desiredEmbedding };
-      operations.operationCount++;
+    const cloudManagedEmbeddingOmitted =
+      isLettaCloudBaseUrl(process.env.LETTA_BASE_URL) &&
+      desiredConfig.embedding === undefined &&
+      desiredConfig.embeddingConfig === undefined;
+    if (!cloudManagedEmbeddingOmitted) {
+      const desiredEmbedding = desiredConfig.embedding ?? null;
+      const storedEmbedding = (currentAgent as any).metadata?.['lettactl.embedding'];
+      const handleEmbedding = (currentAgent as any).embedding_config?.handle;
+      const currentEmbeddingRef = storedEmbedding || handleEmbedding;
+      const embeddingChanged = desiredEmbedding === null
+        ? currentEmbeddingRef !== undefined
+        : currentEmbeddingRef
+          ? currentEmbeddingRef !== desiredEmbedding
+          : normalizeModelName(currentAgent.embedding || '') !== normalizeModelName(desiredEmbedding);
+      if (embeddingChanged) {
+        fieldUpdates.embedding = { from: currentEmbeddingRef || currentAgent.embedding || null, to: desiredEmbedding };
+        operations.operationCount++;
+      }
     }
 
     // Normalize embedding_config for comparison (handles nested objects)
@@ -357,5 +363,15 @@ export class DiffEngine {
   ): Promise<void> {
     const applier = new DiffApplier(this.client, this.basePath);
     return applier.applyUpdateOperations(agentId, operations, verbose, force, prune);
+  }
+}
+
+function isLettaCloudBaseUrl(baseUrl: string | undefined): boolean {
+  if (!baseUrl) return false;
+  try {
+    const host = new URL(baseUrl).hostname;
+    return host === 'letta.com' || host.endsWith('.letta.com');
+  } catch {
+    return false;
   }
 }
