@@ -446,6 +446,7 @@ export async function applyCommand(options: ApplyOptions, command: any): Promise
             if (memfsResultRequiresRecompile(currentMemfsResult) && !options.skipRecompile) {
               await recompileConversationsForAgent(existingAgent.id, existingAgent.name, client, options.waitForIdle !== false);
             }
+            await maybeReprojectSkills(existingAgent.id, existingAgent.name, agent.memory?.mode, memfsReconciler, client, options);
 
             if (sidecarChanged) {
               succeeded.push(agent.name);
@@ -527,6 +528,7 @@ export async function applyCommand(options: ApplyOptions, command: any): Promise
             if (memfsResultRequiresRecompile(result) && !options.skipRecompile) {
               await recompileConversationsForAgent(existingAgent.id, existingAgent.name, client, options.waitForIdle !== false);
             }
+            await maybeReprojectSkills(existingAgent.id, existingAgent.name, agent.memory?.mode, memfsReconciler, client, options);
           }
           const secretResult = await reconcileSecretsForAgent(config, agent, existingAgent.id, client, false);
           if (secretResult) {
@@ -849,6 +851,41 @@ async function recompileConversationsForAgent(
     (conversation: any) => retryOn409(() => client.recompileConversation(conversation.id)),
   );
   log(`  Recompiled ${succeeded}/${list.length} conversation(s) after MemFS sync`);
+}
+
+/**
+ * `--reproject-skills`: force Letta to re-render skill blocks on a running
+ * git-memory agent. Letta Cloud re-renders `system/*` on recompile but never
+ * re-projects a `skills/*​/SKILL.md` content update on a running agent — only
+ * recreation or a detach+re-attach does. This runs regardless of the memfs diff
+ * (so it also fixes an already-stale agent whose repo is already current), then
+ * agent-level recompiles. Content- and conversation-preserving.
+ */
+async function maybeReprojectSkills(
+  agentId: string,
+  agentName: string,
+  memoryMode: string | undefined,
+  memfsReconciler: MemfsReconciler,
+  client: LettaClientWrapper,
+  options: any,
+): Promise<void> {
+  if (!options.reprojectSkills || options.dryRun) return;
+  if (memoryMode !== 'memfs') return;
+  const prefix = `  [memfs:${agentName}]`;
+  if (options.waitForIdle !== false) {
+    await waitForAgentIdle(client, agentId, { ...defaultWaitLogger(() => agentName) });
+  }
+  try {
+    const skills = await memfsReconciler.reprojectSkills(agentId);
+    if (skills.length === 0) {
+      log(`${prefix} reproject: no skills found`);
+      return;
+    }
+    await client.recompileAgent(agentId);
+    log(`${prefix} ✓ reprojected ${skills.length} skill(s): ${skills.join(', ')}`);
+  } catch (e: any) {
+    warn(`${prefix} reproject FAILED: ${e?.message ?? e}`);
+  }
 }
 
 async function ensureDeclaredConversationsForAgent(

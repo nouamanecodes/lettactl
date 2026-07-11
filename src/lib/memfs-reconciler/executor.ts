@@ -39,6 +39,10 @@ export interface MemfsExecutionResult {
   error?: string;
 }
 
+/** Seconds to let Letta's async post-push block sync settle between the detach
+ *  and re-attach pushes during a skill reprojection. */
+const REPROJECT_SYNC_DELAY_MS = 4000;
+
 export class MemfsReconciler {
   constructor(
     private readonly letta: LettaClientWrapper,
@@ -260,6 +264,56 @@ export class MemfsReconciler {
       filesChanged,
       filesDeleted,
     };
+  }
+
+  /**
+   * Force Letta to re-project skill blocks onto a RUNNING agent, no recreation.
+   *
+   * Letta Cloud (git-memory) re-renders `system/*` on an agent recompile, but a
+   * plain `skills/*​/SKILL.md` content update never re-projects on a running
+   * agent — only agent creation, or detaching + re-attaching the block, does
+   * (see the upstream bug). This reprojects the CURRENT bare-repo skill content:
+   * delete every SKILL.md (push → post-push sync DETACHES the blocks), then
+   * re-add identical content (push → sync CREATES fresh blocks). Follow with
+   * `client.recompileAgent()` to render them. Content-preserving (re-adds what's
+   * already in the repo, so agent-authored skills are untouched) and
+   * conversation-preserving. Returns the skill names reprojected.
+   */
+  async reprojectSkills(agentId: string): Promise<string[]> {
+    const tempDir = await this.git.cloneToTemp(agentId);
+    try {
+      const skillFiles = new Map<string, string>();
+      const names = await fs.readdir(path.join(tempDir, 'skills')).catch(() => [] as string[]);
+      for (const name of names) {
+        const rel = `skills/${name}/SKILL.md`;
+        const content = await fs.readFile(path.join(tempDir, rel), 'utf8').catch(() => null);
+        if (content !== null) skillFiles.set(rel, content);
+      }
+      if (skillFiles.size === 0) return [];
+      const skillNames = [...skillFiles.keys()].map((p) => p.split('/')[1]);
+      const v = this.opts.lettactlVersion;
+      // Push 1 — detach: delete every SKILL.md so the post-push sync drops the blocks.
+      await this.git.writeCommitPush(
+        tempDir,
+        new Map(),
+        `reproject: detach ${skillNames.length} skills (lettactl ${v})`,
+        [...skillFiles.keys()],
+      );
+      await sleep(REPROJECT_SYNC_DELAY_MS);
+      // Push 2 — attach: re-add identical content so the sync creates fresh blocks.
+      await this.git.writeCommitPush(
+        tempDir,
+        skillFiles,
+        `reproject: re-attach ${skillNames.length} skills (lettactl ${v})`,
+      );
+      await sleep(REPROJECT_SYNC_DELAY_MS);
+      return skillNames;
+    } finally {
+      await this.git.cleanup(tempDir).catch((e) => {
+        // eslint-disable-next-line no-console
+        console.error('[MemfsReconciler.reprojectSkills] cleanup errored:', e);
+      });
+    }
   }
 
   private async writeBlockSnapshot(agentId: string, blocks: import('./plan').BlockSnapshot[]): Promise<string> {

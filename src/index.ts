@@ -130,6 +130,7 @@ program
   .option('--promote', 'promote canary config to production (use with --canary)')
   .option('--cleanup', 'remove canary agents (use with --canary)')
   .option('--skip-recompile', 'skip automatic conversation recompilation after block changes')
+  .option('--reproject-skills', 'force re-render of skill blocks on running git-memory agents (detach + re-add current skill content, then agent-level recompile). Fixes Letta Cloud not re-projecting skills/*/SKILL.md updates without recreation. Content- and conversation-preserving.')
   .option('--fresh-context', 'reset message buffer for agents that had changes (agent reads blocks fresh)')
   .option('--fresh-context-tags <tags>', 'filter context reset to agents matching tags (comma-separated, AND logic)')
   .option('--fresh-context-match <pattern>', 'filter context reset to agents matching glob pattern')

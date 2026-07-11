@@ -176,9 +176,12 @@ agents:
 ```
 
 ```bash
-lettactl apply -f fleet.yml --dry-run     # Shows MemFS and secret drift
-lettactl apply -f fleet.yml --root .      # Resolves template_dir/from_dir paths from repo root
+lettactl apply -f fleet.yml --dry-run          # Shows MemFS and secret drift
+lettactl apply -f fleet.yml --root .           # Resolves template_dir/from_dir paths from repo root
+lettactl apply -f fleet.yml --reproject-skills # Force skills/*/SKILL.md to re-render on running agents
 ```
+
+> **`--reproject-skills`** — Letta Cloud re-renders `system/*` MemFS files on a normal apply, but a `skills/*/SKILL.md` **content change does not render on a running agent** — only agent recreation or a detach + re-attach does. This flag detaches + re-adds each skill's current content (two pushes) then agent-recompiles, so skill edits take effect without recreation. Content- and conversation-preserving; runs even when the memfs diff is a no-op (fixes already-stale agents).
 
 Use `memory.template_dir` for system MemFS files, `memory.skills[].from_dir` for
 directories containing `SKILL.md`, and `agents[].secrets` or `global-secrets` for
