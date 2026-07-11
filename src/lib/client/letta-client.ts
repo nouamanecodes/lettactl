@@ -898,4 +898,25 @@ export class LettaClientWrapper {
     }
     return await response.json();
   }
+
+  /**
+   * Agent-level system-prompt recompile. Unlike the conversation recompile
+   * (which dry-run-no-ops for real conversation ids), this rewrites the agent's
+   * persisted system message from the current memory cache. `update_timestamp`
+   * forces the rebuild past the substring diff-gate so a genuine change persists.
+   * Reuses the existing system-message id, so conversation history is preserved.
+   */
+  async recompileAgent(agentId: string) {
+    const baseUrl = process.env.LETTA_BASE_URL;
+    const response = await fetch(`${baseUrl}/v1/agents/${agentId}/recompile?update_timestamp=true`, {
+      method: 'POST',
+      headers: this.getAuthHeaders(),
+    });
+    if (!response.ok) {
+      const err: any = new Error(`Failed to recompile agent: ${response.status} ${response.statusText}`);
+      err.status = response.status;
+      throw err;
+    }
+    return await response.json();
+  }
 }
