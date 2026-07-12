@@ -945,10 +945,12 @@ async function reconcileSecretsForAgent(
 
 /**
  * Run the memFS reconciler for a single agent. Pulls server state, computes
- * the diff, executes (or dry-runs). Returns the result so apply can log it.
+ * the diff, executes (or dry-runs). Returns the result (for logging) on success.
  *
- * Errors here are caught and returned as failed results — they don't abort
- * the whole apply (kubectl-style: per-agent failures continue).
+ * THROWS on any materialization failure (thrown error OR in-band status:'failed')
+ * so the per-agent catch in the apply loop records it in failed[] and the apply
+ * fails — never a silent shell agent. Still kubectl-style: other agents continue,
+ * the summary throws at the end.
  */
 async function reconcileMemfsForAgent(
   agent: any,
@@ -958,18 +960,24 @@ async function reconcileMemfsForAgent(
   memfsReconciler: MemfsReconciler,
   rootPath: string,
 ): Promise<MemfsExecutionResult> {
+  let result: MemfsExecutionResult;
   try {
     const serverState = await buildServerAgentState(client, gitClient, agentId);
     const action = computeMemfsAction(agent.name, agent, serverState, rootPath);
-    return await memfsReconciler.execute(action);
+    result = await memfsReconciler.execute(action);
   } catch (err) {
-    return {
-      kind: 'no-op',
-      agentId,
-      status: 'failed',
-      error: `memFS reconcile failed: ${(err as Error).message}`,
-    };
+    // Fail loud: a thrown reconcile error must abort THIS agent's apply so the
+    // per-agent catch records it in failed[] — never silently return a failed
+    // result that the caller treats as a successful (shell) deploy.
+    throw new Error(`memFS reconcile failed for ${agent.name}: ${(err as Error).message}`);
   }
+  // In-band failures (executor remote-verify / post-flip verify) return a
+  // status:'failed' result rather than throwing — surface those the same way.
+  // (status:'applied' with an error stays a soft warning — do not throw on it.)
+  if (result.status === 'failed') {
+    throw new Error(`memFS materialization failed for ${agent.name}: ${result.error ?? '(no detail)'}`);
+  }
+  return result;
 }
 
 function logSecretResult(result: SecretApplyResult, agentName: string): void {

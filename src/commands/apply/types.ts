@@ -33,6 +33,10 @@ export interface ApplyOptions {
   recalibrateMatch?: string;
   wait?: boolean;  // Commander maps --no-wait to wait=false
   waitForIdle?: boolean;  // Commander maps --no-wait-for-idle to waitForIdle=false
+  /** Force skill blocks to re-render on running git-memory agents (detach +
+   *  re-add each SKILL.md, then agent-recompile). Content- and conversation-
+   *  preserving. See --reproject-skills. */
+  reprojectSkills?: boolean;
 }
 
 export interface DeployResult {
