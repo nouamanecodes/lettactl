@@ -14,6 +14,16 @@ export function fleetUsesMemfs(config: FleetConfig): boolean {
 export async function assertLettaCliAvailableForMemfs(config: FleetConfig): Promise<void> {
   if (!fleetUsesMemfs(config)) return;
 
+  // lettactl materializes memfs skills by pushing to the runtime's git endpoint
+  // (/v1/git) — it never runs `letta` itself. The `letta` CLI is a RUNTIME need
+  // (the server that renders skills). On Letta Cloud that runtime is managed and
+  // always has it, so there is nothing to verify client-side — skip entirely.
+  if (isLettaCloud()) return;
+
+  // Self-hosted / local runtime: we still don't run `letta` here, but the
+  // runtime image must include it to render skills. We can only probe the client
+  // env — a weak proxy — so WARN, never block. The git push (the actual work) is
+  // unaffected; a missing runtime `letta` surfaces at skill-render time.
   const command = resolveLettaCodeCli();
   try {
     await execFileAsync(command, ['skills', '--help'], {
@@ -21,21 +31,25 @@ export async function assertLettaCliAvailableForMemfs(config: FleetConfig): Prom
       maxBuffer: 1024 * 1024,
     });
   } catch (err: any) {
-    const detail = [
-      err?.code ? `code=${err.code}` : '',
-      err?.stdout ? `stdout=${String(err.stdout).trim()}` : '',
-      err?.stderr ? `stderr=${String(err.stderr).trim()}` : '',
-      err?.message ? `message=${err.message}` : '',
-    ].filter(Boolean).join('\n  ');
-
-    throw new Error(
-      `MemFS agents require a working Letta Code CLI so runtime skills can be materialized.\n` +
-      `Could not run: ${command} skills --help\n\n` +
-      `Install or update the "letta" CLI in the same environment running lettactl, ` +
-      `or set LETTA_CODE_CLI=/absolute/path/to/letta.\n` +
-      `If you are deploying self-managed runtimes, the runtime image must also include "letta".` +
-      (detail ? `\n\nDetails:\n  ${detail}` : ''),
+    console.warn(
+      `[lettactl] Could not run "${command} skills --help" in this environment. ` +
+      `lettactl does not need it (memfs is materialized over git), but a SELF-HOSTED ` +
+      `runtime image must include "letta" to render skills (set LETTA_CODE_CLI to override the path). ` +
+      `This does NOT block the deploy.` +
+      (err?.message ? `\n  ${err.message}` : ''),
     );
+  }
+}
+
+/** True when deploying against Letta Cloud (letta.com / *.letta.com). */
+function isLettaCloud(): boolean {
+  const url = process.env.LETTA_BASE_URL;
+  if (!url) return false;
+  try {
+    const host = new URL(url).hostname;
+    return host === 'letta.com' || host.endsWith('.letta.com');
+  } catch {
+    return false;
   }
 }
 
