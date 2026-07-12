@@ -11,6 +11,7 @@ import path from 'path';
 describe('letta CLI MemFS preflight', () => {
   const originalCwd = process.cwd();
   const originalPath = process.env.PATH;
+  const originalBaseUrl = process.env.LETTA_BASE_URL;
 
   const memfsFleet: any = {
     agents: [{
@@ -34,6 +35,8 @@ describe('letta CLI MemFS preflight', () => {
   afterEach(() => {
     delete process.env.LETTA_CODE_CLI;
     process.env.PATH = originalPath;
+    if (originalBaseUrl === undefined) delete process.env.LETTA_BASE_URL;
+    else process.env.LETTA_BASE_URL = originalBaseUrl;
     process.chdir(originalCwd);
   });
 
@@ -47,14 +50,22 @@ describe('letta CLI MemFS preflight', () => {
     await expect(assertLettaCliAvailableForMemfs(blockFleet)).resolves.toBeUndefined();
   });
 
-  it('fails with an actionable message when letta CLI is missing', async () => {
+  it('warns but does NOT throw when letta CLI is missing (self-hosted)', async () => {
     process.env.LETTA_CODE_CLI = '/definitely/not/a/letta/binary';
-    await expect(assertLettaCliAvailableForMemfs(memfsFleet)).rejects.toThrow(
-      'MemFS agents require a working Letta Code CLI',
-    );
-    await expect(assertLettaCliAvailableForMemfs(memfsFleet)).rejects.toThrow(
-      'LETTA_CODE_CLI=/absolute/path/to/letta',
-    );
+    delete process.env.LETTA_BASE_URL; // non-cloud → probe runs, but only warns
+    const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    await expect(assertLettaCliAvailableForMemfs(memfsFleet)).resolves.toBeUndefined();
+    expect(warn).toHaveBeenCalled();
+    warn.mockRestore();
+  });
+
+  it('skips the preflight entirely for Letta Cloud (no probe, no warning)', async () => {
+    process.env.LETTA_CODE_CLI = '/definitely/not/a/letta/binary';
+    process.env.LETTA_BASE_URL = 'https://api.letta.com';
+    const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    await expect(assertLettaCliAvailableForMemfs(memfsFleet)).resolves.toBeUndefined();
+    expect(warn).not.toHaveBeenCalled();
+    warn.mockRestore();
   });
 
   it('uses pnpm internal bin when letta is not on PATH', async () => {
