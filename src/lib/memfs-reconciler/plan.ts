@@ -131,7 +131,10 @@ export function computeMemfsAction(
       changedFiles.set(filePath, content);
     }
   }
-  const deletedFiles = computeManagedSkillDeletions(memory, targetFiles, server.bareRepoFiles);
+  const deletedFiles = Array.from(new Set([
+    ...computeManagedSkillDeletions(memory, targetFiles, server.bareRepoFiles),
+    ...computeExplicitPruneDeletions(memory, targetFiles, server.bareRepoFiles),
+  ])).sort();
 
   if (changedFiles.size === 0 && deletedFiles.length === 0) {
     return {
@@ -170,6 +173,27 @@ function computeManagedSkillDeletions(
   }
 
   return Array.from(deleted).sort();
+}
+
+/**
+ * Explicit removals: paths the config names in `prune_paths` (a renamed or
+ * removed system/reference/state file). Non-skill files can't be auto-pruned —
+ * agents author their own memory files under system/, so a blanket "delete
+ * anything not in target" would erase agent memory. Explicit naming is safe and
+ * works on the first apply. A path is only deleted if it exists in the bare repo
+ * and is NOT also a target file (never delete a file we intend to keep).
+ */
+function computeExplicitPruneDeletions(
+  memory: AgentMemoryConfig,
+  targetFiles: Map<string, string>,
+  bareRepoFiles: Map<string, string>,
+): string[] {
+  if (!memory.prune_paths || memory.prune_paths.length === 0) return [];
+  const deleted: string[] = [];
+  for (const p of memory.prune_paths) {
+    if (bareRepoFiles.has(p) && !targetFiles.has(p)) deleted.push(p);
+  }
+  return deleted;
 }
 
 /**

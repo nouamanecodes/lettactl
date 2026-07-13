@@ -86,6 +86,10 @@ export interface AgentMemoryConfig {
   template_dir?: string;                     // dir of skeleton .md files; relative to root_path
   preserve_existing_paths?: string[];        // memfs paths to seed but not overwrite once present
   prune_missing_skills?: boolean;            // when true, delete remote skills/<name> dirs absent from memory.skills
+  prune_paths?: string[];                    // explicit bare-repo paths to DELETE on apply (e.g. a renamed/removed
+                                             // system/ or reference/ file). Safe + explicit — unlike skills, non-skill
+                                             // files can't be auto-pruned (agents author memory files under system/),
+                                             // so removals are named here. Ignored if the path is also a target file.
   files?: Array<{
     to: string;                              // memfs target path
     value?: string;                          // inline content

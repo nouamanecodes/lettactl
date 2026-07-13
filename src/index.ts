@@ -150,6 +150,9 @@ MemFS skills and secrets:
   memory.template_dir             Copy a full MemFS template directory
   memory.preserve_existing_paths  Seed listed paths, then preserve remote edits
   memory.prune_missing_skills     Delete managed skills/<name> files missing from memory.skills
+  memory.prune_paths              Explicit bare-repo paths to delete on apply — for a renamed/removed
+                                  non-skill file (system/, reference/, state/). Skipped if the path is
+                                  also a target file. Safe: only these named paths are ever removed.
   memory.files[]                  Write explicit inline/from_file content to a MemFS path
   memory.skills[].from_dir        Copy a skill directory containing SKILL.md into skills/<name>
   global-secrets                  Sync secret values to every agent
