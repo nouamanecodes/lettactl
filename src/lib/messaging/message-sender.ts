@@ -36,7 +36,9 @@ export async function sendMessageToAgent(
     };
 
     if (options.maxSteps) params.max_steps = options.maxSteps;
-    if (options.enableThinking) params.enable_thinking = options.enableThinking;
+    // The Letta API types enable_thinking as a STRING (a boolean here 422s:
+    // "Input should be a valid string"). Send the string form.
+    if (options.enableThinking) params.enable_thinking = String(options.enableThinking);
 
     let response;
 
