@@ -485,6 +485,18 @@ function formatMemfsDetails(result: DryRunResult, fancy: boolean): void {
       output(`${indent}${red('Memfs [-]:')} rollback ${dim('(remove tag git-memory-enabled; files left in place)')}`);
       break;
   }
+
+  // Bare-repo push != running agent updated. The runtime clones state.git and
+  // only re-pulls on cold-start / manual reload, so warm self-managed runtimes
+  // keep serving old files until something runs git fetch+reset on session start.
+  if (action.kind === 'sync-files-only' || action.kind === 'migrate-forward') {
+    output(
+      `${indent}  ${yellow('note:')} ${dim(
+        'bare-repo push only — running agents do NOT auto-pull; they refresh on cold-start, ' +
+        'warm self-managed runtimes need git fetch+reset on session start',
+      )}`,
+    );
+  }
 }
 
 export function formatMemfsFileList(count: number, names: string[]): string {

@@ -1037,4 +1037,20 @@ function logMemfsResult(result: MemfsExecutionResult, agentName: string): void {
       warn(`${prefix} FAILED: ${result.error ?? '(no detail)'}`);
       break;
   }
+
+  // A bare-repo push does NOT refresh a RUNNING agent's MemFS working tree. The
+  // runtime clones state.git and only re-pulls on cold-start / manual reload, so
+  // a warm self-managed runtime keeps serving the old files until something runs
+  // `git fetch && git reset --hard` in its container on session start. Surface
+  // this so a green apply isn't mistaken for "running agents are updated".
+  const pushedFiles =
+    (result.kind === 'sync-files-only' || result.kind === 'migrate-forward') &&
+    ((result.filesChanged?.length ?? 0) + (result.filesDeleted?.length ?? 0)) > 0;
+  if (pushedFiles && (result.status === 'applied' || result.status === 'dry-run')) {
+    warn(
+      `${prefix} note: pushed to the bare repo — running agents do NOT auto-pull this. ` +
+      `They refresh on cold-start; warm self-managed runtimes must git fetch+reset on session start ` +
+      `(a push alone won't update a live agent).`,
+    );
+  }
 }
