@@ -14,5 +14,5 @@ overrides:
   '@babel/core@<=7.29.0': '>=7.29.1'
 
 # pnpm 11 blocks dependency build scripts by default; approve the ones we need.
-onlyBuiltDependencies:
-  - unrs-resolver
+allowBuilds:
+  unrs-resolver: true
