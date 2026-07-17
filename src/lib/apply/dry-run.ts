@@ -480,6 +480,9 @@ function formatMemfsDetails(result: DryRunResult, fancy: boolean): void {
       const parts = [`~${action.changedFiles.size} changed`];
       if (action.deletedFiles.length) parts.push(`-${action.deletedFiles.length} deleted`);
       output(`${indent}${colorPurple('Memfs [~]:')} sync-files-only (${parts.join(', ')})`);
+      if (action.changedFiles.size) {
+        output(`${indent}  ${dim('changed:')} ${formatMemfsFileList(action.changedFiles.size, Array.from(action.changedFiles.keys()))}`);
+      }
       for (const p of action.deletedFiles) output(`${indent}  ${red('delete:')} ${p}`);
       break;
     }
