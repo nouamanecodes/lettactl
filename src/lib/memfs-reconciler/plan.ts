@@ -31,24 +31,30 @@ export interface ServerAgentState {
   blocks: BlockSnapshot[];
   // path -> blob SHA at HEAD of the bare repo. Empty if no commits yet.
   bareRepoFiles: Map<string, string>;
+  // path -> sha lettactl recorded projecting last apply. Empty pre-provenance.
+  projectedFiles: Map<string, string>;
 }
 
 export const GIT_MEMORY_ENABLED_TAG = 'git-memory-enabled';
 export const GIT_MEMORY_ENABLED_METADATA_KEY = 'lettactl.memfs.enabled';
+export const MEMFS_PROJECTED_METADATA_KEY = 'lettactl.memfs.projected';
 
 export type MemfsAction =
   | {
       kind: 'no-op';
       agentId: string;
       reason: string;
+      // Set when files match but provenance needs seeding (metadata-only write).
+      newProvenance?: Map<string, string>;
     }
   | {
       kind: 'migrate-forward';
       agentId: string;
       currentTags: string[];
       sourceBlocks: BlockSnapshot[];
-      // Full target file set to push (path -> content).
       targetFiles: Map<string, string>;
+      deletedFiles: string[];
+      newProvenance: Map<string, string>;
     }
   | {
       kind: 'rollback';
@@ -58,10 +64,9 @@ export type MemfsAction =
   | {
       kind: 'sync-files-only';
       agentId: string;
-      // Only files whose content differs from the bare repo (or are new).
       changedFiles: Map<string, string>;
-      // Managed remote files that should be removed.
       deletedFiles: string[];
+      newProvenance: Map<string, string>;
     };
 
 /**
@@ -105,42 +110,49 @@ export function computeMemfsAction(
 
   // mode === 'memfs' from here
   const targetFiles = buildTargetFiles(agentName, memory, server, rootPath);
+  const preserveExistingPaths = new Set(memory.preserve_existing_paths ?? []);
 
   if (!hasTag) {
+    const { deletedFiles, newProvenance } = computeProvenancePlan(
+      memory, targetFiles, server.bareRepoFiles, server.projectedFiles, preserveExistingPaths,
+    );
     return {
       kind: 'migrate-forward',
       agentId: server.agentId,
       currentTags: server.tags,
       sourceBlocks: server.blocks,
       targetFiles,
+      deletedFiles,
+      newProvenance,
     };
   }
 
-  // Tag already set — diff targetFiles vs bareRepoFiles. Paths listed in
-  // preserve_existing_paths are seed-only after their first remote write:
-  // if the file exists in the bare repo, do not overwrite agent-owned edits.
+  // Tag set. Paths in preserve_existing_paths are seed-only: once present in the
+  // bare repo we never overwrite the agent's edits.
   const changedFiles = new Map<string, string>();
-  const preserveExistingPaths = new Set(memory.preserve_existing_paths ?? []);
   for (const [filePath, content] of targetFiles) {
     const currentSha = server.bareRepoFiles.get(filePath);
-    if (preserveExistingPaths.has(filePath) && currentSha) {
-      continue;
-    }
-    const desiredSha = gitBlobSha(content);
-    if (desiredSha !== currentSha) {
-      changedFiles.set(filePath, content);
-    }
+    if (preserveExistingPaths.has(filePath) && currentSha) continue;
+    if (gitBlobSha(content) !== currentSha) changedFiles.set(filePath, content);
   }
-  const deletedFiles = Array.from(new Set([
-    ...computeManagedSkillDeletions(memory, targetFiles, server.bareRepoFiles),
-    ...computeExplicitPruneDeletions(memory, targetFiles, server.bareRepoFiles),
-  ])).sort();
+
+  const { deletedFiles, newProvenance } = computeProvenancePlan(
+    memory, targetFiles, server.bareRepoFiles, server.projectedFiles, preserveExistingPaths,
+  );
 
   if (changedFiles.size === 0 && deletedFiles.length === 0) {
+    if (mapsEqual(newProvenance, server.projectedFiles)) {
+      return {
+        kind: 'no-op',
+        agentId: server.agentId,
+        reason: `memfs in sync: ${targetFiles.size} files match bare repo HEAD`,
+      };
+    }
     return {
       kind: 'no-op',
       agentId: server.agentId,
-      reason: `memfs in sync: ${targetFiles.size} files match bare repo HEAD`,
+      reason: `memfs in sync; recording provenance (${newProvenance.size} paths)`,
+      newProvenance,
     };
   }
 
@@ -149,51 +161,53 @@ export function computeMemfsAction(
     agentId: server.agentId,
     changedFiles,
     deletedFiles,
+    newProvenance,
   };
 }
 
-function computeManagedSkillDeletions(
+/**
+ * Provenance-based removal. lettactl only ever deletes files IT recorded
+ * projecting on a prior apply (server.projectedFiles) that the config no longer
+ * ships — never files the agent or another operator authored. prune_paths is a
+ * legacy escape hatch for agents that predate provenance tracking.
+ * Returns the delete set plus the path->sha map to record after the push.
+ */
+export function computeProvenancePlan(
   memory: AgentMemoryConfig,
   targetFiles: Map<string, string>,
   bareRepoFiles: Map<string, string>,
-): string[] {
-  if (!memory.prune_missing_skills || !memory.skills) return [];
-
-  const desiredSkills = new Set(
-    memory.skills.map((skill) => skill.name || path.basename(skill.from_dir)),
-  );
-  const deleted = new Set<string>();
-
-  for (const filePath of bareRepoFiles.keys()) {
-    const match = filePath.match(/^skills\/([^/]+)\//);
-    if (!match) continue;
-    if (!desiredSkills.has(match[1]) || !targetFiles.has(filePath)) {
-      deleted.add(filePath);
-    }
+  priorProjected: Map<string, string>,
+  preserveSet: Set<string>,
+): { deletedFiles: string[]; newProvenance: Map<string, string> } {
+  const newProvenance = new Map<string, string>();
+  for (const [p, content] of targetFiles) {
+    // Preserved files we skip writing keep the sha that's actually in the repo.
+    newProvenance.set(
+      p,
+      preserveSet.has(p) && bareRepoFiles.has(p) ? bareRepoFiles.get(p)! : gitBlobSha(content),
+    );
   }
 
-  return Array.from(deleted).sort();
+  const deleted = new Set<string>();
+  for (const [p, recordedSha] of priorProjected) {
+    if (targetFiles.has(p)) continue;      // still shipped
+    if (!bareRepoFiles.has(p)) continue;   // already gone
+    // Agent edited a seeded file we no longer ship — hand it off, stop tracking.
+    if (preserveSet.has(p) && bareRepoFiles.get(p) !== recordedSha) continue;
+    deleted.add(p);
+  }
+
+  for (const p of memory.prune_paths ?? []) {
+    if (bareRepoFiles.has(p) && !targetFiles.has(p)) deleted.add(p);
+  }
+
+  return { deletedFiles: Array.from(deleted).sort(), newProvenance };
 }
 
-/**
- * Explicit removals: paths the config names in `prune_paths` (a renamed or
- * removed system/reference/state file). Non-skill files can't be auto-pruned —
- * agents author their own memory files under system/, so a blanket "delete
- * anything not in target" would erase agent memory. Explicit naming is safe and
- * works on the first apply. A path is only deleted if it exists in the bare repo
- * and is NOT also a target file (never delete a file we intend to keep).
- */
-function computeExplicitPruneDeletions(
-  memory: AgentMemoryConfig,
-  targetFiles: Map<string, string>,
-  bareRepoFiles: Map<string, string>,
-): string[] {
-  if (!memory.prune_paths || memory.prune_paths.length === 0) return [];
-  const deleted: string[] = [];
-  for (const p of memory.prune_paths) {
-    if (bareRepoFiles.has(p) && !targetFiles.has(p)) deleted.push(p);
-  }
-  return deleted;
+function mapsEqual(a: Map<string, string>, b: Map<string, string>): boolean {
+  if (a.size !== b.size) return false;
+  for (const [k, v] of a) if (b.get(k) !== v) return false;
+  return true;
 }
 
 /**

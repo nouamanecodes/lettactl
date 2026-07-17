@@ -18,6 +18,7 @@ import {
   type MemfsAction,
   GIT_MEMORY_ENABLED_TAG,
   GIT_MEMORY_ENABLED_METADATA_KEY,
+  MEMFS_PROJECTED_METADATA_KEY,
   gitBlobSha,
 } from './plan';
 
@@ -54,6 +55,9 @@ export class MemfsReconciler {
     try {
       switch (action.kind) {
         case 'no-op':
+          if (action.newProvenance && !this.opts.dryRun) {
+            await this.writeProvenance(action.agentId, action.newProvenance);
+          }
           return { kind: 'no-op', agentId: action.agentId, status: 'noop' };
 
         case 'rollback':
@@ -108,6 +112,7 @@ export class MemfsReconciler {
     // ready-made restore source if anything goes wrong post-flip.
     const backupPath = await this.writeBlockSnapshot(action.agentId, action.sourceBlocks);
     const filesChanged = Array.from(action.targetFiles.keys());
+    const filesDeleted = action.deletedFiles;
 
     if (this.opts.dryRun) {
       return {
@@ -117,6 +122,7 @@ export class MemfsReconciler {
         backupPath,
         newTags: [...action.currentTags, GIT_MEMORY_ENABLED_TAG],
         filesChanged,
+        filesDeleted,
       };
     }
 
@@ -133,7 +139,7 @@ export class MemfsReconciler {
     try {
       try {
         tempDir = await this.git.cloneToTemp(action.agentId);
-        commitSha = await this.git.writeCommitPush(tempDir, action.targetFiles, commitMessage);
+        commitSha = await this.git.writeCommitPush(tempDir, action.targetFiles, commitMessage, action.deletedFiles);
       } finally {
         if (tempDir) {
           await this.git.cleanup(tempDir).catch((e) => {
@@ -143,7 +149,7 @@ export class MemfsReconciler {
         }
       }
 
-      const remoteVerify = await this.verifyRemoteFiles(action.agentId, action.targetFiles);
+      const remoteVerify = await this.verifyRemoteFiles(action.agentId, action.targetFiles, action.deletedFiles);
       if (!remoteVerify.ok) {
         await this.rollbackMemfsMarker(action.agentId, action.currentTags, 'verify-failure');
         return {
@@ -153,6 +159,7 @@ export class MemfsReconciler {
           backupPath,
           commitSha,
           filesChanged,
+          filesDeleted,
           error:
             `Remote MemFS verification failed after push: ${remoteVerify.error}. ` +
             `MemFS marker was rolled back; retry apply after the remote git repo is healthy.`,
@@ -165,6 +172,8 @@ export class MemfsReconciler {
       });
       throw err;
     }
+
+    await this.writeProvenance(action.agentId, action.newProvenance);
 
     // Phase 3: verify — /context should now show core_memory: 0 tokens
     try {
@@ -179,6 +188,7 @@ export class MemfsReconciler {
           commitSha,
           newTags,
           filesChanged,
+          filesDeleted,
           error:
             `Post-flip verify failed: expected num_tokens_core_memory=0 ` +
             `but got ${ctx?.num_tokens_core_memory ?? '<missing>'}. ` +
@@ -196,6 +206,7 @@ export class MemfsReconciler {
         commitSha,
         newTags,
         filesChanged,
+        filesDeleted,
         error: `Migration applied but verify failed: ${(verifyErr as Error).message}`,
       };
     }
@@ -208,6 +219,7 @@ export class MemfsReconciler {
       commitSha,
       newTags,
       filesChanged,
+      filesDeleted,
     };
   }
 
@@ -255,6 +267,8 @@ export class MemfsReconciler {
         error: `Remote MemFS verification failed after push: ${remoteVerify.error}.`,
       };
     }
+
+    await this.writeProvenance(action.agentId, action.newProvenance);
 
     return {
       kind: 'sync-files-only',
@@ -352,6 +366,13 @@ export class MemfsReconciler {
     // Tags remain for self-hosted/legacy servers. Cloud currently accepts the
     // field but does not persist it, so metadata is the durable marker.
     await this.letta.updateAgent(agentId, { tags, metadata });
+  }
+
+  private async writeProvenance(agentId: string, projected: Map<string, string>): Promise<void> {
+    const agent = await this.letta.getAgent(agentId);
+    const metadata = { ...((agent as any).metadata ?? {}) };
+    metadata[MEMFS_PROJECTED_METADATA_KEY] = Object.fromEntries(projected);
+    await this.letta.updateAgent(agentId, { metadata });
   }
 
   private async rollbackMemfsMarker(agentId: string, currentTags: string[], reason: string): Promise<void> {

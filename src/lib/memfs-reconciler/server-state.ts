@@ -6,6 +6,7 @@
 import type { LettaClientWrapper } from '../client/letta-client';
 import type { GitClient } from './git-client';
 import type { ServerAgentState, BlockSnapshot } from './plan';
+import { MEMFS_PROJECTED_METADATA_KEY } from './plan';
 
 export async function buildServerAgentState(
   letta: LettaClientWrapper,
@@ -34,6 +35,14 @@ export async function buildServerAgentState(
   const tags = ((agent as any).tags ?? []) as string[];
   const metadata = ((agent as any).metadata ?? {}) as Record<string, any>;
 
+  const projectedFiles = new Map<string, string>();
+  const rawProjected = metadata[MEMFS_PROJECTED_METADATA_KEY];
+  if (rawProjected && typeof rawProjected === 'object') {
+    for (const [p, sha] of Object.entries(rawProjected)) {
+      if (typeof sha === 'string') projectedFiles.set(p, sha);
+    }
+  }
+
   // Pull the bare repo file SHAs. If the bare repo doesn't exist yet (first
   // migration), the sidecar auto-creates it on clone and we get an empty map.
   let bareRepoFiles = new Map<string, string>();
@@ -53,5 +62,6 @@ export async function buildServerAgentState(
     metadata,
     blocks,
     bareRepoFiles,
+    projectedFiles,
   };
 }

@@ -470,15 +470,17 @@ function formatMemfsDetails(result: DryRunResult, fancy: boolean): void {
       const fileCount = action.targetFiles.size;
       const detail = `migrate-forward (${formatMemfsFileList(fileCount, Array.from(action.targetFiles.keys()))} → bare repo, add tag git-memory-enabled)`;
       output(`${indent}${colorPurple('Memfs [~]:')} ${detail}`);
+      for (const p of action.deletedFiles) output(`${indent}  ${red('delete:')} ${p}`);
       if (result.memfsResult?.backupPath) {
         output(`${indent}  ${dim('backup snapshot:')} ${result.memfsResult.backupPath}`);
       }
       break;
     }
     case 'sync-files-only': {
-      const paths = [...Array.from(action.changedFiles.keys()), ...action.deletedFiles];
-      const detail = `sync-files-only (${formatMemfsFileList(paths.length, paths)})`;
-      output(`${indent}${colorPurple('Memfs [~]:')} ${detail}`);
+      const parts = [`~${action.changedFiles.size} changed`];
+      if (action.deletedFiles.length) parts.push(`-${action.deletedFiles.length} deleted`);
+      output(`${indent}${colorPurple('Memfs [~]:')} sync-files-only (${parts.join(', ')})`);
+      for (const p of action.deletedFiles) output(`${indent}  ${red('delete:')} ${p}`);
       break;
     }
     case 'rollback':
