@@ -85,11 +85,10 @@ export interface AgentMemoryConfig {
   bare_repo?: 'auto';                        // 'auto' = resolve via Letta /v1/git/<id>/state.git
   template_dir?: string;                     // dir of skeleton .md files; relative to root_path
   preserve_existing_paths?: string[];        // memfs paths to seed but not overwrite once present
-  prune_missing_skills?: boolean;            // when true, delete remote skills/<name> dirs absent from memory.skills
-  prune_paths?: string[];                    // explicit bare-repo paths to DELETE on apply (e.g. a renamed/removed
-                                             // system/ or reference/ file). Safe + explicit — unlike skills, non-skill
-                                             // files can't be auto-pruned (agents author memory files under system/),
-                                             // so removals are named here. Ignored if the path is also a target file.
+  prune_missing_skills?: boolean;            // deprecated no-op — provenance now removes any file lettactl stops shipping
+  prune_paths?: string[];                    // legacy escape hatch: force-delete bare-repo paths on apply. Provenance
+                                             // handles removals automatically for agents projected by a recent lettactl;
+                                             // only needed to clean up files projected before provenance tracking existed.
   files?: Array<{
     to: string;                              // memfs target path
     value?: string;                          // inline content

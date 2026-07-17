@@ -1014,23 +1014,29 @@ function logMemfsResult(result: MemfsExecutionResult, agentName: string): void {
       break;
     case 'dry-run':
       if (result.kind === 'migrate-forward') {
-        log(`${prefix} DRY-RUN migrate-forward: ${result.filesChanged?.length ?? 0} files → bare repo, then add git-memory-enabled tag (backup: ${result.backupPath})`);
+        const del = result.filesDeleted?.length ? `, ${result.filesDeleted.length} deleted` : '';
+        log(`${prefix} DRY-RUN migrate-forward: ${result.filesChanged?.length ?? 0} files${del} → bare repo, then add git-memory-enabled tag (backup: ${result.backupPath})`);
+        for (const p of result.filesDeleted ?? []) log(`${prefix}   delete: ${p}`);
       } else if (result.kind === 'rollback') {
         log(`${prefix} DRY-RUN rollback: remove git-memory-enabled tag`);
       } else if (result.kind === 'sync-files-only') {
-        const count = (result.filesChanged?.length ?? 0) + (result.filesDeleted?.length ?? 0);
-        log(`${prefix} DRY-RUN sync-files-only: ${count} files`);
+        const del = result.filesDeleted?.length ? `, ${result.filesDeleted.length} deleted` : '';
+        log(`${prefix} DRY-RUN sync-files-only: ${result.filesChanged?.length ?? 0} changed${del}`);
+        for (const p of result.filesDeleted ?? []) log(`${prefix}   delete: ${p}`);
       }
       break;
     case 'applied':
       if (result.kind === 'migrate-forward') {
-        log(`${prefix} ✓ migrated to memfs (${result.filesChanged?.length} files, commit ${result.commitSha?.slice(0, 7)}, backup ${result.backupPath})`);
+        const del = result.filesDeleted?.length ? `, ${result.filesDeleted.length} deleted` : '';
+        log(`${prefix} ✓ migrated to memfs (${result.filesChanged?.length} files${del}, commit ${result.commitSha?.slice(0, 7)}, backup ${result.backupPath})`);
+        for (const p of result.filesDeleted ?? []) log(`${prefix}   deleted: ${p}`);
         if (result.error) warn(`${prefix} ${result.error}`);
       } else if (result.kind === 'rollback') {
         log(`${prefix} ✓ rolled back to block-mode (tag removed)`);
       } else if (result.kind === 'sync-files-only') {
-        const count = (result.filesChanged?.length ?? 0) + (result.filesDeleted?.length ?? 0);
-        log(`${prefix} ✓ synced ${count} files (commit ${result.commitSha?.slice(0, 7)})`);
+        const del = result.filesDeleted?.length ? `, ${result.filesDeleted.length} deleted` : '';
+        log(`${prefix} ✓ synced ${result.filesChanged?.length ?? 0} changed${del} (commit ${result.commitSha?.slice(0, 7)})`);
+        for (const p of result.filesDeleted ?? []) log(`${prefix}   deleted: ${p}`);
       }
       break;
     case 'failed':
