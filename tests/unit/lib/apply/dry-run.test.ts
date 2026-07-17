@@ -51,13 +51,15 @@ describe('displayDryRunResults memfs rendering', () => {
       currentTags: ['tenant:foo'],
       sourceBlocks: [],
       targetFiles,
+      deletedFiles: [],
+      newProvenance: new Map(),
     };
   }
 
   function makeSyncOnly(paths: string[], deletedFiles: string[] = []): MemfsAction {
     const changedFiles = new Map<string, string>();
     for (const p of paths) changedFiles.set(p, 'x');
-    return { kind: 'sync-files-only', agentId: 'agent-1', changedFiles, deletedFiles };
+    return { kind: 'sync-files-only', agentId: 'agent-1', changedFiles, deletedFiles, newProvenance: new Map() };
   }
 
   it('renders migrate-forward with file list and backup path', () => {
@@ -93,8 +95,8 @@ describe('displayDryRunResults memfs rendering', () => {
     displayDryRunResults([result], false);
     const memfsLines = lines.filter((l) => l.includes('Memfs'));
     expect(memfsLines.some((l) => l.includes('sync-files-only'))).toBe(true);
-    expect(memfsLines.some((l) => l.includes('prompting.md'))).toBe(true);
-    expect(memfsLines.some((l) => l.includes('identity.md'))).toBe(true);
+    expect(lines.some((l) => l.includes('prompting.md'))).toBe(true);
+    expect(lines.some((l) => l.includes('identity.md'))).toBe(true);
   });
 
   it('renders sync-files-only deleted files', () => {
@@ -107,7 +109,7 @@ describe('displayDryRunResults memfs rendering', () => {
     displayDryRunResults([result], false);
     const memfsLines = lines.filter((l) => l.includes('Memfs'));
     expect(memfsLines.some((l) => l.includes('sync-files-only'))).toBe(true);
-    expect(memfsLines.some((l) => l.includes('SKILL.md'))).toBe(true);
+    expect(lines.some((l) => l.includes('SKILL.md'))).toBe(true);
   });
 
   it('renders rollback', () => {

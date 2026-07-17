@@ -23,6 +23,7 @@ function mkServer(opts: {
   metadata?: Record<string, any>;
   blocks?: BlockSnapshot[];
   files?: Record<string, string>;
+  projected?: Record<string, string>;
 } = {}): ServerAgentState {
   return {
     agentId: 'agent-test',
@@ -30,6 +31,7 @@ function mkServer(opts: {
     metadata: opts.metadata ?? {},
     blocks: opts.blocks ?? [],
     bareRepoFiles: new Map(Object.entries(opts.files ?? {})),
+    projectedFiles: new Map(Object.entries(opts.projected ?? {})),
   };
 }
 
@@ -614,7 +616,7 @@ describe('template_dir scan', () => {
     }
   });
 
-  it('prunes remote skill files missing from memory.skills when enabled', () => {
+  it('deletes files it previously projected that config no longer ships (provenance)', () => {
     const skillDir = path.join(tmpDir, 'skills-src', 'saved-memory');
     fs.mkdirSync(skillDir, { recursive: true });
     fs.writeFileSync(path.join(skillDir, 'SKILL.md'), 'saved');
@@ -624,7 +626,6 @@ describe('template_dir scan', () => {
       'test-agent',
       mkAgent({
         mode: 'memfs',
-        prune_missing_skills: true,
         skills: [{ name: 'saved-memory', from_dir: 'skills-src/saved-memory' }],
       }),
       mkServer({
@@ -635,7 +636,16 @@ describe('template_dir scan', () => {
           'skills/saved-memory/old-reference.md': gitBlobSha('old-reference'),
           'skills/old-memory/SKILL.md': gitBlobSha('old'),
           'skills/old-memory/scripts/call.sh': gitBlobSha('old-script'),
-          'system/persona.md': gitBlobSha('persona'),
+          'system/agent-note.md': gitBlobSha('agent wrote this'),
+        },
+        // What lettactl recorded projecting last apply. system/agent-note.md is
+        // absent — the agent authored it — so it must never be deleted.
+        projected: {
+          'skills/saved-memory/SKILL.md': gitBlobSha('saved'),
+          'skills/saved-memory/current.md': gitBlobSha('current'),
+          'skills/saved-memory/old-reference.md': gitBlobSha('old-reference'),
+          'skills/old-memory/SKILL.md': gitBlobSha('old'),
+          'skills/old-memory/scripts/call.sh': gitBlobSha('old-script'),
         },
       }),
       tmpDir,
@@ -649,6 +659,36 @@ describe('template_dir scan', () => {
         'skills/old-memory/scripts/call.sh',
         'skills/saved-memory/old-reference.md',
       ]);
+      expect(action.deletedFiles).not.toContain('system/agent-note.md');
+    }
+  });
+
+  it('deletes nothing on first apply (empty provenance) even with stale bare-repo files', () => {
+    const skillDir = path.join(tmpDir, 'skills-src', 'saved-memory');
+    fs.mkdirSync(skillDir, { recursive: true });
+    fs.writeFileSync(path.join(skillDir, 'SKILL.md'), 'saved');
+
+    const action = computeMemfsAction(
+      'test-agent',
+      mkAgent({
+        mode: 'memfs',
+        skills: [{ name: 'saved-memory', from_dir: 'skills-src/saved-memory' }],
+      }),
+      mkServer({
+        tags: [GIT_MEMORY_ENABLED_TAG],
+        files: {
+          'skills/saved-memory/SKILL.md': gitBlobSha('saved'),
+          'skills/old-memory/SKILL.md': gitBlobSha('old'),
+        },
+        // No provenance recorded yet — nothing is deletable; seed instead.
+      }),
+      tmpDir,
+    );
+
+    expect(action.kind).toBe('no-op');
+    if (action.kind === 'no-op') {
+      expect(action.newProvenance?.has('skills/saved-memory/SKILL.md')).toBe(true);
+      expect(action.newProvenance?.has('skills/old-memory/SKILL.md')).toBe(false);
     }
   });
 
