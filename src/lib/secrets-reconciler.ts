@@ -26,7 +26,6 @@ export interface SecretApplyResult {
 }
 
 const SECRET_NAME_RE = /^[A-Z_][A-Z0-9_]*$/;
-const KNOWN_AGENT_SCOPED_SECRETS = new Set(['ADSPECTRE_AGENT_TOKEN']);
 
 export function normalizeSecretName(raw: string): string {
   const name = raw.toUpperCase();
@@ -64,10 +63,7 @@ export function validateSecretConfigMap(
     throw new Error(`${label} must be an object mapping SECRET_NAME to { from_env } or { value }.`);
   }
   for (const [rawName, config] of Object.entries(secrets)) {
-    const name = normalizeSecretName(rawName);
-    if (opts.global && KNOWN_AGENT_SCOPED_SECRETS.has(name)) {
-      throw new Error(`${name} must be configured per-agent, not in global-secrets.`);
-    }
+    normalizeSecretName(rawName);
     if (!config || typeof config !== 'object' || Array.isArray(config)) {
       throw new Error(`${label}.${rawName} must be an object.`);
     }
@@ -95,7 +91,10 @@ export function computeSecretPlan(
   agentId: string,
   desired: Record<string, string>,
   current: Record<string, string>,
+  prune: boolean = false,
+  preserve: string[] = [],
 ): SecretPlan {
+  const preserved = new Set(preserve.map((n) => n.toUpperCase()));
   const toAdd: string[] = [];
   const toUpdate: string[] = [];
   const toRemove: string[] = [];
@@ -105,7 +104,15 @@ export function computeSecretPlan(
     else if (current[name] !== value) toUpdate.push(name);
   }
 
-  // lettactl only manages declared secrets. Existing undeclared secrets are preserved.
+  // Without --prune, lettactl only manages declared secrets and preserves undeclared ones.
+  // With it, undeclared secrets are removed — except those listed in preserve_secrets,
+  // which a runtime injects rather than config declaring, so pruning would wipe them.
+  if (prune) {
+    for (const name of Object.keys(current)) {
+      if (!(name in desired) && !preserved.has(name)) toRemove.push(name);
+    }
+  }
+
   const diff = {
     toAdd: toAdd.sort(),
     toUpdate: toUpdate.sort(),
@@ -126,11 +133,12 @@ export async function planAgentSecrets(
   config: FleetConfig,
   agent: AgentConfig,
   agentId: string,
+  prune: boolean = false,
 ): Promise<SecretPlan | null> {
   if (!config['global-secrets'] && !agent.secrets) return null;
   const current = await client.getAgentSecrets(agentId);
   const desired = resolveAgentSecrets(config, agent, current);
-  return computeSecretPlan(agentId, desired, current);
+  return computeSecretPlan(agentId, desired, current, prune, config.preserve_secrets || []);
 }
 
 export async function applySecretPlan(
@@ -145,7 +153,11 @@ export async function applySecretPlan(
     return { kind: 'sync', agentId: plan.agentId, status: 'dry-run', diff: plan.diff };
   }
   try {
-    await client.updateAgentSecrets(plan.agentId, { ...plan.current, ...plan.desired });
+    // The API replaces the whole secret set, so the merge is what preserves undeclared
+    // secrets. Dropping the toRemove keys from it is what makes --prune delete them.
+    const next = { ...plan.current, ...plan.desired };
+    for (const name of plan.diff.toRemove) delete next[name];
+    await client.updateAgentSecrets(plan.agentId, next);
     return { kind: 'sync', agentId: plan.agentId, status: 'applied', diff: plan.diff };
   } catch (err) {
     return {

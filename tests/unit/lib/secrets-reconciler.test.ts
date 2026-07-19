@@ -1,9 +1,11 @@
 import {
+  applySecretPlan,
   computeSecretPlan,
   normalizeSecretName,
   resolveAgentSecrets,
   validateSecretConfigMap,
 } from '../../../src/lib/secrets-reconciler';
+import { NO_PRUNE, parsePruneTargets } from '../../../src/lib/prune-targets';
 
 describe('secrets-reconciler', () => {
   const originalEnv = process.env;
@@ -21,22 +23,12 @@ describe('secrets-reconciler', () => {
     expect(() => normalizeSecretName('bad-name')).toThrow('Invalid secret name');
   });
 
-  it('rejects globally scoped agent identity secrets', () => {
-    expect(() =>
-      validateSecretConfigMap(
-        'global-secrets',
-        { ADSPECTRE_AGENT_TOKEN: { from_env: 'AGENT_TOKEN' } },
-        { global: true },
-      ),
-    ).toThrow('ADSPECTRE_AGENT_TOKEN must be configured per-agent');
-  });
-
   it('resolves global and agent secrets with agent overrides', () => {
     const resolved = resolveAgentSecrets(
       {
         agents: [],
         'global-secrets': {
-          ADSPECTRE_API_BASE: { value: 'https://app.adspectre.ai' },
+          API_BASE_URL: { value: 'https://api.example.com' },
           SHARED_VALUE: { value: 'global' },
         },
       },
@@ -46,15 +38,15 @@ describe('secrets-reconciler', () => {
         system_prompt: { value: 'p' },
         llm_config: { model: 'm', context_window: 1000 },
         secrets: {
-          ADSPECTRE_AGENT_TOKEN: { from_env: 'AGENT_TOKEN' },
+          RUNTIME_AGENT_TOKEN: { from_env: 'AGENT_TOKEN' },
           SHARED_VALUE: { value: 'agent' },
         },
       },
     );
 
     expect(resolved).toEqual({
-      ADSPECTRE_API_BASE: 'https://app.adspectre.ai',
-      ADSPECTRE_AGENT_TOKEN: 'agent-token',
+      API_BASE_URL: 'https://api.example.com',
+      RUNTIME_AGENT_TOKEN: 'agent-token',
       SHARED_VALUE: 'agent',
     });
   });
@@ -72,14 +64,14 @@ describe('secrets-reconciler', () => {
         system_prompt: { value: 'p' },
         llm_config: { model: 'm', context_window: 1000 },
         secrets: {
-          ADSPECTRE_AGENT_TOKEN: { from_env: 'AGENT_TOKEN', preserve_existing: true },
+          RUNTIME_AGENT_TOKEN: { from_env: 'AGENT_TOKEN', preserve_existing: true },
         },
       },
-      { ADSPECTRE_AGENT_TOKEN: 'existing-token' },
+      { RUNTIME_AGENT_TOKEN: 'existing-token' },
     );
 
     expect(resolved).toEqual({
-      ADSPECTRE_AGENT_TOKEN: 'existing-token',
+      RUNTIME_AGENT_TOKEN: 'existing-token',
     });
   });
 
@@ -95,10 +87,10 @@ describe('secrets-reconciler', () => {
           system_prompt: { value: 'p' },
           llm_config: { model: 'm', context_window: 1000 },
           secrets: {
-            ADSPECTRE_AGENT_TOKEN: { from_env: 'AGENT_TOKEN' },
+            RUNTIME_AGENT_TOKEN: { from_env: 'AGENT_TOKEN' },
           },
         },
-        { ADSPECTRE_AGENT_TOKEN: 'existing-token' },
+        { RUNTIME_AGENT_TOKEN: 'existing-token' },
       ),
     ).toThrow('missing or empty environment variable');
   });
@@ -121,5 +113,67 @@ describe('secrets-reconciler', () => {
   it('returns no-op when managed secrets match', () => {
     const plan = computeSecretPlan('agent-1', { A: 'same' }, { A: 'same', OTHER: 'keep' });
     expect(plan.kind).toBe('no-op');
+  });
+
+  it('removes undeclared secrets when pruning', () => {
+    const plan = computeSecretPlan('agent-1', { A: 'same' }, { A: 'same', ORPHAN: 'stale' }, true);
+
+    expect(plan.kind).toBe('sync');
+    expect(plan.diff.toRemove).toEqual(['ORPHAN']);
+  });
+
+  it('never prunes secrets listed in preserve_secrets', () => {
+    const plan = computeSecretPlan(
+      'agent-1',
+      { A: 'same' },
+      { A: 'same', RUNTIME_AGENT_TOKEN: 'runtime-injected', ORPHAN: 'stale' },
+      true,
+      ['RUNTIME_AGENT_TOKEN'],
+    );
+
+    expect(plan.diff.toRemove).toEqual(['ORPHAN']);
+  });
+
+  it('applies the merged set minus pruned keys', async () => {
+    const updateAgentSecrets = jest.fn().mockResolvedValue(undefined);
+    const plan = computeSecretPlan('agent-1', { A: 'new' }, { A: 'old', ORPHAN: 'stale' }, true);
+
+    const result = await applySecretPlan({ updateAgentSecrets } as any, plan, false);
+
+    expect(result.status).toBe('applied');
+    // The API replaces the whole set, so the payload IS the post-prune state.
+    expect(updateAgentSecrets).toHaveBeenCalledWith('agent-1', { A: 'new' });
+  });
+
+  it('preserves undeclared secrets when not pruning', async () => {
+    const updateAgentSecrets = jest.fn().mockResolvedValue(undefined);
+    const plan = computeSecretPlan('agent-1', { A: 'new' }, { A: 'old', UNMANAGED: 'keep' });
+
+    await applySecretPlan({ updateAgentSecrets } as any, plan, false);
+
+    expect(updateAgentSecrets).toHaveBeenCalledWith('agent-1', { A: 'new', UNMANAGED: 'keep' });
+  });
+});
+
+describe('parsePruneTargets', () => {
+  it('defaults to pruning nothing', () => {
+    expect(parsePruneTargets(undefined)).toEqual(NO_PRUNE);
+  });
+
+  it('parses a comma-separated list', () => {
+    expect(parsePruneTargets('secrets,tools')).toEqual({
+      blocks: false, tools: true, secrets: true, agents: false,
+    });
+  });
+
+  it('expands all', () => {
+    expect(parsePruneTargets('all')).toEqual({
+      blocks: true, tools: true, secrets: true, agents: true,
+    });
+  });
+
+  it('rejects unknown and empty targets rather than silently pruning nothing', () => {
+    expect(() => parsePruneTargets('sekrets')).toThrow('Unknown --prune target');
+    expect(() => parsePruneTargets('')).toThrow('requires at least one target');
   });
 });

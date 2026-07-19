@@ -2,7 +2,7 @@
 name: code-review
 description: Thorough code review covering architecture, code quality, and performance. Use when asked to "review this plan", "review code", "audit architecture", "check code quality", or "review for performance". Walks through issues interactively with tradeoff analysis and opinionated recommendations.
 metadata:
-  author: adspectre
+  author: lettactl
   version: "1.0.0"
   argument-hint: <file-or-pattern>
 ---

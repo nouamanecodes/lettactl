@@ -32,7 +32,8 @@ import { buildAgentManifest, getDefaultManifestPath, writeAgentManifest } from '
 import { ApplyOptions, DeployResult } from './types';
 import { batchProcess } from '../../lib/shared/batch';
 import { DEFAULT_CANARY_PREFIX, rewriteAgentNamesForCanary, rewriteFolderNamesForCanary, cleanupCanaryAgents, buildCanaryMetadata } from '../../lib/apply/canary';
-import { bulkSendMessage } from '../../lib/messaging/bulk-messenger';
+import { bulkSendMessage, promptConfirmation } from '../../lib/messaging/bulk-messenger';
+import { parsePruneTargets, isPruning, selectedPruneTargets } from '../../lib/prune-targets';
 import { waitForAgentIdle, defaultWaitLogger, RequiresApprovalError } from '../../lib/messaging/wait-for-idle';
 import { retryOn409 } from '../../lib/shared/retry';
 import { minimatch } from 'minimatch';
@@ -43,7 +44,19 @@ export async function applyCommand(options: ApplyOptions, command: any): Promise
   const verbose = isQuietMode() ? false : (command.parent?.opts().verbose || false);
   const spinnerEnabled = getSpinnerEnabled(command);
 
+  const pruneTargets = parsePruneTargets(options.prune);
+
   try {
+    // Gate before any network call — confirming after resources are already
+    // touched would be theatre. Dry-run never deletes, so it never prompts.
+    if (isPruning(pruneTargets) && !options.confirm && !options.dryRun) {
+      output('');
+      output(`--prune will DELETE ${selectedPruneTargets(pruneTargets).join(', ')} not present in ${options.file}.`);
+      if (!(await promptConfirmation('Proceed? (y/N) '))) {
+        throw new Error('Aborted at prune confirmation');
+      }
+    }
+
     const parseSpinner = createSpinner(`Parsing ${options.file}...`, spinnerEnabled).start();
 
     if (options.dryRun) {
@@ -241,7 +254,8 @@ export async function applyCommand(options: ApplyOptions, command: any): Promise
         fileTracker,
         parser,
         agentFilter: options.agent,
-        verbose
+        verbose,
+        pruneSecrets: pruneTargets.secrets
       });
       displayDryRunResults(results, verbose, options.skipFirstMessage);
       return { agents: {}, created: [], updated: [], unchanged: [] };
@@ -435,7 +449,7 @@ export async function applyCommand(options: ApplyOptions, command: any): Promise
               logMemfsResult(result, agent.name);
               sidecarChanged = sidecarChanged || result.status === 'applied';
             }
-            const secretResult = await reconcileSecretsForAgent(config, agent, existingAgent.id, client, false);
+            const secretResult = await reconcileSecretsForAgent(config, agent, existingAgent.id, client, false, pruneTargets.secrets);
             if (secretResult) {
               secretResults.push(secretResult);
               logSecretResult(secretResult, agent.name);
@@ -475,7 +489,7 @@ export async function applyCommand(options: ApplyOptions, command: any): Promise
             spinnerEnabled,
             verbose,
             force: options.force || false,
-            prune: options.prune || false,
+            prune: pruneTargets.blocks || pruneTargets.tools,
             previousFolderFileHashes
           });
 
@@ -530,7 +544,7 @@ export async function applyCommand(options: ApplyOptions, command: any): Promise
             }
             await maybeReprojectSkills(existingAgent.id, existingAgent.name, agent.memory?.mode, memfsReconciler, client, options);
           }
-          const secretResult = await reconcileSecretsForAgent(config, agent, existingAgent.id, client, false);
+          const secretResult = await reconcileSecretsForAgent(config, agent, existingAgent.id, client, false, pruneTargets.secrets);
           if (secretResult) {
             secretResults.push(secretResult);
             logSecretResult(secretResult, agent.name);
@@ -582,7 +596,7 @@ export async function applyCommand(options: ApplyOptions, command: any): Promise
               await recompileConversationsForAgent(createdAgent.id, createdAgent.name, client, options.waitForIdle !== false);
             }
           }
-          const secretResult = await reconcileSecretsForAgent(config, agent, createdAgent.id, client, false);
+          const secretResult = await reconcileSecretsForAgent(config, agent, createdAgent.id, client, false, pruneTargets.secrets);
           if (secretResult) {
             secretResults.push(secretResult);
             logSecretResult(secretResult, agent.name);
@@ -927,9 +941,10 @@ async function reconcileSecretsForAgent(
   agentId: string,
   client: LettaClientWrapper,
   dryRun: boolean,
+  prune: boolean = false,
 ): Promise<SecretApplyResult | null> {
   try {
-    const plan = await planAgentSecrets(client, config, agent, agentId);
+    const plan = await planAgentSecrets(client, config, agent, agentId, prune);
     if (!plan) return null;
     return await applySecretPlan(client, plan, dryRun);
   } catch (err) {
