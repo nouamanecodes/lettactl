@@ -39,7 +39,7 @@ export class GitClient {
     this.baseUrl = opts.baseUrl.replace(/\/$/, '');
     this.authToken = opts.authToken;
     this.authorName = opts.commitAuthor?.name ?? 'lettactl';
-    this.authorEmail = opts.commitAuthor?.email ?? 'lettactl@adspectre.ai';
+    this.authorEmail = opts.commitAuthor?.email ?? 'lettactl@localhost';
   }
 
   /**

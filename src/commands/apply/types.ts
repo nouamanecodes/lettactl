@@ -9,10 +9,13 @@ export interface ApplyOptions {
   scope?: string;
   dryRun?: boolean;
   force?: boolean;
-  /** Detach blocks/tools not in config (safe reconciliation). Unlike --force it
-   *  never touches folders/archives, so it can't lose archival data (#257).
-   *  Gives a safe path to reconcile the common case. See nouamanecodes/lettactl#384. */
-  prune?: boolean;
+  /** Comma-separated targets to delete when absent from config: blocks, tools,
+   *  secrets, agents, all. Unlike --force it never touches folders/archives, so it
+   *  can't lose archival data (#257). See nouamanecodes/lettactl#384.
+   *  BREAKING (v1.1.0): was a boolean meaning blocks+tools; now requires a target. */
+  prune?: string;
+  /** Skip the --prune confirmation prompt (for CI / non-interactive runs). */
+  confirm?: boolean;
   root?: string;
   manifest?: string;
   skipFirstMessage?: boolean;

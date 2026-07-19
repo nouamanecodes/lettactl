@@ -121,7 +121,8 @@ program
   .option('--scope <tags>', 'deploy only agents whose tags include ALL listed tags (comma-separated). Example: --scope tenant:acme,role:draper')
   .option('--dry-run', 'show what would be created without making changes')
   .option('--force', 'remove ALL resources not in config incl. folders/archives (can lose data, see #257)')
-  .option('--prune', 'detach blocks/tools not in config (safe, leaves folders/archives untouched)')
+  .option('--prune <targets>', 'delete resources not in config. Comma-separated: blocks, tools, secrets, agents, all. Prompts unless --confirm')
+  .option('--confirm', 'skip the --prune confirmation prompt')
   .option('--root <path>', 'root directory for resolving file paths')
   .option('--manifest [path]', 'write agent manifest (default: <config>.manifest.json)')
   .option('--skip-first-message', 'skip sending first_message on agent creation')
@@ -158,11 +159,15 @@ MemFS skills and secrets:
   global-secrets                  Sync secret values to every agent
   agents[].secrets                Sync per-agent secrets; overrides globals
   preserve_existing: true         Reuse the current remote value when from_env is unset
+  preserve_secrets                Secret names --prune secrets must never delete
 
 Example:
   global-secrets:
-    ADSPECTRE_API_BASE:
-      value: https://app.adspectre.ai
+    API_BASE_URL:
+      value: https://api.example.com
+
+  preserve_secrets:
+    - RUNTIME_AGENT_TOKEN          # injected by the runtime, not declared here
 
   agents:
     - name: agent-migrate
@@ -183,8 +188,8 @@ Example:
           - name: media-generation
             from_dir: migration-artifacts/agent-migrate/memfs/skills/media-generation
       secrets:
-        ADSPECTRE_AGENT_TOKEN:
-          from_env: ADSPECTRE_AGENT_MIGRATE_TOKEN
+        RUNTIME_AGENT_TOKEN:
+          from_env: AGENT_MIGRATE_TOKEN
           preserve_existing: true
 
 Notes:

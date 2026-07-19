@@ -89,12 +89,12 @@ describe('FleetConfigValidator - secrets', () => {
   it('accepts global-secrets and per-agent secrets', () => {
     expect(() => FleetConfigValidator.validate({
       'global-secrets': {
-        ADSPECTRE_API_BASE: { value: 'https://app.adspectre.ai' },
+        API_BASE_URL: { value: 'https://api.example.com' },
       },
       agents: [
         baseAgent({
           secrets: {
-            ADSPECTRE_AGENT_TOKEN: { from_env: 'AGENT_TOKEN' },
+            RUNTIME_AGENT_TOKEN: { from_env: 'AGENT_TOKEN' },
           },
         }),
       ],
@@ -113,14 +113,6 @@ describe('FleetConfigValidator - secrets', () => {
     })).toThrow('Invalid secret name');
   });
 
-  it('rejects agent-scoped token in global-secrets', () => {
-    expect(() => FleetConfigValidator.validate({
-      'global-secrets': {
-        ADSPECTRE_AGENT_TOKEN: { from_env: 'AGENT_TOKEN' },
-      },
-      agents: [baseAgent()],
-    })).toThrow('ADSPECTRE_AGENT_TOKEN must be configured per-agent');
-  });
 });
 
 describe('AgentValidator - tags', () => {

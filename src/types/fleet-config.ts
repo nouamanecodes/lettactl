@@ -1,6 +1,9 @@
 export interface FleetConfig {
   root_path?: string;
   'global-secrets'?: Record<string, SecretConfig>;
+  /** Secret names `--prune secrets` must never delete. For values injected by a
+   *  runtime rather than declared here, which would otherwise be wiped every apply. */
+  preserve_secrets?: string[];
   providers?: ProviderConfig[];
   prune_missing_providers?: boolean;
   shared_blocks?: SharedBlock[];
@@ -78,8 +81,7 @@ export interface AgentConfig {
 // repo, and flip the `git-memory-enabled` tag on the agent. When `mode:
 // blocks` (or section omitted), the agent operates in classic block-mode.
 // Round-trip is supported: flipping mode back to blocks removes the tag and
-// blocks come back online. See:
-//   adspectre_dashboard/docs/research/1531-migration-tooling.md
+// blocks come back online.
 export interface AgentMemoryConfig {
   mode: 'blocks' | 'memfs';
   bare_repo?: 'auto';                        // 'auto' = resolve via Letta /v1/git/<id>/state.git

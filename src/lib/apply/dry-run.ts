@@ -52,6 +52,8 @@ interface DryRunContext {
   parser: FleetParser;
   agentFilter?: string;
   verbose: boolean;
+  /** Mirrors --prune secrets so the preview lists removals it would make. */
+  pruneSecrets?: boolean;
 }
 
 /**
@@ -149,7 +151,7 @@ export async function computeDryRunDiffs(
       continue;
     }
     try {
-      const plan = await planAgentSecrets(client, config, agent, result.existingAgentId);
+      const plan = await planAgentSecrets(client, config, agent, result.existingAgentId, ctx.pruneSecrets || false);
       if (!plan) continue;
       result.secretPlan = plan;
       result.secretResult = await applySecretPlan(client, plan, true);
