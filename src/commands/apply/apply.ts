@@ -25,7 +25,7 @@ import * as nodePath from 'path';
 import { formatLettaError } from '../../lib/shared/error-handler';
 import { computeDryRunDiffs, displayDryRunResults } from '../../lib/apply/dry-run';
 import { log, warn, output, isQuietMode } from '../../lib/shared/logger';
-import { resolveAgentToolNames, shouldIncludeBaseTools, shouldIncludeBaseToolRules } from '../../lib/tools/builtin-tools';
+import { resolveAgentToolNames, shouldIncludeBaseTools, shouldIncludeBaseToolRules, missingWebTools } from '../../lib/tools/builtin-tools';
 import { displayApplySummary } from '../../lib/ux/display';
 import { buildMcpServerRegistry, expandMcpToolsForAgents } from '../../lib/tools/mcp-tools';
 import { buildAgentManifest, getDefaultManifestPath, writeAgentManifest } from '../../lib/apply/agent-manifest';
@@ -365,6 +365,11 @@ export async function applyCommand(options: ApplyOptions, command: any): Promise
 
         // Build agent config - resolve base tools and file search tools by mode.
         const tools = resolveAgentToolNames(agent);
+
+        const missingWeb = missingWebTools(tools);
+        if (missingWeb.length) {
+          warn(`  ${agent.name}: web-research tools not attached (${missingWeb.join(', ')}). An explicit tools list omits them — confirm that's intended.`);
+        }
 
         const agentConfig = {
           systemPrompt: agent.system_prompt.value || '',
