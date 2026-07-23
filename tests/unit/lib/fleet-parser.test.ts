@@ -42,6 +42,27 @@ agents:
       expect(config.agents[0].system_prompt.value).toContain('You are a test agent');
     });
 
+    it('defaults tools to web_search + fetch_webpage when unspecified, honors an explicit list', async () => {
+      const base = `
+agents:
+  - name: a
+    description: "d"
+    llm_config:
+      model: "m"
+      context_window: 32000
+    system_prompt:
+      value: "s"`;
+      mockedFs.existsSync.mockReturnValue(true);
+
+      mockedFs.readFileSync.mockReturnValue(base);
+      let config = await parser.parseFleetConfig('/test/path/fleet.yaml');
+      expect(((config.agents[0] as any).tools as string[]).sort()).toEqual(['fetch_webpage', 'web_search']);
+
+      mockedFs.readFileSync.mockReturnValue(base + `\n    tools: []`);
+      config = await parser.parseFleetConfig('/test/path/fleet.yaml');
+      expect((config.agents[0] as any).tools).toEqual([]);
+    });
+
     it('should handle shared blocks', async () => {
       const yamlContent = `
 shared_blocks:

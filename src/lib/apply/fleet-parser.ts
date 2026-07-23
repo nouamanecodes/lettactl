@@ -5,7 +5,7 @@ import * as crypto from 'crypto';
 import { FleetConfig, FolderConfig, FolderFileConfig, SharedFolderConfig } from '../../types/fleet-config';
 import { StorageBackendManager, SupabaseStorageBackend, BucketConfig } from '../storage/storage-backend';
 import { FleetConfigValidator } from '../validation/config-validators';
-import { isBuiltinTool, formatBuiltinToolWarning, CORE_MEMORY_TOOLS } from '../tools/builtin-tools';
+import { isBuiltinTool, formatBuiltinToolWarning, CORE_MEMORY_TOOLS, DEFAULT_WEB_TOOLS } from '../tools/builtin-tools';
 import { log, warn } from '../shared/logger';
 
 export interface FleetParserOptions {
@@ -66,6 +66,12 @@ export class FleetParser {
     }
 
     for (const agent of config.agents) {
+      // Unspecified tools → default to the web-research tools so every downstream consumer
+      // (registration, diff, attach) sees them. An explicit list (even []) opts out.
+      if ((agent as any).tools === undefined) {
+        (agent as any).tools = [...DEFAULT_WEB_TOOLS];
+      }
+
       // Resolve system prompt
       await this.resolvePromptContent(agent.system_prompt);
 
