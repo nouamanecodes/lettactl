@@ -75,6 +75,13 @@ export const PROTECTED_MEMORY_TOOLS = new Set([
 export const DEFAULT_AGENT_TOOLS = ['conversation_search'];
 
 /**
+ * Web-research tools attached by default when an agent does NOT specify `tools`.
+ * An explicit `tools` list (even `[]`) opts out. On Letta Cloud these work out of
+ * the box (Letta provides Exa); self-hosted servers need EXA_API_KEY.
+ */
+export const DEFAULT_WEB_TOOLS = ['web_search', 'fetch_webpage'];
+
+/**
  * File search tools auto-added when folders are attached
  * Note: open_files excluded - it loads files into context which bloats the window
  */
@@ -106,7 +113,8 @@ export function resolveAgentToolNames(agent: {
   include_base_tools?: boolean;
   memory?: { mode?: string };
 }): string[] {
-  let tools = agent.tools ? [...agent.tools] : [];
+  // `tools` unspecified → seed the web-research defaults; an explicit list (even []) opts out.
+  let tools = agent.tools === undefined ? [...DEFAULT_WEB_TOOLS] : [...agent.tools];
 
   if (shouldIncludeBaseTools(agent)) {
     const toolSet = new Set(tools);
@@ -186,9 +194,34 @@ export function getRequiredEnvVar(toolName: string): string | undefined {
 }
 
 /**
- * Format a helpful message when a built-in tool is not available on the server
+ * Which of the web-research defaults are absent from a resolved tool list — for a
+ * "not attached, check if intended" nudge in dry-run / apply.
  */
-export function formatBuiltinToolWarning(toolName: string): string {
+export function missingWebTools(resolvedTools: string[]): string[] {
+  const set = new Set(resolvedTools);
+  return DEFAULT_WEB_TOOLS.filter((t) => !set.has(t));
+}
+
+/**
+ * True when LETTA_BASE_URL points at a self-hosted server (not letta.com). Letta
+ * Cloud bundles Exa, so web_search/fetch_webpage need no key there; self-host does.
+ */
+export function isSelfHostedLetta(baseUrl = process.env.LETTA_BASE_URL): boolean {
+  if (!baseUrl) return true;
+  try {
+    const host = new URL(baseUrl).hostname;
+    return host !== 'letta.com' && !host.endsWith('.letta.com');
+  } catch {
+    return true;
+  }
+}
+
+/**
+ * Format a helpful message when a built-in tool is not available on the server.
+ * The EXA_API_KEY guidance applies only to self-hosted servers — on Letta Cloud
+ * these tools are provided automatically, so we don't send cloud users chasing a key.
+ */
+export function formatBuiltinToolWarning(toolName: string, selfHosted = isSelfHostedLetta()): string {
   const info = BUILTIN_TOOLS[toolName];
   if (!info) return `Tool '${toolName}' not found on server.`;
 
@@ -196,9 +229,11 @@ export function formatBuiltinToolWarning(toolName: string): string {
     `Built-in tool '${toolName}' not found on server.`
   ];
 
-  if (info.requiredEnvVar) {
+  if (info.requiredEnvVar && selfHosted) {
     lines.push(`This tool requires ${info.requiredEnvVar} to be set on your Letta server.`);
     lines.push(`Restart your Letta server with: -e ${info.requiredEnvVar}=your_key`);
+  } else if (info.requiredEnvVar) {
+    lines.push(`On Letta Cloud this is provided automatically — no ${info.requiredEnvVar} needed.`);
   }
 
   lines.push(`See: ${info.docsUrl}`);

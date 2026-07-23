@@ -8,7 +8,7 @@ import { AgentManager } from '../managers/agent-manager';
 import { DiffEngine, AgentUpdateOperations } from './diff-engine';
 import { FileContentTracker } from './file-content-tracker';
 import { FleetParser } from './fleet-parser';
-import { output } from '../shared/logger';
+import { output, warn } from '../shared/logger';
 import { displayDryRunHeader, displayDryRunSummary, displayDryRunAction } from '../ux/display';
 import { shouldUseFancyUx, truncate } from '../ux/box';
 import { purple } from '../ux/constants';
@@ -23,7 +23,7 @@ import {
   type SecretApplyResult,
   type SecretPlan,
 } from '../secrets-reconciler';
-import { resolveAgentToolNames, shouldIncludeBaseTools, shouldIncludeBaseToolRules } from '../tools/builtin-tools';
+import { resolveAgentToolNames, shouldIncludeBaseTools, shouldIncludeBaseToolRules, missingWebTools } from '../tools/builtin-tools';
 
 export interface DryRunResult {
   name: string;
@@ -254,6 +254,11 @@ async function computeAgentDiff(
     firstMessage: agent.first_message || null,
     conversations: agent.conversations || null
   };
+
+  const missingWeb = missingWebTools(agentConfig.tools);
+  if (missingWeb.length) {
+    warn(`  ${agent.name}: web-research tools not attached (${missingWeb.join(', ')}). An explicit tools list omits them — confirm that's intended.`);
+  }
 
   // Check if agent exists
   const { shouldCreate, existingAgent } = await agentManager.getOrCreateAgentName(
