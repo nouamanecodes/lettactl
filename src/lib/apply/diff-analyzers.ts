@@ -42,7 +42,11 @@ export async function analyzeToolChanges(
   toolRegistry: Map<string, string>,
   _toolSourceHashes?: Record<string, string>,
   updatedTools?: Set<string>,
-  protectMemoryTools: boolean = true
+  protectMemoryTools: boolean = true,
+  // Authoritative set of tool names actually attached to the agent (from GET
+  // /v1/agents/{id}/tools). The embedded `currentTools` omits builtins, so this is what
+  // lets us tell an already-attached builtin from a genuinely missing one.
+  attachedToolNames?: Set<string>
 ): Promise<ToolDiff> {
   const currentToolNames = new Set(currentTools.map(t => t.name));
   const desiredToolSet = new Set(desiredToolNames);
@@ -63,6 +67,13 @@ export async function analyzeToolChanges(
         // Explicit builtins (web_search, fetch_webpage, run_code) require
         // attachToolToAgent and must go through toAdd.
         if (isImplicitBuiltin(toolName)) {
+          unchanged.push({ name: toolName, id: toolId });
+          continue;
+        }
+        // Already attached per the authoritative /tools listing but absent from the agent
+        // object's embedded `tools` (builtins aren't expanded there) — not a real add, so
+        // don't report a false [+] or issue a redundant re-attach.
+        if (attachedToolNames?.has(toolName)) {
           unchanged.push({ name: toolName, id: toolId });
           continue;
         }

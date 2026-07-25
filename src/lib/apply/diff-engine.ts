@@ -6,7 +6,7 @@ import { normalizeResponse } from '../shared/response-normalizer';
 import { DiffApplier } from './diff-applier';
 import { analyzeToolChanges, analyzeBlockChanges, analyzeFolderChanges, analyzeArchiveChanges } from './diff-analyzers';
 import type { AgentUpdateOperations } from '../../types/diff';
-import { log } from '../shared/logger';
+import { log, warn } from '../shared/logger';
 import { DEFAULT_CONTEXT_WINDOW, DEFAULT_REASONING } from '../shared/constants';
 
 // Re-export types for backwards compatibility
@@ -93,6 +93,19 @@ export class DiffEngine {
 
     // Use embedded tools/blocks from agent object (more reliable than paginated list endpoints)
     const currentTools = normalizeResponse((currentAgent as any).tools || []);
+    // ...EXCEPT the embedded `tools` array OMITS builtin tools (web_search, fetch_webpage,
+    // run_code) — GET /v1/agents/{id} doesn't expand them — so it can't tell an attached builtin
+    // from a missing one, producing a false [+] re-add on every apply. The /tools endpoint IS
+    // authoritative for what's actually attached; use it to suppress those false adds (add-path
+    // only — never removal, so this can't detach anything).
+    let attachedToolNames = new Set<string>();
+    try {
+      attachedToolNames = new Set(
+        normalizeResponse(await this.client.listAgentTools(existingAgent.id)).map((t: any) => t.name),
+      );
+    } catch (e) {
+      warn(`Could not list attached tools for ${existingAgent.id}; builtin tools may show a redundant re-add: ${e instanceof Error ? e.message : String(e)}`);
+    }
     const currentBlocks = normalizeResponse((currentAgent as any).blocks || []);
     const currentFolders = normalizeResponse(currentFoldersResponse);
     const currentArchives = normalizeResponse(currentArchivesResponse);
@@ -280,7 +293,8 @@ export class DiffEngine {
       toolRegistry,
       desiredConfig.toolSourceHashes || {},
       updatedTools,
-      desiredConfig.includeBaseTools !== false
+      desiredConfig.includeBaseTools !== false,
+      attachedToolNames
     );
     operations.operationCount += operations.tools.toAdd.length + operations.tools.toRemove.length + operations.tools.toUpdate.length;
 
