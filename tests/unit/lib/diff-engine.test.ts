@@ -77,6 +77,36 @@ describe('DiffEngine', () => {
         { name: 'archival_memory_insert', id: 'builtin-id-1' }
       ]);
     });
+
+    it('does not re-add an explicit builtin already attached per the /tools listing', async () => {
+      // The embedded agent.tools omits builtins, so currentTools is empty even though
+      // web_search IS attached. attachedToolNames (from GET /v1/agents/{id}/tools) is
+      // authoritative and must suppress the false re-add.
+      const result = await analyzeToolChanges(
+        [],
+        ['web_search'],
+        new Map([['web_search', 'builtin-id-2']]),
+        {},
+        undefined,
+        true,
+        new Set(['web_search'])
+      );
+      expect(result.toAdd).toEqual([]);
+      expect(result.unchanged).toEqual([{ name: 'web_search', id: 'builtin-id-2' }]);
+    });
+
+    it('still adds an explicit builtin that is genuinely not attached', async () => {
+      const result = await analyzeToolChanges(
+        [],
+        ['web_search'],
+        new Map([['web_search', 'builtin-id-2']]),
+        {},
+        undefined,
+        true,
+        new Set() // nothing attached
+      );
+      expect(result.toAdd).toEqual([{ name: 'web_search', id: 'builtin-id-2' }]);
+    });
   });
 
   describe('analyzeBlockChanges', () => {
