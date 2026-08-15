@@ -40,6 +40,10 @@ export interface ApplyOptions {
    *  re-add each SKILL.md, then agent-recompile). Content- and conversation-
    *  preserving. See --reproject-skills. */
   reprojectSkills?: boolean;
+  /** Terminate each updated agent's Letta Cloud sandbox after apply, so the next
+   *  turn re-provisions fresh from current state.git. Cures the warm-sandbox skill
+   *  freeze; opt-in since sandboxes double as the agent's temp storage. */
+  restartSandbox?: boolean;
 }
 
 export interface DeployResult {
