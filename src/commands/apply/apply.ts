@@ -732,6 +732,27 @@ export async function applyCommand(options: ApplyOptions, command: any): Promise
       }
     }
 
+    // Post-apply sandbox restart: terminate each updated agent's Letta Cloud
+    // sandbox so its next turn re-provisions fresh from current state.git. Cures
+    // the warm-sandbox freeze (a running sandbox keeps serving stale skills after
+    // a reproject). Non-destructive — conversation state lives in Letta Cloud.
+    if (options.restartSandbox && updated.length > 0) {
+      const restartAgents = updated
+        .filter(name => appliedAgents.has(name))
+        .map(name => ({ id: appliedAgents.get(name)!.id, name: appliedAgents.get(name)!.resolvedName }));
+      if (restartAgents.length > 0) {
+        log(`\nRestarting sandboxes for ${restartAgents.length} updated agent(s) (fresh re-provision on next turn)...`);
+        for (const agent of restartAgents) {
+          try {
+            await client.terminateSandbox(agent.id);
+            log(`  Sandbox terminated for ${agent.name}`);
+          } catch (err: any) {
+            warn(`  Failed to terminate sandbox for ${agent.name}: ${err.message}`);
+          }
+        }
+      }
+    }
+
     // Post-apply recalibration: send calibration message to updated agents
     if (options.recalibrate && updated.length > 0) {
       // Collect agents that had changes applied

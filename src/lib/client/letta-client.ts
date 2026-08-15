@@ -111,6 +111,23 @@ export class LettaClientWrapper {
     return null;
   }
 
+  /** Terminate an agent's Letta Cloud sandbox. The next turn re-provisions a
+   *  fresh one from current state.git — the cure for a warm sandbox that keeps
+   *  serving stale skills after a reproject. Non-destructive: conversation state
+   *  lives in Letta Cloud, not the sandbox. 404 = no live sandbox (already cold). */
+  async terminateSandbox(agentId: string) {
+    const baseUrl = process.env.LETTA_BASE_URL;
+    const response = await fetch(`${baseUrl}/v1/agents/${agentId}/sandboxes`, {
+      method: 'DELETE',
+      headers: this.getAuthHeaders(),
+    });
+    if (!response.ok && response.status !== 404) {
+      const body = await response.text().catch(() => '');
+      throw new Error(`Failed to terminate sandbox for "${agentId}" (HTTP ${response.status}): ${body || response.statusText}`);
+    }
+    return null;
+  }
+
   async refreshProvider(providerId: string) {
     const baseUrl = process.env.LETTA_BASE_URL;
     const response = await fetch(`${baseUrl}/v1/providers/${providerId}/refresh`, {

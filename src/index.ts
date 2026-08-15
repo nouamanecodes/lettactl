@@ -132,6 +132,7 @@ program
   .option('--cleanup', 'remove canary agents (use with --canary)')
   .option('--skip-recompile', 'skip automatic conversation recompilation after block changes')
   .option('--reproject-skills', 'force re-render of skill blocks on running git-memory agents (detach + re-add current skill content, then agent-level recompile). Fixes Letta Cloud not re-projecting skills/*/SKILL.md updates without recreation. Content- and conversation-preserving.')
+  .option('--restart-sandbox', 'terminate each updated agent\'s Letta Cloud sandbox after apply, so its next turn re-provisions fresh from current state.git. Cures the warm-sandbox freeze where a running sandbox keeps serving stale skills after a reproject. Non-destructive (conversation state lives in Letta Cloud); opt-in since sandboxes double as the agent\'s temp storage. Pair with --reproject-skills.')
   .option('--fresh-context', 'reset message buffer for agents that had changes (agent reads blocks fresh)')
   .option('--fresh-context-tags <tags>', 'filter context reset to agents matching tags (comma-separated, AND logic)')
   .option('--fresh-context-match <pattern>', 'filter context reset to agents matching glob pattern')
